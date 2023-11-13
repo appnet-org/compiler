@@ -5,6 +5,8 @@ import os
 import subprocess
 from typing import List
 
+from compiler.graph.logger import BACKEND_LOG
+
 
 def error_handling(res, msg):
     """Output the given error message and the stderr contents if the subprocess exits abnormally.
@@ -13,7 +15,9 @@ def error_handling(res, msg):
         res (CompletedProcess[bytes]): the returned object from subproces.run().
         msg: error message printed before the stderr contents.
     """
-    assert res.returncode == 0, f"{msg}\nError msg: {res.stderr.decode('utf-8')}"
+    if res.returncode != 0:
+        BACKEND_LOG.error(f"{msg}\nError msg: {res.stderr.decode('utf-8')}")
+        raise Exception
 
 
 def execute_remote_host(host: str, cmd: List[str]) -> str:
@@ -28,7 +32,7 @@ def execute_remote_host(host: str, cmd: List[str]) -> str:
     """
     if os.getenv("DRY_RUN") == "1":
         return "xxx"
-    print(f"Executing command {' '.join(cmd)} on host {host}...")
+    BACKEND_LOG.debug(f"Executing command {' '.join(cmd)} on host {host}...")
     res = subprocess.run(["ssh", host] + cmd, capture_output=True)
     error_handling(res, f"Error when executing command")
     return res.stdout.decode("utf-8")
@@ -45,7 +49,7 @@ def execute_remote_container(service: str, host: str, cmd: List[str]) -> str:
     Returns:
         The output of the command, or "xxx"if "--dry_run" is provided.
     """
-    print(f"Executing command {' '.join(cmd)} in hotel_{service.lower()}...")
+    BACKEND_LOG.debug(f"Executing command {' '.join(cmd)} in hotel_{service.lower()}...")
     if os.getenv("DRY_RUN") == "1":
         return "xxx"
     res = subprocess.run(
@@ -65,7 +69,7 @@ def copy_remote_container(service: str, host: str, local_path: str, remote_path:
         local_path: Path to the local file/directory.
         remote_path: The target path in the remote container.
     """
-    print(f"Copy file {local_path} to hotel_{service.lower()}")
+    BACKEND_LOG.debug(f"Copy file {local_path} to hotel_{service.lower()}")
     if os.getenv("DRY_RUN") == "1":
         return
     filename = local_path.split("/")[-1]
