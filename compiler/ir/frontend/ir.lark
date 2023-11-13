@@ -2,7 +2,7 @@ start: definition procedure procedure procedure
 
 definition: "internal" "{" declaration* "}"
 
-declaration: identifier ":" type_ 
+declaration: identifier ":" type_
 
 identifier: CNAME
 
@@ -12,7 +12,7 @@ type_: single_type
 
 single_type: CNAME
 
-procedure: "fn" name parameters body 
+procedure: "fn" name parameters body
 
 name: CNAME
 
@@ -34,7 +34,7 @@ match: "match" "(" expr ")" "{" action* "};"
 
 action: pattern "=>" "{" statement* "}"
 
-pattern: const 
+pattern: const
         | "Some" "(" (identifier | err) ")" -> some_pattern
 
 
@@ -42,7 +42,7 @@ expr: identifier | method | func | const | expr op expr | "(" expr ")"
 
 method: identifier "." (get | set_ | delete | len_ | size)
 
-func: identifier arguments 
+func: identifier arguments
 
 arguments: "(" (expr | (expr ","))*  ")"
 
@@ -54,7 +54,7 @@ delete: "delete" "(" expr ")"
 len_: "len()"
 size: "size()"
 
-op: "+" -> op_add 
+op: "+" -> op_add
        | "-" -> op_sub
        | "*" -> op_mul
        | "&&" -> op_land
@@ -68,7 +68,7 @@ op: "+" -> op_add
 
 quoted_string: /'[^']*'/
 
-err: "err" "(" (quoted_string | CNAME) ")" 
+err: "err" "(" (quoted_string | CNAME) ")"
 
 %import common.SIGNED_NUMBER -> NUMBER
 %import common.WS

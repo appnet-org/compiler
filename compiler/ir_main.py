@@ -1,28 +1,29 @@
-from compiler.ir.frontend import IRCompiler, Printer
-from compiler.ir.props.flow import FlowGraph
-from typing import Dict
 import argparse
 import os
 import pathlib
 import re
 import sys
 from pprint import pprint
+from typing import Dict
+
+from compiler.ir.frontend import IRCompiler, Printer
+from compiler.ir.props.flow import FlowGraph
+
 
 def compile_element(name: str, verbose: bool = False) -> Dict:
     compiler = IRCompiler()
     printer = Printer()
-    
+
     with open(f"../elements/ir/{engine}.adn") as f:
         spec = f.read()
         ir = compiler.compile(spec)
         p = ir.accept(printer, None)
         if verbose:
             print(p)
-        
-        
+
         req = FlowGraph().analyze(ir.req, verbose)
         resp = FlowGraph().analyze(ir.resp, verbose)
-        
+
         yaml = "request:\n" + req.to_yaml() + "response:\n" + resp.to_yaml()
         if verbose:
             print(yaml)
@@ -36,12 +37,13 @@ def compile_element(name: str, verbose: bool = False) -> Dict:
                 "read": resp.read,
                 "write": resp.write,
                 "drop": resp.drop,
-            }
+            },
         }
-        
+
+
 if __name__ == "__main__":
-    
-        # Parse command line arguments
+
+    # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-e", "--engine", type=str, help="(Engine_name ',') *", required=True
@@ -60,9 +62,6 @@ if __name__ == "__main__":
     # )
     args = parser.parse_args()
     engine = args.engine
-    verbose = args.verbose  
-    
+    verbose = args.verbose
+
     ret = compile_element(engine, verbose)
-        
-   
-        
