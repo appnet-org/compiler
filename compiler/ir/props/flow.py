@@ -1,7 +1,7 @@
 from typing import Callable, List, Protocol, Sequence, TypeVar, Dict, Tuple, Optional
-from ir.node import *
-from ir.node import Expr, Identifier, MethodCall
-from ir.visitor import Visitor
+from compiler.ir.node import *
+from compiler.ir.node import Expr, Identifier, MethodCall
+from compiler.ir.visitor import Visitor
 
 class Property():
     def __init__(self) -> None:
@@ -19,6 +19,7 @@ class Property():
             ret += f"   - {r}\n"
         ret += "    drop: " + str(self.drop) + "\n"
         return ret
+
 
 class Edge():
     def __init__(self, u: int, v: int, w: Tuple[Expr, Expr] = []) -> None:

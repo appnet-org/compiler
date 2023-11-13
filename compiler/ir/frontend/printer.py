@@ -1,5 +1,5 @@
-from ir.visitor import Visitor
-from ir.node import *
+from compiler.ir.visitor import Visitor
+from compiler.ir.node import *
 
 class Printer(Visitor):
     def __init__(self):

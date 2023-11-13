@@ -1,9 +1,9 @@
 import re
 
-from ir.frontend.parser import IRParser
-from ir.frontend.transformer import IRTransformer
-from ir.frontend.printer import Printer
-from ir.node import Program
+from compiler.ir.frontend.parser import IRParser
+from compiler.ir.frontend.transformer import IRTransformer
+from compiler.ir.frontend.printer import Printer
+from compiler.ir.node import Program
 
 class IRCompiler:
     def __init__(self):

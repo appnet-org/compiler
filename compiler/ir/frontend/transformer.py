@@ -1,5 +1,5 @@
 from lark import Transformer
-from ir.node import *
+from compiler.ir.node import *
 
 class IRTransformer(Transformer):
     def __init__(self):
