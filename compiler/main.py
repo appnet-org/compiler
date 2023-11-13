@@ -4,6 +4,7 @@ import os
 from compiler.graph import graph_base_dir
 from compiler.graph.backend import scriptgen
 from compiler.graph.frontend import GCParser
+from compiler.graph.logger import IR_LOG, init_logging
 from compiler.graph.pseudo_element_compiler import pseudo_compile
 
 if __name__ == "__main__":
@@ -21,7 +22,9 @@ if __name__ == "__main__":
         default=os.path.join(os.getenv("HOME"), "phoenix/experimental/mrpc"),
     )
     parser.add_argument("--dry_run", action="store_true")
+    parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
+    init_logging(args.debug)
 
     if args.dry_run:
         os.environ["DRY_RUN"] = "1"
@@ -46,7 +49,7 @@ if __name__ == "__main__":
     scriptgen(graphirs, args.backend, service_pos)
 
     if args.verbose:
-        print("=======================================")
-        print("Summary:")
+        summary = "GraphIR summary:\n"
         for gir in graphirs.values():
-            print(gir)
+            summary += str(gir)
+        IR_LOG.info(summary)

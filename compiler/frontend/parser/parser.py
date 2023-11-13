@@ -1,8 +1,7 @@
 import os
 
-from lark import Lark
-
 from config import ADN_ROOT
+from lark import Lark
 
 
 class ADNParser:
