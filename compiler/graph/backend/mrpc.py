@@ -11,7 +11,7 @@ from typing import Dict, List
 import tomli
 import tomli_w
 
-from compiler.graph import graph_base_dir
+from compiler import graph_base_dir
 from compiler.graph.backend.utils import copy_remote_container, execute_remote_container
 from compiler.graph.ir import GraphIR
 from compiler.graph.ir.element import AbsElement
