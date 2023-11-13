@@ -4,7 +4,7 @@ import os
 from compiler.graph import graph_base_dir
 from compiler.graph.backend import scriptgen
 from compiler.graph.frontend import GCParser
-from compiler.graph.logger import init_logging, IR_LOG
+from compiler.graph.logger import IR_LOG, init_logging
 from compiler.graph.pseudo_element_compiler import pseudo_compile
 
 if __name__ == "__main__":

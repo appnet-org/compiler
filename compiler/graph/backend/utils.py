@@ -49,7 +49,9 @@ def execute_remote_container(service: str, host: str, cmd: List[str]) -> str:
     Returns:
         The output of the command, or "xxx"if "--dry_run" is provided.
     """
-    BACKEND_LOG.debug(f"Executing command {' '.join(cmd)} in hotel_{service.lower()}...")
+    BACKEND_LOG.debug(
+        f"Executing command {' '.join(cmd)} in hotel_{service.lower()}..."
+    )
     if os.getenv("DRY_RUN") == "1":
         return "xxx"
     res = subprocess.run(
