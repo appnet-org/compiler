@@ -2,9 +2,9 @@
 
 ## Preparations
 
-> Please make sure that you clone the adn repository under `$HOME`.
+> Please make sure that you clone the adn-compiler repository under `$HOME`.
 > ```bash
-> git clone https://github.com/app-defined-networks ~/app-defined-networks
+> git clone https://github.com/adn-compiler ~/adn-compiler
 > ```
 
 Clone the multithreaded version of phoenix repository at `$HOME`.
@@ -16,16 +16,16 @@ git clone https://github.com/kristoff-starling/phoenix --recursive -b multi ~/ph
 Install necessary dependencies and set environment variables.
 
 ```bash
-source ~/app-defined-networks/compiler/install.sh
+source ~/adn-compiler/install.sh
 ```
 
 ## Usage
 
 ```bash
-python3 ~/app_defined_networks/compiler/main.py [--verbose] [--pseudo_element] [--spec path_to_spec] [--backend BACKEND] [--dry_run]
+python3 ~/adn-compiler/compiler/main.py [--verbose] [--pseudo_element] [--spec path_to_spec] [--backend BACKEND] [--dry_run]
 
 # An example
-python3 ~/app-defined-networks/compiler/main.py --verbose --pseudo_element --spec ~/app-defined-networks/compiler/graph/examples/demo.yml --backend mrpc --dry_run
+python3 ~/adn-compiler/compiler/main.py --verbose --pseudo_element --spec ~/adn-compiler/compiler/graph/examples/demo.yml --backend mrpc --dry_run
 ```
 * `--verbose`: if used, request graphs (i.e., element chains) on each edge will be printed on the terminal.
 * `--pseudo_element`: use the pseudo element compiler provided by the graph compiler, which reads element properties in `element/property/` and copy existing implementations from the phoenix local repository.
@@ -61,8 +61,9 @@ docker pull kristoffstarling/hotel-service:multi
 After running the compiler, use `attach_all.sh` and `detach_all.sh` to attach/detach elements.
 
 ```bash
-chmod +x graph/attach_all.sh
-chmod +x graph/detach_all.sh
+# in compiler/graph/gen
+chmod +x attach_all.sh
+chmod +x detach_all.sh
 ./attach_all.sh  # attach all engines
 ./detach_all.sh  # detach all engines
 ```
