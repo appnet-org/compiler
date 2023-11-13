@@ -10,11 +10,11 @@ from compiler.ir.frontend import IRCompiler, Printer
 from compiler.ir.props.flow import FlowGraph
 
 
-def compile_element(name: str, verbose: bool = False) -> Dict:
+def compile_element(engine_name: str, verbose: bool = False) -> Dict:
     compiler = IRCompiler()
     printer = Printer()
 
-    with open(f"../elements/ir/{engine}.adn") as f:
+    with open(f"../elements/ir/{engine_name}.adn") as f:
         spec = f.read()
         ir = compiler.compile(spec)
         p = ir.accept(printer, None)
