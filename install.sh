@@ -8,9 +8,13 @@ pip install lark pre-commit tomli tomli_w colorlog
 
 
 # Set up env variable
-echo "export ADN_COMPILER_DIR=$PWD" >> ~/.bashrc
-echo "export PYTHONPATH=$PYTHONPATH:$ADN_COMPILER_DIR:$ADN_COMPILER_DIR/compiler" >> ~/.bashrc
-echo "export PHOENIX_DIR="$HOME/phoenix"" >> ~/.bashrc
-. ~/.bashrc
+SHELL_NAME=$(ps -o fname --no-headers $$)
+if [ $SHELL_NAME = 'bash' ]
+then
+    ADN_COMPILER_DIR=$(dirname $(realpath $BASH_SOURCE))
+else
+    ADN_COMPILER_DIR=$(dirname $(realpath $0))
+fi
+export PYTHONPATH=$PYTHONPATH:$ADN_COMPILER_DIR:$ADN_COMPILER_DIR/compiler
 
 set +e
