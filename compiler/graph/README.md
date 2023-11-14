@@ -13,11 +13,11 @@ Clone the multithreaded version of phoenix repository at `$HOME`.
 git clone https://github.com/kristoff-starling/phoenix --recursive -b multi ~/phoenix
 ```
 
-Install necessary dependencies and set environment variables.
+<!-- Install necessary dependencies and set environment variables.
 
 ```bash
 source ~/adn-compiler/install.sh
-```
+``` -->
 
 ## Usage
 
