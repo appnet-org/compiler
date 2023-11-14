@@ -16,5 +16,6 @@ else
     ADN_COMPILER_DIR=$(dirname $(realpath $0))
 fi
 export PYTHONPATH=$PYTHONPATH:$ADN_COMPILER_DIR:$ADN_COMPILER_DIR/compiler
+export PHOENIX_DIR="$HOME/phoenix"
 
 set +e
