@@ -12,6 +12,6 @@ fn req(rpc_req) {
 }
 
 fn resp(rpc_resp) {
-	log.get(log.size(), rpc_resp.get('payload'));
+	log.set(log.size(), rpc_resp.get('payload'));
 	send(rpc_resp, APP);
 }

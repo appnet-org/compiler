@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Callable, List, Protocol, Sequence, TypeVar
 
-from ir.node import *
+from compiler.ir.node import *
 
 
 def accept(visitor: Visitor, ctx) -> Callable:

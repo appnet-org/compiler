@@ -5,8 +5,9 @@ from typing import Any, Dict, List
 
 import yaml
 
-from compiler.graph import adn_base_dir
+from compiler import compiler_base_dir
 from compiler.graph.pseudo_element_compiler import pseudo_gen_property
+from compiler.ir import compile_element_property
 
 global_element_id = 0
 
@@ -52,31 +53,18 @@ class AbsElement:
         Args:
             pseudo: If true, call the pseudo element compiler to generate properties.
         """
-        if pseudo:
-            self.property = pseudo_gen_property(self)
-        else:
-            self.property: Dict[str, Dict[str, Any]] = {
-                "request": dict(),
-                "response": dict(),
-            }
-            # TODO: call element compiler to generate properties
-        if pseudo:
-            # read handwritten properties
-            for spec in self.spec:
-                filename = spec.split("/")[-1].replace("sql", "yaml")
-                with open(
-                    os.path.join(adn_base_dir, "elements/property", filename), "r"
-                ) as f:
-                    current_dict = yaml.safe_load(f)
-                for t in ["request", "response"]:
-                    if current_dict[t] is not None:
-                        for p, value in current_dict[t].items():
-                            if p not in self.property[t]:
-                                self.property[t][p] = value
-                            elif type(value) == list:
-                                self.property[t][p].extend(value)
-        else:
-            pass
+        self.property = compile_element_property(self.lib_name)
+        # if pseudo:
+        #     self.property = pseudo_gen_property(self)
+        # else:
+        #     # self.property: Dict[str, Dict[str, Any]] = {
+        #     #     "request": dict(),
+        #     #     "response": dict(),
+        #     # }
+        #     self.property = compile_element_property(self.lib_name)
+        #     print(self.property)
+        #     assert 0
+        #     # TODO: call element compiler to generate properties
 
     def fuse(self, other: AbsElement):
         """Fuse another element in

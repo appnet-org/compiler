@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from compiler.graph import graph_base_dir
+from compiler import graph_base_dir
 from compiler.graph.backend import scriptgen
 from compiler.graph.frontend import GCParser
 from compiler.graph.logger import IR_LOG, init_logging
