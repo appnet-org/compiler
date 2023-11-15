@@ -3,8 +3,10 @@ import os
 import sys
 from pathlib import Path
 
+# set up $PYTHONPATH and environment variables
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
 sys.path.append(str(Path(__file__).parent.absolute()))
+os.environ["PHOENIX_DIR"] = os.path.join(os.getenv("HOME"), "phoenix")
 
 from compiler import graph_base_dir
 from compiler.graph.backend import scriptgen
