@@ -23,20 +23,22 @@ def compile_element(engine_name: str, verbose: bool = False) -> Dict:
 
         req = FlowGraph().analyze(ir.req, verbose)
         resp = FlowGraph().analyze(ir.resp, verbose)
-
-        yaml = "request:\n" + req.to_yaml() + "response:\n" + resp.to_yaml()
-        if verbose:
-            print(yaml)
+        stateful = len(ir.definition.internal) > 0
         return {
+            "stateful": stateful,
             "request": {
                 "read": req.read,
                 "write": req.write,
                 "drop": req.drop,
+                "block": req.block,
+                "copy": req.copy,
             },
             "response": {
                 "read": resp.read,
                 "write": resp.write,
                 "drop": resp.drop,
+                "block": resp.block,
+                "copy": resp.copy,
             },
         }
 
@@ -65,3 +67,4 @@ if __name__ == "__main__":
     verbose = args.verbose
 
     ret = compile_element(engine, verbose)
+    pprint(ret)

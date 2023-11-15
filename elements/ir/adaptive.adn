@@ -27,5 +27,5 @@ fn resp(rpc_resp) {
     send_time := outstanding.get(resp.get(id));
     window := update_window(current_time() - send_time);
     outstanding.delete(resp.get(id));
-    send(resp, APP);
+    send(rpc_resp, APP);
 }
