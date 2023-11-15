@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import os
 from typing import Any, Dict, List
 
-import yaml
+from rich.panel import Panel
 
-from compiler import compiler_base_dir
 from compiler.graph.pseudo_element_compiler import pseudo_gen_property
 from compiler.ir import compile_element_property
 
@@ -65,6 +63,13 @@ class AbsElement:
         #     print(self.property)
         #     assert 0
         #     # TODO: call element compiler to generate properties
+
+    def to_rich(self, position):
+        color = "dark_green" if position == "client" else "blue"
+        return Panel(
+            self.deploy_name,
+            style=color,
+        )
 
     def fuse(self, other: AbsElement):
         """Fuse another element in

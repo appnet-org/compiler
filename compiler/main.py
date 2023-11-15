@@ -3,6 +3,9 @@ import os
 import sys
 from pathlib import Path
 
+from rich.columns import Columns
+from rich.console import Console
+
 # set up $PYTHONPATH and environment variables
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
 sys.path.append(str(Path(__file__).parent.absolute()))
@@ -13,6 +16,9 @@ from compiler.graph.backend import scriptgen
 from compiler.graph.frontend import GCParser
 from compiler.graph.logger import IR_LOG, init_logging
 from compiler.graph.pseudo_element_compiler import pseudo_compile
+
+console = Console()
+gir_summary = dict()
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -39,6 +45,12 @@ if __name__ == "__main__":
     parser = GCParser()
     graphirs, service_pos = parser.parse(args.spec_path)
 
+    if args.verbose:
+        for gir in graphirs.values():
+            if gir.name not in gir_summary:
+                gir_summary[gir.name] = {"pre-optimized": [], "post-optimized": []}
+            gir_summary[gir.name]["pre-optimized"] = gir.to_rich()
+
     compiled_spec = set()
     for gir in graphirs.values():
         gir.optimize(args.pseudo_element)
@@ -56,7 +68,11 @@ if __name__ == "__main__":
     scriptgen(graphirs, args.backend, service_pos)
 
     if args.verbose:
-        summary = "GraphIR summary:\n"
+        IR_LOG.info("GraphIR summary:")
         for gir in graphirs.values():
-            summary += str(gir)
-        IR_LOG.info(summary)
+            gir_summary[gir.name]["post-optimized"] = gir.to_rich()
+        for gname, summary in gir_summary.items():
+            console.print()
+            console.print(gname, style="underline bold italic")
+            console.print(Columns(["\n :snail: :\n"] + summary["pre-optimized"]))
+            console.print(Columns(["\n :rocket: :\n"] + summary["post-optimized"]))
