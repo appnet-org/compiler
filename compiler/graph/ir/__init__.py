@@ -10,6 +10,14 @@ from compiler.graph.ir.element import AbsElement
 
 
 def make_service_rich(name: str) -> Panel:
+    """Generate rich.panel objects of a service for visualization.
+
+    Args:
+        name: Service name.
+
+    Returns:
+        A rich.panel object.
+    """
     return Panel(
         name,
         box=box.SQUARE,
@@ -102,6 +110,11 @@ class GraphIR:
         return s
 
     def to_rich(self) -> List[Union[Panel, str]]:
+        """Generate rich.panel objects for visualization.
+
+        Returns:
+            A list of rich.panel objects/strings.
+        """
         panel_list = [make_service_rich(self.client), "\n~\n"]
         for i, e in enumerate(self.elements["req_client"]):
             if i != 0:
