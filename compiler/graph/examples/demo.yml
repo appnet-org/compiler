@@ -23,4 +23,3 @@ edge:
     -   name: "HotelAcl"
         spec: "elements/hotel-acl.sql"
         config: []
-        position: "C/S"

@@ -7,6 +7,7 @@ from rich import box
 from rich.panel import Panel
 
 from compiler.graph.ir.element import AbsElement
+from compiler.graph.ir.optimization import reorder
 
 
 def make_service_rich(name: str) -> Panel:
@@ -52,6 +53,8 @@ class GraphIR:
         # - balanced #element on c/s sides
         c_id, s_id = 0, len(chain)
         for i, element in enumerate(chain):
+            if "position" not in element:
+                element["position"] = "C/S"
             if element["position"] == "C":
                 c_id = max(c_id, i)
             elif element["position"] == "S":
@@ -138,4 +141,5 @@ class GraphIR:
         for chain_name in ["req_client", "res_client", "req_server", "res_server"]:
             for element in self.elements[chain_name]:
                 element.gen_property(pseudo)
+        chain = reorder(self.elements["req_client"] + self.elements["req_server"])
         # TODO: optimization algorithm
