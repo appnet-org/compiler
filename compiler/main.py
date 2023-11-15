@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-s", "--spec_path", help="User specification file", type=str, required=True
     )
-    parser.add_argument("-v","--verbose", help="Print Debug info", action="store_true")
+    parser.add_argument("-v", "--verbose", help="Print Debug info", action="store_true")
     parser.add_argument("--pseudo_element", action="store_true")
     parser.add_argument("-b", "--backend", type=str, required=True, choices=["mrpc"])
     parser.add_argument(
