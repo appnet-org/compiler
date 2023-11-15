@@ -2,8 +2,16 @@ from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, Ty
 
 from compiler.ir.node import *
 from compiler.ir.node import Expr, Identifier, MethodCall
+from compiler.ir.props.analyzer import (
+    AliasAnalyzer,
+    CopyAnalyzer,
+    DropAnalyzer,
+    ReadAnalyzer,
+    StateAnalyzer,
+    WriteAnalyzer,
+)
 from compiler.ir.visitor import Visitor
-from compiler.ir.props.analyzer import AliasAnalyzer, DropAnalyzer, ReadAnalyzer, WriteAnalyzer, CopyAnalyzer, StateAnalyzer
+
 
 class Property:
     def __init__(self) -> None:
@@ -12,7 +20,7 @@ class Property:
         self.read: List[str] = []
         self.write: List[str] = []
         self.copy: bool = False
-        
+
 
 class Edge:
     def __init__(self, u: int, v: int, w: Tuple[Expr, Expr] = []) -> None:
@@ -171,22 +179,21 @@ class FlowGraph:
             da = DropAnalyzer(targets, direction)
             no_drop = da.visitBlock(path_nodes, None)
             random_drop = da.random_included and not no_drop
-            
+
             if random_drop:
                 report += "Random Drop(Block)\n"
                 ret.block = True
             else:
                 report += "No Drop" if no_drop else "Possible Drop"
                 ret.drop = ret.drop or (not no_drop)
-                report += "\n" 
-            
+                report += "\n"
+
             ca = CopyAnalyzer(targets)
             copy = ca.visitBlock(path_nodes, None)
             ret.copy = ret.copy or (copy > 1)
             report += f"Copy #={copy}" if copy > 1 else "No Copy"
             report += "\n"
-            
+
         if verbose:
             print(report)
         return ret
-

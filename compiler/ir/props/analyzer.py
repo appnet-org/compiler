@@ -1,24 +1,25 @@
-
 from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, TypeVar
 
 from compiler.ir.node import *
 from compiler.ir.node import Expr, Identifier, Internal, MethodCall, Procedure
 from compiler.ir.visitor import Visitor
 
+
 class StateAnalyzer(Visitor):
     def __init__():
         pass
-    
+
     def visitNode(self, ctx):
         raise Exception("Should be unreachable!")
-    
+
     def visitInternal(self, node: Internal, ctx) -> int:
         return len(node.internal) > 0
-    
+
+
 class CopyAnalyzer(Visitor):
     def __init__(self, targets: List[str]):
         self.targets = targets
-        self.send_num = 0 
+        self.send_num = 0
 
     def visitBlock(self, node: List[Statement], ctx) -> int:
         for s in node:
@@ -57,7 +58,7 @@ class CopyAnalyzer(Visitor):
 
     def visitPattern(self, node: Pattern, ctx):
         pass
-    
+
     def visitExpr(self, node: Expr, ctx):
         node.lhs.accept(self, ctx)
         node.rhs.accept(self, ctx)
@@ -442,7 +443,7 @@ class ExprResolver(Visitor):
         return node.lhs.accept(self, ctx) + str(node.op) + node.rhs.accept(self, ctx)
 
     def visitError(self, node: Error, ctx) -> str:
-        return "ERROR" 
+        return "ERROR"
 
     def visitMethodCall(self, node: MethodCall, ctx):
         return (

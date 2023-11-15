@@ -25,7 +25,7 @@ def compile_element(engine_name: str, verbose: bool = False) -> Dict:
         resp = FlowGraph().analyze(ir.resp, verbose)
         stateful = len(ir.definition.internal) > 0
         return {
-            "stateful": "Yes" if stateful else "No",
+            "stateful": stateful,
             "request": {
                 "read": req.read,
                 "write": req.write,
