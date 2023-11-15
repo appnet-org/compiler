@@ -30,12 +30,14 @@ def compile_element(engine_name: str, verbose: bool = False) -> Dict:
                 "read": req.read,
                 "write": req.write,
                 "drop": req.drop,
+                "block": req.block,
                 "copy": req.copy,
             },
             "response": {
                 "read": resp.read,
                 "write": resp.write,
                 "drop": resp.drop,
+                "block": resp.block,
                 "copy": resp.copy,
             },
         }
@@ -65,4 +67,4 @@ if __name__ == "__main__":
     verbose = args.verbose
 
     ret = compile_element(engine, verbose)
-    print(ret)
+    pprint(ret)

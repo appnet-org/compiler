@@ -8,22 +8,11 @@ from compiler.ir.props.analyzer import AliasAnalyzer, DropAnalyzer, ReadAnalyzer
 class Property:
     def __init__(self) -> None:
         self.drop: bool = False
+        self.block: bool = False
         self.read: List[str] = []
         self.write: List[str] = []
         self.copy: bool = False
         
-    def to_yaml(self) -> str:
-        self.write = list(set(self.write))
-        self.read = list(set(self.read))
-        ret = "    write:\n"
-        for w in self.write:
-            ret += f"   - {w}\n"
-        ret += "    read:\n"
-        for r in self.read:
-            ret += f"   - {r}\n"
-        ret += "    drop: " + str(self.drop) + "\n"
-        return ret
-
 
 class Edge:
     def __init__(self, u: int, v: int, w: Tuple[Expr, Expr] = []) -> None:
@@ -181,10 +170,15 @@ class FlowGraph:
 
             da = DropAnalyzer(targets, direction)
             no_drop = da.visitBlock(path_nodes, None)
-            ret.drop = ret.drop or (not no_drop)
-
-            report += "No Drop" if no_drop else "Possible Drop"
-            report += "\n" 
+            random_drop = da.random_included and not no_drop
+            
+            if random_drop:
+                report += "Random Drop(Block)\n"
+                ret.block = True
+            else:
+                report += "No Drop" if no_drop else "Possible Drop"
+                ret.drop = ret.drop or (not no_drop)
+                report += "\n" 
             
             ca = CopyAnalyzer(targets)
             copy = ca.visitBlock(path_nodes, None)

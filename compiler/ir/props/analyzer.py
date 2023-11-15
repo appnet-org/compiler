@@ -268,6 +268,7 @@ class DropAnalyzer(Visitor):
         self.direction = direction
         self.targets = targets
         self.target_fields: Dict[str, List[str]] = {}
+        self.random_included = False
         for t in targets:
             self.target_fields[t] = []
 
@@ -317,6 +318,8 @@ class DropAnalyzer(Visitor):
         return False
 
     def visitFuncCall(self, node: FuncCall, ctx) -> bool:
+        if node.name.name == "randomf" or node.name.name == "randomi":
+            self.random_included = True
         return False
 
     def visitMethodCall(self, node: MethodCall, ctx) -> bool:
