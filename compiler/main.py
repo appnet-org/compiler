@@ -1,5 +1,10 @@
 import argparse
 import os
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent.absolute()))
+sys.path.append(str(Path(__file__).parent.absolute()))
 
 from compiler import graph_base_dir
 from compiler.graph.backend import scriptgen
