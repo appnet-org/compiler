@@ -1,9 +1,29 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Dict, List
+from typing import Dict, List, Union
+
+from rich import box
+from rich.panel import Panel
 
 from compiler.graph.ir.element import AbsElement
+
+
+def make_service_rich(name: str) -> Panel:
+    """Generate rich.panel objects of a service for visualization.
+
+    Args:
+        name: Service name.
+
+    Returns:
+        A rich.panel object.
+    """
+    return Panel(
+        name,
+        box=box.SQUARE,
+        border_style="bold",
+        style="bold",
+    )
 
 
 class GraphIR:
@@ -78,12 +98,36 @@ class GraphIR:
             self.elements["res_client"].append(AbsElement(edict2))
             self.elements["res_server"].insert(0, AbsElement(edict1))
 
+    @property
+    def name(self) -> str:
+        return f"{self.client}->{self.server}"
+
     def __str__(self):
         s = f"{self.client}->{self.server} request GraphIR:\n"
         s += " -> ".join(map(str, self.elements["req_client"]))
         s += " (network) "
         s += " -> ".join(map(str, self.elements["req_server"]))
         return s
+
+    def to_rich(self) -> List[Union[Panel, str]]:
+        """Generate rich.panel objects for visualization.
+
+        Returns:
+            A list of rich.panel objects/strings.
+        """
+        panel_list = [make_service_rich(self.client), "\n~\n"]
+        for i, e in enumerate(self.elements["req_client"]):
+            if i != 0:
+                panel_list.append("\n→\n")
+            panel_list.append(e.to_rich("client"))
+        panel_list.append("\n(network)\n")
+        for i, e in enumerate(self.elements["req_server"]):
+            if i != 0:
+                panel_list.append("\n→\n")
+            panel_list.append(e.to_rich("server"))
+        panel_list.append("\n~\n")
+        panel_list.append(make_service_rich(self.server))
+        return panel_list
 
     def optimize(self, pseudo: bool):
         """Run optimization algorithm on the graphir.
