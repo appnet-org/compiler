@@ -15,6 +15,9 @@ class RustType():
     def is_basic(self) -> bool:
         return False
     
+    def is_con(self) -> bool:
+        return False
+    
     def gen_init(self) -> str:
         raise NotImplementedError
 
@@ -34,7 +37,7 @@ class RustBasicType(RustType):
             return self.init_val
 
 
-class RustContainerType(RustType):
+class RustVecType(RustType):
     def __init__(self, con: str, elem: RustType) -> None:
         super().__init__(f"{con}<{elem.name}>")
         self.con = con
@@ -43,51 +46,32 @@ class RustContainerType(RustType):
     def gen_init(self) -> str:
         return f"{self.con}::new()"
 
+    def gen_get(self, args: List[str]) -> str:
+        assert(len(args) == 1)
+        return f".[{args[0]}]"
 
-class RustStructType(RustType):
+class RustMapType(RustType):
+    def __init__(self, con: str, key: RustType, value: RustType) -> None:
+        super().__init__(f"{con}<{key.name}, {value.name}>")
+        self.con = con
+        self.key = key
+        self.value = value
+
+    def gen_init(self) -> str:
+        return f"{self.con}::new()"
+    
+    def gen_get(self, args: List[str]) -> str:
+        assert(len(args) == 1)
+        return f".[{args[0]}]"
+
+class RustRpcType(RustType):
     def __init__(self, name: str, fields: List[(str, RustType)]):
         super().__init__(name)
         self.fields = fields
-
-    def __str__(self) -> str:
-        return (
-            f"struct {self.name} {{\n"
-            + "\n".join([f"    {i}: {j}," for i, j in self.fields])
-            + "\n}"
-        )
-
-    def __iter__(self):
-        return iter(self.fields)
-
-    # all pub by default
-    def gen_definition(self) -> str:
-        return (
-            f"pub struct {self.name} {{\n"
-            + "\n".join([f"    pub {i}: {j.name}," for i, j in self.fields])
-            + "\n}"
-        )
-
-    def gen_copy_constructor(self) -> str:
-        return (
-            f"impl {self.name} {{\n"
-            + f"    pub fn new({', '.join([f'{i}: {j.name}' for i, j in self.fields])}) -> {self.name} {{\n"
-            + f"        {self.name} {{\n"
-            + "\n".join([f"            {i}: {i}," for i, j in self.fields])
-            + "\n        }\n    }\n}\n"
-        )
-
-    def gen_trait_display(self) -> str:
-        ret = (
-            f"impl fmt::Display for {self.name} {{\n"
-            + f"    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {{\n"
-        )
-        for i, j in self.fields:
-            ret += f'        write!(f, "{{}}", self.{i});\n'
-        ret += '        write!(f, "\\n")\n'
-        ret += "    }\n"
-        ret += "}\n"
-        return ret
-
+    
+    def gen_get(self, args: List[str]) -> str:
+        assert(len(args) == 1)
+        return f".{args[0]}"
 
 class RustFunctionType(RustType):
     def __init__(self, name: str, args: List[RustType], ret: RustType, definition: str):
@@ -111,14 +95,14 @@ class RustVariable():
         self,
         name: str,
         rust_type: RustType,
-        mut: bool,
+        mut: bool = True,
         init: Optional[str] = None,
     ) -> None:
         self.name = name
         self.type = rust_type
         self.mut = mut
         if init is None:
-            self.init = self.type.gen_init()
+            self.init = ""
         else:
             self.init = init
 
@@ -163,12 +147,12 @@ RustGlobalFunctions = {
 }
 
 
-tx_struct = RustStructType(
-    "RpcMessageTx",
-    [
-        ("meta_buf_ptr", RustStructType("MetaBufferPtr", [])),
-        ("addr_backend", RustBasicType("usize")),
-    ],
-)
+# tx_struct = RustStructType(
+#     "RpcMessageTx",
+#     [
+#         ("meta_buf_ptr", RustStructType("MetaBufferPtr", [])),
+#         ("addr_backend", RustBasicType("usize")),
+#     ],
+# )
 
 # rx_struct = RustStructType("RpcMessageRx", [("meta_buf_ptr", RustStructType("MetaBufferPtr", [])), ("addr_backend", RustBasicType("usize"))])

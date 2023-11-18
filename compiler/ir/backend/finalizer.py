@@ -1,52 +1,34 @@
 import os
 import sys
 from string import Formatter
-
+from typing import Dict, List
+from compiler.ir.backend.boilerplate import *
+from compiler.ir.backend.rustgen import RustContext
+from compiler.ir.backend.rusttype import RustGlobalFunctions
+from compiler.ir.backend.protobuf import HelloProto
 from compiler.config import COMPILER_ROOT
-
-
+from pprint import pprint
 # name: table_rpc_events
 # type: Vec<struct_rpc_events>
 # init: table_rpc_events = Vec::new()
-#
-def fill_internal_states(definition, declaration, name, type, init, process, proto):
-    assert len(name) == len(type)
-    proto_fc = proto[0].upper() + proto[1:]
-    return {
-        "ProtoDefinition": proto,
-        # todo! field name should be configurable
-        # todo! multiple type should be supported
-        "ProtoGetters": f"""
-fn {proto}_request_name_readonly(req: &{proto}::{proto_fc}Request) -> String {{
-    let buf = &req.name as &[u8];
-    String::from_utf8_lossy(buf).to_string().clone()
-}}
-        """,
-        "ProtoRpcRequestType": f"{proto}::{proto_fc}Request",
-        "ProtoRpcResponseType": f"{proto}::{proto_fc}Response",
-        "InternalStatesDefinition": "".join(definition),
-        "InternalStatesDeclaration": "".join(
-            [f"use crate::engine::{i};\n" for i in declaration]
-        ),
-        "InternalStatesOnBuild": "".join(
-            [f"let mut {i};\n" if "=" in i else f"{i};\n" for i in init]
-        ),
-        "InternalStatesOnRestore": "".join(
-            [f"let mut {i};\n" if "=" in i else f"{i};\n" for i in init]
-        ),
-        "InternalStatesOnDecompose": "",
-        "InternalStatesInConstructor": "".join([f"{i},\n" for i in name]),
-        "InternalStatesInStructDefinition": "".join(
-            [f"pub(crate) {i[0]}:{i[1]},\n" for i in zip(name, type)]
-        ),
-        "RpcRequest": "".join(process),
-        "RpcResponse": r"""// todo """,
-    }
 
+def gen_global_function_includes() -> str:
+    prefix = "use crate::engine::{"
+    middle = ""
+    for k, v in RustGlobalFunctions:
+        name = v.name
+        middle += f"{name},"
+    suffix = "};"
+    return prefix + middle + suffix
 
-def retrieve_info(ctx: Context):
-    ctx.init_code = ctx.init_code[::-1]
-    ctx.process_code = ctx.process_code[::-1]
+def gen_def() -> List[str]:
+    ret = []
+    for _, func in RustGlobalFunctions.items():
+        ret.append(func.gen_def())
+    ret.append(HelloProto.gen_readonly_def())
+    return ret
+
+def retrieve_info(ctx: RustContext):
     proto = "hello"
     proto_fc = "Hello"
     info = {
@@ -57,8 +39,8 @@ def retrieve_info(ctx: Context):
         """,
         "ProtoRpcRequestType": f"{proto}::{proto_fc}Request",
         "ProtoRpcResponseType": f"{proto}::{proto_fc}Response",
-        "GlobalFunctionInclude": ctx.gen_global_function_includes(),
-        "InternalStatesDefinition": "\n".join(ctx.def_code),
+        "GlobalFunctionInclude": gen_global_function_includes(),
+        "InternalStatesDefinition": gen_def(),
         "InternalStatesDeclaration": "\n".join(
             [f"use crate::engine::{i};" for i in ctx.gen_struct_names()]
         ),
@@ -73,67 +55,13 @@ def retrieve_info(ctx: Context):
         "InternalStatesInStructDefinition": "\n".join(
             [f"pub(crate) {i}," for i in ctx.gen_struct_declaration()]
         ),
-        "RpcRequest": "".join(ctx.process_code),
-        "RpcResponse": r"""// todo """,
+        "RpcRequest": "".join(ctx.req_code),
+        "RpcResponse": "".join(ctx.resp_code),
     }
     # for k,v in info.items():
     #     print(k)
     #     print(v)
     return info
-
-
-def parse_intermediate_code(name):
-    ctx = {
-        "definition": [],
-        "declaration": [],
-        "internal": [],
-        "init": [],
-        "name": [],
-        "type": [],
-        "process": [],
-    }
-    print("Generating code for " + name)
-    with open(os.path.join(COMPILER_ROOT, f"generated/{name}.rs")) as f:
-        current = "process"
-        for i in f.readlines():
-            if i.startswith("///@@"):
-                j = i.split()
-                if j[1] == "BEG_OF":
-                    if j[2] == "declaration":
-                        current = "declaration"
-                    elif j[2] == "internal":
-                        print("Warning: No Internal Should Be Generated")
-                        current = "internal"
-                    elif j[2] == "init":
-                        current = "init"
-                    elif j[2] == "process":
-                        current = "process"
-                    elif j[2] == "type":
-                        current = "type"
-                    elif j[2] == "name":
-                        current = "name"
-                    elif j[2] == "definition":
-                        current = "definition"
-                elif j[1] == "END_OF":
-                    assert j[2] == current
-                    current = "process"
-            else:
-                if current is not None:
-                    if i.strip() != "":
-                        ctx[current].append(i.strip("\n"))
-
-    ctx = fill_internal_states(
-        ctx["definition"],
-        ctx["declaration"],
-        ctx["name"],
-        ctx["type"],
-        ctx["init"],
-        ctx["process"],
-        "hello",
-    )
-
-    return ctx
-
 
 def gen_template(
     ctx,
@@ -210,12 +138,8 @@ def gen_attach_detach(name: str, ctx):
         f.write(detach_toml.format(**ctx))
 
 
-def finalize(name: str, ctx: Context, output_dir: str):
+def finalize(name: str, ctx: RustContext, output_dir: str):
     if name == "logging":
-        # template_name = "nofile_logging"
-        # template_name_toml = "nofile-logging"
-        # template_name_first_cap = "NofileLogging"
-        # template_name_all_cap = "NOFILE_LOGGING"
         template_name = "file_logging"
         template_name_toml = "file-logging"
         template_name_first_cap = "FileLogging"
@@ -238,7 +162,6 @@ def finalize(name: str, ctx: Context, output_dir: str):
         template_name_first_cap = "".join(cap)
         template_name_all_cap = "_".join(name).upper()
 
-    # ctx.explain()
     info = retrieve_info(ctx)
     gen_template(
         info,
@@ -247,6 +170,7 @@ def finalize(name: str, ctx: Context, output_dir: str):
         template_name_first_cap,
         template_name_all_cap,
     )
+    return;
     move_template(
         output_dir,
         template_name,

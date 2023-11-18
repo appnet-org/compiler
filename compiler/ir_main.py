@@ -8,7 +8,25 @@ from typing import Dict
 
 from compiler.ir.frontend import IRCompiler, Printer
 from compiler.ir.props.flow import FlowGraph
+from compiler.ir.backend.rustgen import RustGenerator, RustContext
+from compiler.ir.backend.finalizer import finalize
 
+def gen_rust_code(engine_name: str, verbose: bool = False) -> str:
+    compiler = IRCompiler()
+    printer = Printer()
+    generator = RustGenerator()
+    ctx = RustContext()
+    
+    with open(f"../elements/ir/{engine_name}.adn") as f:
+        spec = f.read()
+        ir = compiler.compile(spec)
+        p = ir.accept(printer, None)
+        if verbose:
+            print(p)
+
+        ir.accept(generator, ctx)
+        
+        finalize(engine_name, ctx, "/home/banruo/adn-compiler/compiler/generated")
 
 def compile_element(engine_name: str, verbose: bool = False) -> Dict:
     compiler = IRCompiler()
@@ -66,5 +84,7 @@ if __name__ == "__main__":
     engine = args.engine
     verbose = args.verbose
 
-    ret = compile_element(engine, verbose)
-    pprint(ret)
+    # ret = compile_element(engine, verbose)
+    # pprint(ret)
+
+    ret = gen_rust_code(engine, verbose)
