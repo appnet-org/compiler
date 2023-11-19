@@ -19,17 +19,20 @@ def map_basic_type(name: str) -> RustType:
     else:
         print(f"unknown type: {name}")
         return RustType(name)
-    
+
+
 def proto_gen_get(rpc: str, args: List[str]) -> str:
     assert len(args) == 1
-    arg = args[0].strip("\"")
+    arg = args[0].strip('"')
     if rpc == "rpc_req":
         return f"hello_HelloRequest_{arg}_readonly(&{rpc})"
     elif rpc == "rpc_resp":
         return f"hello_HelloResponse_{arg}_readonly(&{rpc})"
 
+
 def proto_gen_set():
     raise NotImplementedError
+
 
 class RustContext:
     def __init__(self) -> None:
@@ -277,7 +280,7 @@ class RustGenerator(Visitor):
         else:
             t = var.type
             if isinstance(t, RustRpcType):
-                
+
                 args = [i.accept(ExprResolver(), None) for i in node.args]
                 match node.method:
                     case MethodType.GET:
@@ -290,7 +293,7 @@ class RustGenerator(Visitor):
                 args = [i.accept(self, ctx) for i in node.args]
                 new_arg = []
                 for i in args:
-                    if i.startswith("\""):
+                    if i.startswith('"'):
                         new_arg.append(i + ".to_string()")
                     else:
                         new_arg.append(i)
@@ -299,11 +302,16 @@ class RustGenerator(Visitor):
                     ret = node.obj.name
                 else:
                     ret = node.obj.accept(self, ctx)
+
+                print(node.method)
+
                 match node.method:
                     case MethodType.GET:
                         ret += t.gen_get(args)
                     case MethodType.SET:
                         ret += t.gen_set(args)
+                    case MethodType.SIZE:
+                        ret += t.gen_size()
                     case _:
                         raise Exception("unknown method")
 
@@ -344,7 +352,7 @@ class RustGenerator(Visitor):
             raise Exception("unknown function")
 
     def visitLiteral(self, node: Literal, ctx):
-        return node.value.replace("'", "\"")
+        return node.value.replace("'", '"')
 
     def visitError(self, node: Error, ctx) -> str:
         return """EngineRxMessage::Ack(
@@ -365,7 +373,7 @@ class ExprResolver(Visitor):
         raise Exception("Unreachable!")
 
     def visitLiteral(self, node: Literal, ctx) -> str:
-        return node.value.replace("'", "\"")
+        return node.value.replace("'", '"')
 
     def visitIdentifier(self, node: Identifier, ctx) -> str:
         return node.name
