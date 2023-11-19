@@ -22,14 +22,13 @@ class IRTransformer(Transformer):
         return Identifier(i)
 
     def type_(self, t):
-        t = t[0]
-        return t
+        return Type(t[0].name)
 
     def vec_type(self, t) -> Type:
-        return Type(f"Vec<{t[0]}>")
+        return Type(f"Vec<{t[0].name}>")
 
     def map_type(self, t) -> Type:
-        return Type(f"Map<{t[0]}, {t[1]}>")
+        return Type(f"Map<{t[0].name}, {t[1].name}>")
 
     def single_type(self, d) -> Type:
         return Type(d[0])
