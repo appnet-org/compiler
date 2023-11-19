@@ -11,7 +11,7 @@ from compiler.ir.props.flow import FlowGraph
 from compiler.ir.backend.rustgen import RustGenerator, RustContext
 from compiler.ir.backend.finalizer import finalize
 
-def gen_rust_code(engine_name: str, verbose: bool = False) -> str:
+def gen_rust_code(engine_name: str, output_dir: str, verbose: bool = False) -> str:
     compiler = IRCompiler()
     printer = Printer()
     generator = RustGenerator()
@@ -26,7 +26,7 @@ def gen_rust_code(engine_name: str, verbose: bool = False) -> str:
 
         ir.accept(generator, ctx)
         
-        finalize(engine_name, ctx, "/home/banruo/adn-compiler/compiler/generated")
+        finalize(engine_name, ctx, output_dir)
 
 def compile_element(engine_name: str, verbose: bool = False) -> Dict:
     compiler = IRCompiler()
