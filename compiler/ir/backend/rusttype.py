@@ -95,12 +95,17 @@ class RustVariable():
         self,
         name: str,
         rust_type: RustType,
+        temp: bool,
+        rpc: bool,
         mut: bool = True,
         init: Optional[str] = None,
     ) -> None:
         self.name = name
         self.type = rust_type
+        self.temp = temp
+        self.rpc = rpc
         self.mut = mut
+        
         if init is None:
             self.init = ""
         else:
@@ -136,7 +141,7 @@ RustGlobalFunctions = {
         "Gen_random_f64",
         [],
         RustBasicType("f64"),
-        "pub fn Gen_random_f64() -> f64 { rand::random::<f64>() }",
+        "pub fn Gen_random_f64(l: f64, r: f64) -> f64 { rand::random::<f64>() }",
     ),
     "min": RustFunctionType(
         "Gen_min",

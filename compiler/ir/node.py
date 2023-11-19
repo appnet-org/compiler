@@ -146,10 +146,10 @@ class Operator(EnumNode):
     DIV = 4
     EQ = 5
     NEQ = 6
-    LEQ = 7
-    GEQ = 8
-    LE = 9
-    GE = 10
+    LE = 7
+    GE = 8
+    LT = 9
+    GT = 10
     LOR = 11
     LAND = 12
     OR = 13  # bitwise

@@ -15,7 +15,7 @@ from pprint import pprint
 def gen_global_function_includes() -> str:
     prefix = "use crate::engine::{"
     middle = ""
-    for k, v in RustGlobalFunctions:
+    for (k, v) in RustGlobalFunctions.items():
         name = v.name
         middle += f"{name},"
     suffix = "};"
@@ -25,12 +25,13 @@ def gen_def() -> List[str]:
     ret = []
     for _, func in RustGlobalFunctions.items():
         ret.append(func.gen_def())
-    ret.append(HelloProto.gen_readonly_def())
+    ret = ret + HelloProto.gen_readonly_def()
     return ret
 
 def retrieve_info(ctx: RustContext):
     proto = "hello"
     proto_fc = "Hello"
+    def_code = gen_def();
     info = {
         "ProtoDefinition": proto,
         # todo! field name should be configurable
@@ -40,7 +41,7 @@ def retrieve_info(ctx: RustContext):
         "ProtoRpcRequestType": f"{proto}::{proto_fc}Request",
         "ProtoRpcResponseType": f"{proto}::{proto_fc}Response",
         "GlobalFunctionInclude": gen_global_function_includes(),
-        "InternalStatesDefinition": gen_def(),
+        "InternalStatesDefinition": "\n".join(gen_def()),
         "InternalStatesDeclaration": "\n".join(
             [f"use crate::engine::{i};" for i in ctx.gen_struct_names()]
         ),
@@ -50,13 +51,14 @@ def retrieve_info(ctx: RustContext):
         + "\n".join(ctx.init_code),
         "InternalStatesOnDecompose": "",
         "InternalStatesInConstructor": "\n".join(
-            [f"{i}," for i in ctx.gen_var_names()]
+            [f"{i}," for i in ctx.gen_internal_names()]
         ),
         "InternalStatesInStructDefinition": "\n".join(
             [f"pub(crate) {i}," for i in ctx.gen_struct_declaration()]
         ),
         "RpcRequest": "".join(ctx.req_code),
-        "RpcResponse": "".join(ctx.resp_code),
+        # !todo resp
+        "RpcResponse": ""#"".join(ctx.resp_code),
     }
     # for k,v in info.items():
     #     print(k)
@@ -94,6 +96,14 @@ def gen_template(
         f.write(api_toml.format(TemplateName=template_name_toml))
     with open("Cargo.toml.policy", "w") as f:
         f.write(policy_toml.format(TemplateName=template_name_toml))
+    
+    
+    os.system(f"rustfmt --edition 2018  ./config.rs")
+    os.system(f"rustfmt --edition 2018  ./lib.rs")
+    os.system(f"rustfmt --edition 2018  ./module.rs")
+    os.system(f"rustfmt --edition 2018  ./engine.rs")
+    os.system(f"rustfmt --edition 2018  ./proto.rs")
+    
     print("Template {} generated".format(template_name))
 
 
@@ -117,11 +127,7 @@ def move_template(
     os.system(f"mkdir -p {mrpc_plugin}/{template_name_toml}/src")
     os.system(f"cp ./Cargo.toml.policy {mrpc_plugin}/{template_name_toml}/Cargo.toml")
 
-    os.system(f"rustfmt --edition 2018  ./config.rs")
-    os.system(f"rustfmt --edition 2018  ./lib.rs")
-    os.system(f"rustfmt --edition 2018  ./module.rs")
-    os.system(f"rustfmt --edition 2018  ./engine.rs")
-    os.system(f"rustfmt --edition 2018  ./proto.rs")
+
     os.system(f"cp ./config.rs {mrpc_plugin}/{template_name_toml}/src/config.rs")
     os.system(f"cp ./lib.rs {mrpc_plugin}/{template_name_toml}/src/lib.rs")
     os.system(f"cp ./module.rs {mrpc_plugin}/{template_name_toml}/src/module.rs")
