@@ -1,13 +1,15 @@
+from typing import Dict, List, Optional
+
+from compiler.ir.backend.rusttype import *
 from compiler.ir.node import *
 from compiler.ir.visitor import Visitor
-from compiler.ir.backend.rusttype import *
-from typing import List, Dict, Optional
 
 FUNC_REQ = "req"
 FUNC_RESP = "resp"
 FUNC_INIT = "init"
 
-class RustContext():
+
+class RustContext:
     def __init__(self) -> None:
         self.internal_states: List[RustVariable] = []
         self.name2var: Dict[str, RustVariable] = {}
@@ -16,16 +18,18 @@ class RustContext():
         self.init_code: List[str] = []
         self.req_code: List[str] = []
         self.resp_code: List[str] = []
-        
+
     def declare(self, name: str, rtype: RustType, temp: bool) -> None:
         if name in self.name2var:
             raise Exception(f"variable {name} already defined")
         else:
-            var = RustVariable(name, rtype, temp, name == "rpc_req" or name == "rpc_resp")
+            var = RustVariable(
+                name, rtype, temp, name == "rpc_req" or name == "rpc_resp"
+            )
             self.name2var[name] = var
             if not temp and not var.rpc:
                 self.internal_states.append(var)
-    
+
     def push_code(self, code: str) -> None:
         if self.current_func == FUNC_INIT:
             self.init_code.append(code)
@@ -35,43 +39,43 @@ class RustContext():
             self.resp_code.append(code)
         else:
             raise Exception("unknown function")
-    
+
     def find_var(self, name: str) -> Optional[RustVariable]:
         if name in self.name2var:
             return self.name2var[name]
         else:
             return None
-        
+
     def explain(self) -> str:
         return f"Context.Explain:\n\t{self.internal_states}\n\t{self.name2var}\n\t{self.current_func}\n\t{self.params}\n\t{self.init_code}\n\t{self.req_code}\n\t{self.resp_code}"
-    
+
     def func_mapping(self, fname: str) -> RustFunctionType:
         match fname:
             case "randomf":
                 return RustGlobalFunctions["random_f64"]
             case _:
                 raise Exception("unknown function")
-    
+
     def gen_struct_names(self) -> List[str]:
         ret = []
         # todo! check this
         # for i in self.internal_states:
         #     ret.append(i.name)
         return ret
-    
+
     def gen_init_localvar(self) -> List[str]:
         ret = []
         for (_, v) in self.name2var.items():
             if not v.temp and not v.rpc:
                 ret.append(v.gen_init_localvar())
         return ret
-    
+
     def gen_internal_names(self) -> List[str]:
         ret = []
         for i in self.internal_states:
             ret.append(i.name)
         return ret
-    
+
     def gen_init_tempvar(self) -> List[str]:
         ret = []
         for (_, v) in self.name2var.items():
@@ -85,7 +89,7 @@ class RustContext():
             ret.append(v.gen_struct_declaration())
         return ret
 
-    
+
 class RustGenerator(Visitor):
     def __init__(self) -> None:
         super().__init__()
@@ -104,7 +108,6 @@ class RustGenerator(Visitor):
             name = i.name
             rust_type = t.accept(self, ctx)
             ctx.declare(name, rust_type, False)
-            
 
     def visitProcedure(self, node: Procedure, ctx: RustContext):
         match node.name:
@@ -118,7 +121,7 @@ class RustGenerator(Visitor):
                 raise Exception("unknown function")
         if node.name != "init":
             ctx.declare(f"rpc_{node.name}", RustRpcType("req", []), False)
-            
+
         for p in node.params:
             name = p.name
             if ctx.find_var(name) == None:
@@ -127,7 +130,6 @@ class RustGenerator(Visitor):
         for s in node.body:
             code = s.accept(self, ctx)
             ctx.push_code(code)
-        
 
     def visitStatement(self, node: Statement, ctx: RustContext) -> str:
         if node.stmt == None:
@@ -157,12 +159,12 @@ class RustGenerator(Visitor):
             if ctx.find_var(name) == None:
                 raise Exception(f"variable {name} not found")
             var = ctx.find_var(name)
-            assert(not var.temp and not var.rpc)
+            assert not var.temp and not var.rpc
             var.init = value
             return ""
         elif ctx.current_func == FUNC_REQ or ctx.current_func == FUNC_RESP:
             if ctx.find_var(name) == None:
-                ctx.declare(name, RustType("unknown"), True) # declar temp
+                ctx.declare(name, RustType("unknown"), True)  # declar temp
                 lhs = "let mut " + name
             else:
                 var = ctx.find_var(name)
@@ -173,15 +175,12 @@ class RustGenerator(Visitor):
             return f"{lhs} = {value};\n"
         else:
             raise Exception("unknown function")
-        
 
     def visitPattern(self, node: Pattern, ctx):
         return node.value.accept(self, ctx)
 
     def visitExpr(self, node: Expr, ctx):
-        return (
-            f"{node.lhs.accept(self, ctx)} {node.op.accept(self, ctx)} {node.rhs.accept(self, ctx)}"
-        )
+        return f"{node.lhs.accept(self, ctx)} {node.op.accept(self, ctx)} {node.rhs.accept(self, ctx)}"
 
     def visitOperator(self, node: Operator, ctx):
         match node:
@@ -213,7 +212,7 @@ class RustGenerator(Visitor):
                 return "!"
             case _:
                 raise Exception("unknown operator")
-            
+
     def visitIdentifier(self, node: Identifier, ctx):
         var = ctx.find_var(node.name)
         if var == None:
@@ -243,11 +242,10 @@ class RustGenerator(Visitor):
                 print(f"unknown type: {name}")
                 return RustType(name)
 
-
     def visitFuncCall(self, node: FuncCall, ctx) -> str:
         fn_name = node.name.name
         fn: RustFunctionType = ctx.func_mapping(fn_name)
-        
+
         args = [f"({i.accept(self, ctx)}).into()" for i in node.args if i is not None]
         ret = fn.gen_call(args)
 
@@ -269,16 +267,16 @@ class RustGenerator(Visitor):
                     ret += t.get_set(args)
                 case _:
                     raise Exception("unknown method")
-                
+
         return ret + ")"
 
     def visitSend(self, node: Send, ctx) -> str:
         if ctx.current_func == "unknown" or ctx.current_func == "init":
             raise Exception("send not in function")
-        
+
         if isinstance(node.msg, Identifier):
-            if node.msg.name == "rpc_req": 
-                inner = """ 
+            if node.msg.name == "rpc_req":
+                inner = """
                     let inner_gen = EngineTxMessage::RpcMessage(RpcMessageTx {
                                 meta_buf_ptr: msg.meta_buf_ptr.clone(),
                                 addr_backend: msg.addr_backend ,
@@ -295,17 +293,16 @@ class RustGenerator(Visitor):
             inner = f"let inner_gen = {inner};\n"
         if ctx.current_func == FUNC_REQ:
             if node.direction == "NET":
-                return f"{inner}self.tx_outputs()[0].send(inner_gen)?";
+                return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
             elif node.direction == "APP":
-                return f"{inner}self.rx_outputs()[0].send(inner_gen)?";
+                return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
         elif ctx.current_func == FUNC_RESP:
             if node.direction == "NET":
-                return f"{inner}self.tx_outputs()[0].send(inner_gen)?";            
+                return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
             elif node.direction == "APP":
-                return f"{inner}self.rx_outputs()[0].send(inner_gen)?";
+                return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
         else:
             raise Exception("unknown function")
-
 
     def visitLiteral(self, node: Literal, ctx):
         return node.value

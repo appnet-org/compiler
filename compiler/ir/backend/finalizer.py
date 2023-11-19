@@ -1,16 +1,19 @@
 import os
 import sys
+from pprint import pprint
 from string import Formatter
 from typing import Dict, List
+
+from compiler.config import COMPILER_ROOT
 from compiler.ir.backend.boilerplate import *
+from compiler.ir.backend.protobuf import HelloProto
 from compiler.ir.backend.rustgen import RustContext
 from compiler.ir.backend.rusttype import RustGlobalFunctions
-from compiler.ir.backend.protobuf import HelloProto
-from compiler.config import COMPILER_ROOT
-from pprint import pprint
+
 # name: table_rpc_events
 # type: Vec<struct_rpc_events>
 # init: table_rpc_events = Vec::new()
+
 
 def gen_global_function_includes() -> str:
     prefix = "use crate::engine::{"
@@ -21,6 +24,7 @@ def gen_global_function_includes() -> str:
     suffix = "};"
     return prefix + middle + suffix
 
+
 def gen_def() -> List[str]:
     ret = []
     for _, func in RustGlobalFunctions.items():
@@ -28,10 +32,11 @@ def gen_def() -> List[str]:
     ret = ret + HelloProto.gen_readonly_def()
     return ret
 
+
 def retrieve_info(ctx: RustContext):
     proto = "hello"
     proto_fc = "Hello"
-    def_code = gen_def();
+    def_code = gen_def()
     info = {
         "ProtoDefinition": proto,
         # todo! field name should be configurable
@@ -58,12 +63,13 @@ def retrieve_info(ctx: RustContext):
         ),
         "RpcRequest": "".join(ctx.req_code),
         # !todo resp
-        "RpcResponse": ""#"".join(ctx.resp_code),
+        "RpcResponse": "",  # "".join(ctx.resp_code),
     }
     # for k,v in info.items():
     #     print(k)
     #     print(v)
     return info
+
 
 def gen_template(
     ctx,
@@ -96,14 +102,13 @@ def gen_template(
         f.write(api_toml.format(TemplateName=template_name_toml))
     with open("Cargo.toml.policy", "w") as f:
         f.write(policy_toml.format(TemplateName=template_name_toml))
-    
-    
+
     os.system(f"rustfmt --edition 2018  ./config.rs")
     os.system(f"rustfmt --edition 2018  ./lib.rs")
     os.system(f"rustfmt --edition 2018  ./module.rs")
     os.system(f"rustfmt --edition 2018  ./engine.rs")
     os.system(f"rustfmt --edition 2018  ./proto.rs")
-    
+
     print("Template {} generated".format(template_name))
 
 
@@ -126,7 +131,6 @@ def move_template(
     os.system(f"rm -rf {mrpc_plugin}/{template_name_toml}")
     os.system(f"mkdir -p {mrpc_plugin}/{template_name_toml}/src")
     os.system(f"cp ./Cargo.toml.policy {mrpc_plugin}/{template_name_toml}/Cargo.toml")
-
 
     os.system(f"cp ./config.rs {mrpc_plugin}/{template_name_toml}/src/config.rs")
     os.system(f"cp ./lib.rs {mrpc_plugin}/{template_name_toml}/src/lib.rs")
@@ -176,7 +180,7 @@ def finalize(name: str, ctx: RustContext, output_dir: str):
         template_name_first_cap,
         template_name_all_cap,
     )
-    return;
+    return
     move_template(
         output_dir,
         template_name,

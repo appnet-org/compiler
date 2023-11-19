@@ -5,7 +5,7 @@ from enum import Enum
 from typing import List, Optional
 
 
-class RustType():
+class RustType:
     def __init__(self, name: str):
         self.name = name
 
@@ -14,10 +14,10 @@ class RustType():
 
     def is_basic(self) -> bool:
         return False
-    
+
     def is_con(self) -> bool:
         return False
-    
+
     def gen_init(self) -> str:
         raise NotImplementedError
 
@@ -47,8 +47,9 @@ class RustVecType(RustType):
         return f"{self.con}::new()"
 
     def gen_get(self, args: List[str]) -> str:
-        assert(len(args) == 1)
+        assert len(args) == 1
         return f".[{args[0]}]"
+
 
 class RustMapType(RustType):
     def __init__(self, con: str, key: RustType, value: RustType) -> None:
@@ -59,19 +60,21 @@ class RustMapType(RustType):
 
     def gen_init(self) -> str:
         return f"{self.con}::new()"
-    
+
     def gen_get(self, args: List[str]) -> str:
-        assert(len(args) == 1)
+        assert len(args) == 1
         return f".[{args[0]}]"
+
 
 class RustRpcType(RustType):
     def __init__(self, name: str, fields: List[(str, RustType)]):
         super().__init__(name)
         self.fields = fields
-    
+
     def gen_get(self, args: List[str]) -> str:
-        assert(len(args) == 1)
+        assert len(args) == 1
         return f".{args[0]}"
+
 
 class RustFunctionType(RustType):
     def __init__(self, name: str, args: List[RustType], ret: RustType, definition: str):
@@ -90,7 +93,7 @@ class RustFunctionType(RustType):
         return f"{self.name}({', '.join(args)})"
 
 
-class RustVariable():
+class RustVariable:
     def __init__(
         self,
         name: str,
@@ -105,7 +108,7 @@ class RustVariable():
         self.temp = temp
         self.rpc = rpc
         self.mut = mut
-        
+
         if init is None:
             self.init = ""
         else:

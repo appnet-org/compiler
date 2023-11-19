@@ -6,17 +6,21 @@ import sys
 from pprint import pprint
 from typing import Dict
 
+from compiler.config import COMPILER_ROOT
+from compiler.ir.backend.finalizer import finalize
+from compiler.ir.backend.rustgen import RustContext, RustGenerator
 from compiler.ir.frontend import IRCompiler, Printer
 from compiler.ir.props.flow import FlowGraph
-from compiler.ir.backend.rustgen import RustGenerator, RustContext
-from compiler.ir.backend.finalizer import finalize
 
-def gen_rust_code(engine_name: str, output_dir: str, verbose: bool = False) -> str:
+
+def gen_rust_code(
+    engine_name: str, output_name: str, output_dir: str, verbose: bool = False
+) -> str:
     compiler = IRCompiler()
     printer = Printer()
     generator = RustGenerator()
     ctx = RustContext()
-    
+
     with open(f"../elements/ir/{engine_name}.adn") as f:
         spec = f.read()
         ir = compiler.compile(spec)
@@ -25,8 +29,9 @@ def gen_rust_code(engine_name: str, output_dir: str, verbose: bool = False) -> s
             print(p)
 
         ir.accept(generator, ctx)
-        
-        finalize(engine_name, ctx, output_dir)
+
+        finalize(output_name, ctx, output_dir)
+
 
 def compile_element(engine_name: str, verbose: bool = False) -> Dict:
     compiler = IRCompiler()
@@ -87,4 +92,4 @@ if __name__ == "__main__":
     # ret = compile_element(engine, verbose)
     # pprint(ret)
 
-    ret = gen_rust_code(engine, verbose)
+    ret = gen_rust_code(engine, "fault2", str(COMPILER_ROOT) + "/generated", verbose)
