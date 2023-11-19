@@ -92,4 +92,4 @@ if __name__ == "__main__":
     # ret = compile_element(engine, verbose)
     # pprint(ret)
 
-    ret = gen_rust_code(engine, "fault2", str(COMPILER_ROOT) + "/generated", verbose)
+    ret = gen_rust_code(engine, engine, str(COMPILER_ROOT) + "/generated", verbose)

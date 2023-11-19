@@ -3,6 +3,7 @@ use chrono::prelude::*;
 use itertools::iproduct;
 use rand::Rng;
 use minstant::Instant;
+use std::collections::HashMap;
 
 """
 
@@ -357,6 +358,7 @@ impl {TemplateNameCap}Engine {{
             Ok(msg) => {{
                 match msg {{
                     EngineTxMessage::RpcMessage(msg) => {{
+                        let rpc_req = materialize_nocopy(&msg);
                         {RpcRequest}
                     }}
                     m => self.tx_outputs()[0].send(m)?,

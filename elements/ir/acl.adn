@@ -4,15 +4,17 @@ internal
 }
 
 fn init() {
+	acl.set('apple', 'Yes');
+	acl.set('banana', 'Yes');
 }
 
 fn req(rpc_req) {
 	match (acl.get(rpc_req.get('name')) == 'Yes') {
-		True => {
+		true => {
 			send(rpc_req, NET);
 		}
 		// default includes none or “no”
-		False => {
+		false => {
 			send(err('acl'), APP);
 		}
 	}; 
