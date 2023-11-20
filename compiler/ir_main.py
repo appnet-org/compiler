@@ -7,64 +7,11 @@ from pprint import pprint
 from typing import Dict
 
 from compiler.config import COMPILER_ROOT
+from compiler.ir import compile_element_property, gen_code
 from compiler.ir.backend.finalizer import finalize
 from compiler.ir.backend.rustgen import RustContext, RustGenerator
 from compiler.ir.frontend import IRCompiler, Printer
 from compiler.ir.props.flow import FlowGraph
-
-
-def gen_rust_code(
-    engine_name: str, output_name: str, output_dir: str, verbose: bool = False
-) -> str:
-    compiler = IRCompiler()
-    printer = Printer()
-    generator = RustGenerator()
-    ctx = RustContext()
-
-    with open(f"../elements/ir/{engine_name}.adn") as f:
-        spec = f.read()
-        ir = compiler.compile(spec)
-        p = ir.accept(printer, None)
-        if verbose:
-            print(p)
-
-        ir.accept(generator, ctx)
-
-        finalize(output_name, ctx, output_dir)
-
-
-def compile_element(engine_name: str, verbose: bool = False) -> Dict:
-    compiler = IRCompiler()
-    printer = Printer()
-
-    with open(f"../elements/ir/{engine_name}.adn") as f:
-        spec = f.read()
-        ir = compiler.compile(spec)
-        p = ir.accept(printer, None)
-        if verbose:
-            print(p)
-
-        req = FlowGraph().analyze(ir.req, verbose)
-        resp = FlowGraph().analyze(ir.resp, verbose)
-        stateful = len(ir.definition.internal) > 0
-        return {
-            "stateful": stateful,
-            "request": {
-                "read": req.read,
-                "write": req.write,
-                "drop": req.drop,
-                "block": req.block,
-                "copy": req.copy,
-            },
-            "response": {
-                "read": resp.read,
-                "write": resp.write,
-                "drop": resp.drop,
-                "block": resp.block,
-                "copy": resp.copy,
-            },
-        }
-
 
 if __name__ == "__main__":
 
@@ -92,4 +39,4 @@ if __name__ == "__main__":
     # ret = compile_element(engine, verbose)
     # pprint(ret)
 
-    ret = gen_rust_code(engine, "fault2", str(COMPILER_ROOT) + "/generated", verbose)
+    ret = gen_code(engine, "fault2", str(COMPILER_ROOT) + "/generated", "mrpc", verbose)
