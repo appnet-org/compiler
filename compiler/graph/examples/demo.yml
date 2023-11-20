@@ -1,25 +1,37 @@
 app_structure:
     - "Frontend->Search"
+
 service_pos:
     Frontend: "h2"
     Search: "h6"
+
 ingress:
     Search:
+    -   name: "Logging"
+        spec: "elements/logging.sql"
+        position: "S"
+
+egress:
+    Frontend:
     -   name: "RateLimit"
         spec: "elements/ratelimit.sql"
         config:
         - "bucket_size = 1000"
         - "requests_per_sec = 1000"
-        position: "S"
-egress:
-    Frontend:
-    -   name: "Logging"
-        spec: "elements/logging.sql"
-        config: []
+        position: "C"
+
+    -   name: "LoadBalancing"
+        spec: "elements/lb_random.sql"
         position: "C"
 
 edge:
     Frontend->Search:
+    -   name: "Cache"
+        spec: "elements/cache.sql"
+        position: "C"
+
+    -   name: "Mutation"
+        spec: "elements/mutation.sql"
+
     -   name: "HotelAcl"
         spec: "elements/hotel-acl.sql"
-        config: []

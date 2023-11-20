@@ -7,7 +7,7 @@ from rich import box
 from rich.panel import Panel
 
 from compiler.graph.ir.element import AbsElement
-from compiler.graph.ir.optimization import reorder
+from compiler.graph.ir.optimization import chain_optimize
 
 
 def make_service_rich(name: str) -> Panel:
@@ -24,6 +24,7 @@ def make_service_rich(name: str) -> Panel:
         box=box.SQUARE,
         border_style="bold",
         style="bold",
+        expand=False,
     )
 
 
@@ -47,14 +48,18 @@ class GraphIR:
             "res_client": [],
             "res_server": [],
         }
+        # Fill in default fields
+        for element in chain:
+            if "position" not in element:
+                element["position"] = "C/S"
+            if "config" not in element:
+                element["config"] = []
         # determine an initial client-server boundary
         # principle:
         # - valid ("C" goes to client, "S" goes to server)
         # - balanced #element on c/s sides
         c_id, s_id = 0, len(chain)
         for i, element in enumerate(chain):
-            if "position" not in element:
-                element["position"] = "C/S"
             if element["position"] == "C":
                 c_id = max(c_id, i)
             elif element["position"] == "S":
@@ -138,8 +143,12 @@ class GraphIR:
         Args:
             pseudo: If true, use the pseodo element compiler to generate element properties.
         """
-        for chain_name in ["req_client", "res_client", "req_server", "res_server"]:
-            for element in self.elements[chain_name]:
-                element.gen_property(pseudo)
-        chain = reorder(self.elements["req_client"] + self.elements["req_server"])
-        # TODO: optimization algorithm
+        # for chain_name in ["req_client", "res_client", "req_server", "res_server"]:
+        # for element in self.elements[chain_name]:
+        # element.gen_property(pseudo)
+        self.elements["req_client"], self.elements["req_server"] = chain_optimize(
+            self.elements["req_client"] + self.elements["req_server"], "request"
+        )
+        # TODO: currently, response chain is copied from request chain.
+        self.elements["res_client"] = deepcopy(self.elements["req_client"])
+        self.elements["res_server"] = deepcopy(self.elements["res_server"])

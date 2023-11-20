@@ -54,25 +54,36 @@ if __name__ == "__main__":
     compiled_spec = set()
     for gir in graphirs.values():
         gir.optimize(args.pseudo_element)
-        for element in gir.elements["req_client"] + gir.elements["req_server"]:
-            for spec in element.spec:
-                if spec not in compiled_spec:
-                    if args.pseudo_element:
-                        pseudo_compile(
-                            spec, os.path.join(graph_base_dir, "gen"), args.backend
-                        )
-                    else:
-                        raise NotImplementedError("element compiler not implemented")
-                compiled_spec.add(spec)
 
-    scriptgen(graphirs, args.backend, service_pos)
+    if not args.dry_run:
+        for gir in graphirs.values():
+            for element in gir.elements["req_client"] + gir.elements["req_server"]:
+                for spec in element.spec:
+                    if spec not in compiled_spec:
+                        if args.pseudo_element:
+                            pseudo_compile(
+                                spec, os.path.join(graph_base_dir, "gen"), args.backend
+                            )
+                        else:
+                            raise NotImplementedError(
+                                "element compiler not implemented"
+                            )
+                    compiled_spec.add(spec)
+        scriptgen(graphirs, args.backend, service_pos)
 
     if args.verbose:
         IR_LOG.info("GraphIR summary:")
         for gir in graphirs.values():
             gir_summary[gir.name]["post-optimized"] = gir.to_rich()
+            gir_summary[gir.name]["property"] = {}
+            for element in gir.elements["req_client"] + gir.elements["req_server"]:
+                gir_summary[gir.name]["property"][element.deploy_name] = element.prop
         for gname, summary in gir_summary.items():
             console.print()
             console.print(gname, style="underline bold italic")
             console.print(Columns(["\n :snail: :\n"] + summary["pre-optimized"]))
             console.print(Columns(["\n :rocket: :\n"] + summary["post-optimized"]))
+            if args.debug:
+                console.print("Properties:")
+                for ename, prop in summary["property"].items():
+                    console.print(f"{ename}: {prop['request']}")
