@@ -30,7 +30,7 @@ def proto_gen_get(rpc: str, args: List[str]) -> str:
         return f"hello_HelloResponse_{arg}_readonly(&{rpc})"
 
 
-def proto_gen_set():
+def proto_gen_set(rpc: str, args: List[str]) -> str:
     raise NotImplementedError
 
 
