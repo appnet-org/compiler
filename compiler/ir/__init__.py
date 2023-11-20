@@ -1,9 +1,42 @@
+import argparse
 import os
+import pathlib
+import re
+import sys
+from pprint import pprint
 from typing import Dict
 
 from compiler import root_base_dir
+from compiler.config import COMPILER_ROOT
+from compiler.ir.backend.finalizer import finalize
+from compiler.ir.backend.rustgen import RustContext, RustGenerator
 from compiler.ir.frontend import IRCompiler, Printer
 from compiler.ir.props.flow import FlowGraph
+
+
+def gen_code(
+    engine_name: str,
+    output_name: str,
+    output_dir: str,
+    backend_name: str,
+    verbose: bool = False,
+) -> str:
+    assert backend_name == "mrpc"
+    compiler = IRCompiler()
+    printer = Printer()
+    generator = RustGenerator()
+    ctx = RustContext()
+
+    with open(f"../elements/ir/{engine_name}.adn") as f:
+        spec = f.read()
+        ir = compiler.compile(spec)
+        p = ir.accept(printer, None)
+        if verbose:
+            print(p)
+
+        ir.accept(generator, ctx)
+
+        finalize(output_name, ctx, output_dir)
 
 
 def compile_element_property(engine_name: str, verbose: bool = False) -> Dict:
