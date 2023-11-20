@@ -48,7 +48,17 @@ class RustVecType(RustType):
 
     def gen_get(self, args: List[str]) -> str:
         assert len(args) == 1
-        return f".[{args[0]}]"
+        return f".get({args[0]}).unwrap()"
+
+    def gen_set(self, args: List[str]) -> str:
+        assert len(args) == 2
+        if args[0].endswith(".len()"):
+            return f".push({args[1]})"
+        else:
+            return f".set({args[0]}, {args[1]})"
+
+    def gen_size(self) -> str:
+        return f".len()"
 
 
 class RustMapType(RustType):
@@ -63,7 +73,11 @@ class RustMapType(RustType):
 
     def gen_get(self, args: List[str]) -> str:
         assert len(args) == 1
-        return f".[{args[0]}]"
+        return f".get(&{args[0]}).unwrap()"
+
+    def gen_set(self, args: List[str]) -> str:
+        assert len(args) == 2
+        return f".insert({args[0]}, {args[1]})"
 
 
 class RustRpcType(RustType):
@@ -72,8 +86,7 @@ class RustRpcType(RustType):
         self.fields = fields
 
     def gen_get(self, args: List[str]) -> str:
-        assert len(args) == 1
-        return f".{args[0]}"
+        raise Exception("Rpc get should use proto getter")
 
 
 class RustFunctionType(RustType):

@@ -3,6 +3,7 @@ use chrono::prelude::*;
 use itertools::iproduct;
 use rand::Rng;
 use minstant::Instant;
+use std::collections::HashMap;
 
 """
 
@@ -349,6 +350,13 @@ fn materialize_nocopy(msg: &RpcMessageTx) -> &{ProtoRpcRequestType} {{
     return req;
 }}
 
+#[inline]
+fn materialize_nocopy_mutable(msg: &RpcMessageTx) -> &mut {ProtoRpcRequestType} {{
+    let req_ptr = msg.addr_backend as *mut {ProtoRpcRequestType};
+    let req = unsafe {{ req_ptr.as_mut().unwrap() }};
+    return req;
+}}
+
 impl {TemplateNameCap}Engine {{
     fn check_input_queue(&mut self) -> Result<Status, DatapathError> {{
         use phoenix_common::engine::datapath::TryRecvError;
@@ -357,6 +365,8 @@ impl {TemplateNameCap}Engine {{
             Ok(msg) => {{
                 match msg {{
                     EngineTxMessage::RpcMessage(msg) => {{
+                        let rpc_req = materialize_nocopy(&msg);
+                        let rpc_req_mut = materialize_nocopy_mutable(&msg);
                         {RpcRequest}
                     }}
                     m => self.tx_outputs()[0].send(m)?,

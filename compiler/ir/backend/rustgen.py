@@ -9,6 +9,36 @@ FUNC_RESP = "resp"
 FUNC_INIT = "init"
 
 
+def map_basic_type(name: str) -> RustType:
+    if name == "float":
+        return RustBasicType("f64")
+    elif name == "int":
+        return RustBasicType("i32")
+    elif name == "string":
+        return RustBasicType("String")
+    else:
+        print(f"unknown type: {name}")
+        return RustType(name)
+
+
+def proto_gen_get(rpc: str, args: List[str]) -> str:
+    assert len(args) == 1
+    arg = args[0].strip('"')
+    if rpc == "rpc_req":
+        return f"hello_HelloRequest_{arg}_readonly(&{rpc})"
+    elif rpc == "rpc_resp":
+        return f"hello_HelloResponse_{arg}_readonly(&{rpc})"
+
+
+def proto_gen_set(rpc: str, args: List[str]) -> str:
+    assert len(args) == 2
+    arg1 = args[0].strip('"')
+    if rpc == "rpc_req":
+        return f"hello_HelloRequest_{arg1}_modify({rpc}_mut, {args[1]}.as_bytes())"
+    elif rpc == "rpc_resp":
+        return f"hello_HelloResponse_{arg1}_modify({rpc}_mut, {args[1]}.as_bytes())"
+
+
 class RustContext:
     def __init__(self) -> None:
         self.internal_states: List[RustVariable] = []
@@ -100,6 +130,9 @@ class RustGenerator(Visitor):
     def visitProgram(self, node: Program, ctx: RustContext) -> None:
         node.definition.accept(self, ctx)
         node.init.accept(self, ctx)
+        for v in ctx.internal_states:
+            if v.init == "":
+                v.init = v.type.gen_init()
         node.req.accept(self, ctx)
         node.resp.accept(self, ctx)
 
@@ -226,21 +259,15 @@ class RustGenerator(Visitor):
     def visitType(self, node: Type, ctx):
         name: str = node.name
         if name.startswith("Vec<"):
-            last = name[4:].split(">")[0]
-            return RustVecType("Vec", RustType(last))
+            last = name[4:].split(">")[0].strip()
+            return RustVecType("Vec", map_basic_type(last))
         elif name.startswith("Map<"):
             middle = name[4:].split(">")[0]
-            key = middle.split(",")[0]
-            value = middle.split(",")[1]
-            return RustMapType("Map", RustType(key), RustType(value))
+            key = middle.split(",")[0].strip()
+            value = middle.split(",")[1].strip()
+            return RustMapType("HashMap", map_basic_type(key), map_basic_type(value))
         else:
-            if name == "float":
-                return RustBasicType("f64")
-            elif name == "int":
-                return RustBasicType("i32")
-            else:
-                print(f"unknown type: {name}")
-                return RustType(name)
+            return map_basic_type(name)
 
     def visitFuncCall(self, node: FuncCall, ctx) -> str:
         fn_name = node.name.name
@@ -252,23 +279,48 @@ class RustGenerator(Visitor):
         return ret
 
     def visitMethodCall(self, node: MethodCall, ctx) -> str:
-        ret = ""
-        ret += node.obj.name + "."
         var = ctx.find_var(node.obj.name)
         if var == None:
             raise Exception(f"object {node.obj.name} not found")
         else:
-            args = [i.accept(self, ctx) for i in node.args if i is not None]
             t = var.type
-            match node.method:
-                case MethodType.GET:
-                    ret += t.gen_get(args)
-                case MethodType.SET:
-                    ret += t.get_set(args)
-                case _:
-                    raise Exception("unknown method")
+            if isinstance(t, RustRpcType):
 
-        return ret + ")"
+                args = [i.accept(ExprResolver(), None) for i in node.args]
+                match node.method:
+                    case MethodType.GET:
+                        ret = proto_gen_get(var.name, args)
+                    case MethodType.SET:
+                        ret = proto_gen_set(var.name, args)
+                    case _:
+                        raise Exception("unknown method")
+            else:
+                args = [i.accept(self, ctx) for i in node.args]
+                new_arg = []
+                for i in args:
+                    if i.startswith('"'):
+                        new_arg.append(i + ".to_string()")
+                    else:
+                        new_arg.append(i)
+                args = new_arg
+                if ctx.current_func == FUNC_INIT:
+                    ret = node.obj.name
+                else:
+                    ret = node.obj.accept(self, ctx)
+
+                print(node.method)
+
+                match node.method:
+                    case MethodType.GET:
+                        ret += t.gen_get(args)
+                    case MethodType.SET:
+                        ret += t.gen_set(args)
+                    case MethodType.SIZE:
+                        ret += t.gen_size()
+                    case _:
+                        raise Exception("unknown method")
+
+        return ret
 
     def visitSend(self, node: Send, ctx) -> str:
         if ctx.current_func == "unknown" or ctx.current_func == "init":
@@ -305,7 +357,7 @@ class RustGenerator(Visitor):
             raise Exception("unknown function")
 
     def visitLiteral(self, node: Literal, ctx):
-        return node.value
+        return node.value.replace("'", '"')
 
     def visitError(self, node: Error, ctx) -> str:
         return """EngineRxMessage::Ack(
@@ -315,3 +367,34 @@ class RustGenerator(Visitor):
                                 ),
                                 TransportStatus::Error(unsafe { NonZeroU32::new_unchecked(403) }),
                             )"""
+
+
+class ExprResolver(Visitor):
+    def __init__(self) -> None:
+        pass
+
+    def visitNode(self, node: Node, ctx) -> str:
+        print(node.__class__.__name__)
+        raise Exception("Unreachable!")
+
+    def visitLiteral(self, node: Literal, ctx) -> str:
+        return node.value.replace("'", '"')
+
+    def visitIdentifier(self, node: Identifier, ctx) -> str:
+        return node.name
+
+    def visitExpr(self, node: Expr, ctx) -> str:
+        return node.lhs.accept(self, ctx) + str(node.op) + node.rhs.accept(self, ctx)
+
+    def visitError(self, node: Error, ctx) -> str:
+        return "ERROR"
+
+    def visitMethodCall(self, node: MethodCall, ctx):
+        return (
+            node.obj.accept(self, ctx)
+            + "."
+            + node.method.name
+            + "("
+            + ",".join([a.accept(self, ctx) for a in node.args])
+            + ")"
+        )
