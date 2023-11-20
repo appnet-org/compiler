@@ -23,7 +23,7 @@ class ProtoMessage:
                 )
             )
         return ret
-    
+
     def gen_modify_def(self, proto: str):
         ret = []
         for field in self.fields:
@@ -60,7 +60,7 @@ class Proto:
         for msg in self.msg:
             ret.append("\n".join(msg.gen_modify_def(self.name)))
         return ret
-    
+
     def msg_field_readonly(self, msg: str, field: str, input):
         return f"{self.name}_{msg}_{field}_readonly({input})"
 
