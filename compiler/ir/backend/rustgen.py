@@ -31,7 +31,12 @@ def proto_gen_get(rpc: str, args: List[str]) -> str:
 
 
 def proto_gen_set(rpc: str, args: List[str]) -> str:
-    raise NotImplementedError
+    assert len(args) == 2
+    arg1 = args[0].strip('"')
+    if rpc == "rpc_req":
+        return f"hello_HelloRequest_{arg1}_modify({rpc}_mut, {args[1]}.as_bytes())"
+    elif rpc == "rpc_resp":
+        return f"hello_HelloResponse_{arg1}_modify({rpc}_mut, {args[1]}.as_bytes())" 
 
 
 class RustContext:

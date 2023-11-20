@@ -39,4 +39,4 @@ if __name__ == "__main__":
     # ret = compile_element(engine, verbose)
     # pprint(ret)
 
-    ret = gen_code(engine, "fault2", str(COMPILER_ROOT) + "/generated", "mrpc", verbose)
+    ret = gen_code(engine, engine, str(COMPILER_ROOT) + "/generated", "mrpc", verbose)

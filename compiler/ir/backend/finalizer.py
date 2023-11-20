@@ -29,7 +29,7 @@ def gen_def() -> List[str]:
     ret = []
     for _, func in RustGlobalFunctions.items():
         ret.append(func.gen_def())
-    ret = ret + HelloProto.gen_readonly_def()
+    ret = ret + HelloProto.gen_readonly_def() + HelloProto.gen_modify_def()
     return ret
 
 
@@ -150,10 +150,10 @@ def gen_attach_detach(name: str, ctx):
 
 def finalize(name: str, ctx: RustContext, output_dir: str):
     if name == "logging":
-        template_name = "file_logging"
-        template_name_toml = "file-logging"
-        template_name_first_cap = "FileLogging"
-        template_name_all_cap = "FILE_LOGGING"
+        template_name = "logging"
+        template_name_toml = "logging"
+        template_name_first_cap = "Logging"
+        template_name_all_cap = "LOGGING"
     elif name == "acl":
         template_name = "hello_acl"
         template_name_toml = "hello-acl"
