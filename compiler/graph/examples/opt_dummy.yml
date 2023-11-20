@@ -1,25 +1,15 @@
 app_structure:
-    - "Frontend->Search"
-    - "Frontend->Profile"
-    - "Search->Geo"
-    - "Search->Rate"
-service_pos:
-    Frontend: "h2"
-    Geo: "h3"
-    Profile: "h4"
-    Rate: "h5"
-    Search: "h6"
+    - "rpc_echo_client2->rpc_echo_server"
 egress:
-    Frontend:
-    -
-        name: "Logging"
-        spec: "elements/logging.sql"
-        config: []
-        position: "C"
-    -
-        name: "RateLimit"
-        spec: "elements/ratelimit.sql"
-        config:
-        - "bucket_size = 1000"
-        - "requests_per_sec = 1000"
-        position: "C"
+    rpc_echo_client2:
+    -   name: "Logging"
+        spec: "elements/logging.adn"
+    -   name: "Acl"
+        spec: "elements/acl.adn"
+ingress:
+    rpc_echo_server:
+    -   name: "Fault"
+        spec: "elements/fault.adn"
+    -   name: "Mutation"
+        spec: "elements/mutation.adn"
+        position: "S"

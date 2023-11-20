@@ -50,6 +50,11 @@ config_string = \'\'\'
 \'\'\'
 """
 
+service_pos_dict = {
+    "hotel": {},
+    "rpc_echo_local": {"rpc_echo_client2": "localhost", "rpc_echo_server": "localhost"},
+}
+
 # TODO: automaticlaly detect sid
 sids = {
     ("Frontend", "Profile", "client"): "2",
@@ -241,7 +246,7 @@ def gen_install(elements: List[AbsElement], service: str, host: str):
     )
 
 
-def scriptgen_mrpc(girs: Dict[str, GraphIR], service_pos: Dict[str, str]):
+def scriptgen_mrpc(girs: Dict[str, GraphIR], app: str):
     """Upgrade phoenixos, install new engiens, and generate attach/detach scripts.
 
     Args:
@@ -258,6 +263,8 @@ def scriptgen_mrpc(girs: Dict[str, GraphIR], service_pos: Dict[str, str]):
     local_gen_dir = os.path.join(graph_base_dir, "gen")
     os.makedirs(phoenix_gen_dir, exist_ok=True)
     os.makedirs(local_gen_dir, exist_ok=True)
+
+    service_pos = service_pos_dict[app]
 
     # Collect list of elements deployed on each service.
     service_elements: Dict[str, List[AbsElement]] = defaultdict(list)

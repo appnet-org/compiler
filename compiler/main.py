@@ -16,6 +16,7 @@ from compiler.graph.backend import scriptgen
 from compiler.graph.frontend import GCParser
 from compiler.graph.logger import IR_LOG, init_logging
 from compiler.graph.pseudo_element_compiler import pseudo_compile
+from compiler.ir import gen_code
 
 console = Console()
 gir_summary = dict()
@@ -26,8 +27,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "-s", "--spec_path", help="User specification file", type=str, required=True
     )
+    parser.add_argument(
+        "--app",
+        type=str,
+        required=True,
+        choices=["rpc_echo", "hotel", "rpc_echo_local", "hotel_local"],
+    )
     parser.add_argument("-v", "--verbose", help="Print Debug info", action="store_true")
-    parser.add_argument("--pseudo_element", action="store_true")
+    parser.add_argument("--pseudo_property", action="store_true")
+    parser.add_argument("--pseudo_impl", action="store_true")
     parser.add_argument("-b", "--backend", type=str, required=True, choices=["mrpc"])
     parser.add_argument(
         "--mrpc_dir",
@@ -43,7 +51,7 @@ if __name__ == "__main__":
         os.environ["DRY_RUN"] = "1"
 
     parser = GCParser()
-    graphirs, service_pos = parser.parse(args.spec_path)
+    graphirs = parser.parse(args.spec_path)
 
     if args.verbose:
         for gir in graphirs.values():
@@ -53,14 +61,14 @@ if __name__ == "__main__":
 
     compiled_spec = set()
     for gir in graphirs.values():
-        gir.optimize(args.pseudo_element)
+        gir.optimize(args.pseudo_property)
 
     if not args.dry_run:
         for gir in graphirs.values():
             for element in gir.elements["req_client"] + gir.elements["req_server"]:
                 for spec in element.spec:
                     if spec not in compiled_spec:
-                        if args.pseudo_element:
+                        if args.pseudo_impl:
                             pseudo_compile(
                                 spec, os.path.join(graph_base_dir, "gen"), args.backend
                             )
@@ -69,7 +77,7 @@ if __name__ == "__main__":
                                 "element compiler not implemented"
                             )
                     compiled_spec.add(spec)
-        scriptgen(graphirs, args.backend, service_pos)
+        scriptgen(graphirs, args.backend, args.app)
 
     if args.verbose:
         IR_LOG.info("GraphIR summary:")
