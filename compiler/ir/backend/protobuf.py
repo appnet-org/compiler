@@ -23,6 +23,22 @@ class ProtoMessage:
                 )
             )
         return ret
+    
+    def gen_modify_def(self, proto: str):
+        ret = []
+        for field in self.fields:
+            ret.append(
+                """
+            fn {proto}_{name}_{field}_modify(req: &mut {proto}::{name}, value: &[u8]) {{
+            assert!(req.{field}.len() <= value.len());
+            for i in 0..req.{field}.len() {{
+                req.{field}[i] = value[i];
+            }}
+        }}""".format(
+                    proto=proto, name=self.name, field=field
+                )
+            )
+        return ret
 
 
 class Proto:
@@ -39,6 +55,12 @@ class Proto:
             ret.append("\n".join(msg.gen_readonly_def(self.name)))
         return ret
 
+    def gen_modify_def(self):
+        ret = []
+        for msg in self.msg:
+            ret.append("\n".join(msg.gen_modify_def(self.name)))
+        return ret
+    
     def msg_field_readonly(self, msg: str, field: str, input):
         return f"{self.name}_{msg}_{field}_readonly({input})"
 
