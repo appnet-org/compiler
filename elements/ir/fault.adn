@@ -7,10 +7,10 @@ fn init(prob) {
 
 fn req(rpc_req) {
 	match(randomf(0,1) < prob) {
-		True => {
+		true => {
 			send(rpc_req, NET);
 		}
-		False => {
+		false => {
 			send(err('fault_injected'), APP);
 		}
 	};
