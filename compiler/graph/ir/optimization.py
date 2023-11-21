@@ -94,43 +94,6 @@ def reorder(chain: List[AbsElement], path: str) -> List[AbsElement]:
                         raise OptimizedLabel()
         except OptimizedLabel:
             pass
-        # for i, e in enumerate(chain):
-        #     if e.deploy_name not in moved and e.has_prop(path, "drop", "block"):
-        #         moved.add(e.deploy_name)
-        #         if e.position == "S":
-        #             target = i
-        #             while target >= 0 and chain[target].position != "C":
-        #                 target -= 1
-        #             target += 1
-        #         else:
-        #             target = 0
-        #         while target < i:
-        #             if not chain[target].has_prop(path, "drop", "block"):
-        #                 new_chain = chain[:target] + [e] + chain[target:i] + chain[i+1:]
-        #                 if equivalent(chain, new_chain, path):
-        #                     break
-        #             target += 1
-        #         if target < i:
-        #             chain = chain[:target] + [e] + chain[target:i] + chain[i+1:]
-        #             optimized = True
-        #     elif e.deploy_name not in moved and e.has_prop(path, "copy"):
-        #         moved.add(e.deploy_name)
-        #         if e.position == "C":
-        #             target = i
-        #             while target < len(chain) and chain[target].position != "S":
-        #                 target += 1
-        #             target -= 1
-        #         else:
-        #             target = len(chain) - 1
-        #         while target > i:
-        #             if not chain[target].has_prop(path, "copy"):
-        #                 new_chain = chain[:i] + chain[i+1:target+1] + [e] + chain[target+1:]
-        #                 if equivalent(chain, new_chain, path):
-        #                     break
-        #             target -= 1
-        #         if target > i:
-        #             chain = chain[:i] + chain[i+1:target+1] + [e] + chain[target+1:]
-        #             optimized = True
     return chain
 
 
