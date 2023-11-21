@@ -308,8 +308,6 @@ class RustGenerator(Visitor):
                 else:
                     ret = node.obj.accept(self, ctx)
 
-                print(node.method)
-
                 match node.method:
                     case MethodType.GET:
                         ret += t.gen_get(args)
