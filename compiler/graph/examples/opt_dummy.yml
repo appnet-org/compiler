@@ -4,12 +4,8 @@ egress:
     rpc_echo_client2:
     -   name: "Logging"
         spec: "elements/logging.adn"
-    -   name: "Acl"
-        spec: "elements/acl.adn"
+        position: "C"
 ingress:
     rpc_echo_server:
-    -   name: "Fault"
-        spec: "elements/fault.adn"
-    -   name: "Mutation"
-        spec: "elements/mutation.adn"
-        position: "S"
+    -   name: "Acl"
+        spec: "elements/acl.adn"
