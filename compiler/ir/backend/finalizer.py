@@ -71,43 +71,77 @@ def retrieve_info(ctx: RustContext):
     return info
 
 
+api_lib_rs = "pub mod control_plane;"
+api_control_plane_rs = """use serde::{Deserialize, Serialize};
+
+type IResult<T> = Result<T, phoenix_api::Error>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Request {
+    NewConfig(),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ResponseKind {}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Response(pub IResult<ResponseKind>);
+"""
+
+
 def gen_template(
+    output_dir,
     ctx,
     template_name,
     template_name_toml,
     template_name_first_cap,
     template_name_all_cap,
 ):
-    target_dir = os.path.join(COMPILER_ROOT, f"generated/{template_name}")
-    os.system(f"rm -rf {target_dir}")
-    os.system(f"mkdir -p {target_dir}")
-    os.chdir(target_dir)
+    # target_dir = os.path.join(COMPILER_ROOT, f"generated/{template_name}")
+    # os.system(f"rm -rf {target_dir}")
+    # os.system(f"mkdir -p {target_dir}")
+    # os.chdir(target_dir)
+    api_dir = os.path.join(output_dir, f"api/{template_name}")
+    api_dir_src = os.path.join(api_dir, "src")
+    plugin_dir = os.path.join(output_dir, f"plugin/{template_name}")
+    plugin_dir_src = os.path.join(plugin_dir, "src")
+    os.system(f"mkdir -p {api_dir_src}")
+    os.system(f"mkdir -p {plugin_dir_src}")
     ctx["TemplateName"] = template_name
     ctx["TemplateNameFirstCap"] = template_name_first_cap
     ctx["TemplateNameAllCap"] = template_name_all_cap
     ctx["TemplateNameCap"] = template_name_first_cap
     # print("Current dir: {}".format(os.getcwd()))
-    with open("config.rs", "w") as f:
+    config_path = os.path.join(plugin_dir_src, "config.rs")
+    lib_path = os.path.join(plugin_dir_src, "lib.rs")
+    module_path = os.path.join(plugin_dir_src, "module.rs")
+    engine_path = os.path.join(plugin_dir_src, "engine.rs")
+    proto_path = os.path.join(plugin_dir_src, "proto.rs")
+    with open(config_path, "w") as f:
         f.write(config_rs.format(Include=include, **ctx))
-    with open("lib.rs", "w") as f:
+    with open(lib_path, "w") as f:
         f.write(lib_rs.format(Include=include, **ctx))
-    with open("module.rs", "w") as f:
+    with open(module_path, "w") as f:
         f.write(module_rs.format(Include=include, **ctx))
-    with open("engine.rs", "w") as f:
+    with open(engine_path, "w") as f:
         # print([i[1] for i in Formatter().parse(engine_rs)  if i[1] is not None])
         f.write(engine_rs.format(Include=include, **ctx))
-    with open("proto.rs", "w") as f:
+    with open(proto_path, "w") as f:
         f.write(proto_rs)
-    with open("Cargo.toml.api", "w") as f:
-        f.write(api_toml.format(TemplateName=template_name_toml))
-    with open("Cargo.toml.policy", "w") as f:
+    with open(os.path.join(plugin_dir, "Cargo.toml"), "w") as f:
         f.write(policy_toml.format(TemplateName=template_name_toml))
+    with open(os.path.join(api_dir_src, "control_plane.rs"), "w") as f:
+        f.write(api_control_plane_rs)
+    with open(os.path.join(api_dir_src, "lib.rs"), "w") as f:
+        f.write(api_lib_rs)
+    with open(os.path.join(api_dir, "Cargo.toml"), "w") as f:
+        f.write(api_toml.format(TemplateName=template_name_toml))
 
-    os.system(f"rustfmt --edition 2018  ./config.rs")
-    os.system(f"rustfmt --edition 2018  ./lib.rs")
-    os.system(f"rustfmt --edition 2018  ./module.rs")
-    os.system(f"rustfmt --edition 2018  ./engine.rs")
-    os.system(f"rustfmt --edition 2018  ./proto.rs")
+    os.system(f"rustfmt --edition 2018  {config_path}")
+    os.system(f"rustfmt --edition 2018  {lib_path}")
+    os.system(f"rustfmt --edition 2018  {module_path}")
+    os.system(f"rustfmt --edition 2018  {engine_path}")
+    os.system(f"rustfmt --edition 2018  {proto_path}")
 
     print("Template {} generated".format(template_name))
 
@@ -155,10 +189,10 @@ def finalize(name: str, ctx: RustContext, output_dir: str):
         template_name_first_cap = "Logging"
         template_name_all_cap = "LOGGING"
     elif name == "acl":
-        template_name = "hello_acl"
-        template_name_toml = "hello-acl"
-        template_name_first_cap = "HelloAcl"
-        template_name_all_cap = "HELLO_ACL"
+        template_name = "acl"
+        template_name_toml = "acl"
+        template_name_first_cap = "Acl"
+        template_name_all_cap = "ACL"
     elif name == "fault":
         template_name = "fault"
         template_name_toml = "fault"
@@ -174,6 +208,7 @@ def finalize(name: str, ctx: RustContext, output_dir: str):
 
     info = retrieve_info(ctx)
     gen_template(
+        output_dir,
         info,
         template_name,
         template_name_toml,

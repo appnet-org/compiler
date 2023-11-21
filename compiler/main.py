@@ -21,6 +21,14 @@ from compiler.ir import gen_code
 console = Console()
 gir_summary = dict()
 
+
+def compile_impl(spec: str, gen_dir: str, backend: str):
+    engine_name = spec.split("/")[-1].split(".")[0]
+    gen_dir = os.path.join(gen_dir, f"{engine_name}_{backend}")
+    os.system(f"mkdir -p {gen_dir}")
+    gen_code(engine_name, engine_name, gen_dir, backend)
+
+
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser()
@@ -73,8 +81,8 @@ if __name__ == "__main__":
                                 spec, os.path.join(graph_base_dir, "gen"), args.backend
                             )
                         else:
-                            raise NotImplementedError(
-                                "element compiler not implemented"
+                            compile_impl(
+                                spec, os.path.join(graph_base_dir, "gen"), args.backend
                             )
                     compiled_spec.add(spec)
         scriptgen(graphirs, args.backend, args.app)

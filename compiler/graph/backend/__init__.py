@@ -19,5 +19,5 @@ def scriptgen(girs: Dict[str, GraphIR], backend: str, app: str):
         module = importlib.import_module(f"compiler.graph.backend.{backend}")
     except:
         raise ValueError(f"backend {backend} not supported")
-    generator = getattr(module, f"scriptgen_{backend}", app)
-    generator(girs)
+    generator = getattr(module, f"scriptgen_{backend}")
+    generator(girs, app)

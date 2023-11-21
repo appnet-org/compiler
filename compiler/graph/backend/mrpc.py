@@ -57,11 +57,17 @@ service_pos_dict = {
 
 # TODO: automaticlaly detect sid
 sids = {
-    ("Frontend", "Profile", "client"): "2",
-    ("Frontend", "Search", "client"): "3",
-    ("Frontend", "Search", "server"): "5",
-    ("Search", "Geo", "client"): "3",
-    ("Search", "Rate", "client"): "4",
+    "hotel": {
+        ("Frontend", "Profile", "client"): "2",
+        ("Frontend", "Search", "client"): "3",
+        ("Frontend", "Search", "server"): "5",
+        ("Search", "Geo", "client"): "3",
+        ("Search", "Rate", "client"): "4",
+    },
+    "rpc_echo_local": {
+        ("rpc_echo_client2", "rpc_echo_server", "client"): "1",
+        ("rpc_echo_client2", "rpc_echo_server", "server"): "1",
+    },
 }
 
 attach_cmd, detach_cmd = [], []
@@ -88,9 +94,7 @@ def gen_attach_detach(
         pos: "client" or "server", which affects the order of Mrpc engines.
     """
     assert pos in ["client", "server"], "invalid position"
-    (pre, nxt) = (
-        ("Mrpc", "TcpRpcAdapter") if pos == "client" else ("TcpRpcAdapter", "Mrpc")
-    )
+    pre, nxt = "Mrpc", "TcpRpcAdapter"
     starter, ender = pre, nxt
     installed = {"Mrpc", "TcpRpcAdapter"}
     group_list = [pre, nxt]
@@ -132,10 +136,10 @@ def gen_attach_detach(
             service, host, detach_filename, "/root/phoenix/experimental/mrpc/generated/"
         )
         attach_cmd.append(
-            f"ssh {host} docker exec hotel_{service.lower()} cargo run --release --bin addonctl -- --config experimental/mrpc/generated/{attach_filename.split('/')[-1]} --pid {pid} --sid {sid}"
+            f"ssh {host} docker exec {service.lower()} cargo run --release --bin addonctl -- --config experimental/mrpc/generated/{attach_filename.split('/')[-1]} --pid {pid} --sid {sid}"
         )
         detach_cmd.append(
-            f"ssh {host} docker exec hotel_{service.lower()} cargo run --release --bin addonctl -- --config experimental/mrpc/generated/{detach_filename.split('/')[-1]} --pid {pid} --sid {sid}"
+            f"ssh {host} docker exec {service.lower()} cargo run --release --bin addonctl -- --config experimental/mrpc/generated/{detach_filename.split('/')[-1]} --pid {pid} --sid {sid}"
         )
         installed.add(element.desc)
         group_list = group_list[:-1] + [element.deploy_name] + group_list[-1:]
@@ -220,7 +224,7 @@ def gen_install(elements: List[AbsElement], service: str, host: str):
             f"{graph_base_dir}/gen/{lname}_mrpc/plugin/{lname}",
             f"{container_gen_dir}/plugin/{lname}",
         )
-    # Compile & deploy engines.
+    # # Compile & deploy engines.
     execute_remote_container(
         service,
         host,
@@ -290,7 +294,7 @@ def scriptgen_mrpc(girs: Dict[str, GraphIR], app: str):
                 gir.client,
                 service_pos[gir.client],
                 pids[gir.client],
-                sids[(gir.client, gir.server, "client")],
+                sids[app][(gir.client, gir.server, "client")],
                 gir.elements["req_client"],
                 gir.elements["res_client"],
                 "client",
@@ -300,15 +304,19 @@ def scriptgen_mrpc(girs: Dict[str, GraphIR], app: str):
                 gir.server,
                 service_pos[gir.server],
                 pids[gir.server],
-                sids[(gir.client, gir.server, "server")],
+                sids[app][(gir.client, gir.server, "server")],
                 gir.elements["req_server"],
                 gir.elements["res_server"],
                 "server",
             )
 
-    with open(os.path.join(local_gen_dir, "attach_all.sh"), "w") as f:
+    attach_all_path = os.path.join(local_gen_dir, "attach_all.sh")
+    detach_all_path = os.path.join(local_gen_dir, "detach_all.sh")
+    with open(attach_all_path, "w") as f:
         f.write("#!/bin/bash\n")
         f.write("\n".join(attach_cmd))
-    with open(os.path.join(local_gen_dir, "detach_all.sh"), "w") as f:
+    with open(detach_all_path, "w") as f:
         f.write("#!/bin/bash\n")
         f.write("\n".join(detach_cmd[::-1]))
+    os.system(f"chmod +x {attach_all_path}")
+    os.system(f"chmod +x {detach_all_path}")
