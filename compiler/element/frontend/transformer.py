@@ -1,6 +1,6 @@
 from lark import Transformer
 
-from compiler.ir.node import *
+from compiler.element.node import *
 
 
 class IRTransformer(Transformer):

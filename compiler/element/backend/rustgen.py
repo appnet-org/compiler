@@ -1,8 +1,8 @@
 from typing import Dict, List, Optional
 
-from compiler.ir.backend.rusttype import *
-from compiler.ir.node import *
-from compiler.ir.visitor import Visitor
+from compiler.element.backend.rusttype import *
+from compiler.element.node import *
+from compiler.element.visitor import Visitor
 
 FUNC_REQ = "req"
 FUNC_RESP = "resp"

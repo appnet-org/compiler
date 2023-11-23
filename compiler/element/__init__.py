@@ -8,10 +8,10 @@ from typing import Dict
 
 from compiler import root_base_dir
 from compiler.config import COMPILER_ROOT
-from compiler.ir.backend.finalizer import finalize
-from compiler.ir.backend.rustgen import RustContext, RustGenerator
-from compiler.ir.frontend import IRCompiler, Printer
-from compiler.ir.props.flow import FlowGraph
+from compiler.element.backend.finalizer import finalize
+from compiler.element.backend.rustgen import RustContext, RustGenerator
+from compiler.element.frontend import IRCompiler, Printer
+from compiler.element.props.flow import FlowGraph
 
 
 def gen_code(

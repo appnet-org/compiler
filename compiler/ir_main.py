@@ -7,11 +7,11 @@ from pprint import pprint
 from typing import Dict
 
 from compiler.config import COMPILER_ROOT
-from compiler.ir import compile_element_property, gen_code
-from compiler.ir.backend.finalizer import finalize
-from compiler.ir.backend.rustgen import RustContext, RustGenerator
-from compiler.ir.frontend import IRCompiler, Printer
-from compiler.ir.props.flow import FlowGraph
+from compiler.element import compile_element_property, gen_code
+from compiler.element.backend.finalizer import finalize
+from compiler.element.backend.rustgen import RustContext, RustGenerator
+from compiler.element.frontend import IRCompiler, Printer
+from compiler.element.props.flow import FlowGraph
 
 if __name__ == "__main__":
 

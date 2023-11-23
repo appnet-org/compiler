@@ -1,57 +1,42 @@
 import os
 import sys
+from pprint import pprint
 from string import Formatter
-
-from codegen.boilerplate import *
-from codegen.context import *
+from typing import Dict, List
 
 from compiler.config import COMPILER_ROOT
-
+from compiler.element.backend.boilerplate import *
+from compiler.element.backend.protobuf import HelloProto
+from compiler.element.backend.rustgen import RustContext
+from compiler.element.backend.rusttype import RustGlobalFunctions
 
 # name: table_rpc_events
 # type: Vec<struct_rpc_events>
 # init: table_rpc_events = Vec::new()
-#
-def fill_internal_states(definition, declaration, name, type, init, process, proto):
-    assert len(name) == len(type)
-    proto_fc = proto[0].upper() + proto[1:]
-    return {
-        "ProtoDefinition": proto,
-        # todo! field name should be configurable
-        # todo! multiple type should be supported
-        "ProtoGetters": f"""
-fn {proto}_request_name_readonly(req: &{proto}::{proto_fc}Request) -> String {{
-    let buf = &req.name as &[u8];
-    String::from_utf8_lossy(buf).to_string().clone()
-}}
-        """,
-        "ProtoRpcRequestType": f"{proto}::{proto_fc}Request",
-        "ProtoRpcResponseType": f"{proto}::{proto_fc}Response",
-        "InternalStatesDefinition": "".join(definition),
-        "InternalStatesDeclaration": "".join(
-            [f"use crate::engine::{i};\n" for i in declaration]
-        ),
-        "InternalStatesOnBuild": "".join(
-            [f"let mut {i};\n" if "=" in i else f"{i};\n" for i in init]
-        ),
-        "InternalStatesOnRestore": "".join(
-            [f"let mut {i};\n" if "=" in i else f"{i};\n" for i in init]
-        ),
-        "InternalStatesOnDecompose": "",
-        "InternalStatesInConstructor": "".join([f"{i},\n" for i in name]),
-        "InternalStatesInStructDefinition": "".join(
-            [f"pub(crate) {i[0]}:{i[1]},\n" for i in zip(name, type)]
-        ),
-        "OnTxRpc": "".join(process),
-        "OnRxRpc": r"""// todo """,
-    }
 
 
-def retrieve_info(ctx: Context):
-    ctx.init_code = ctx.init_code[::-1]
-    ctx.process_code = ctx.process_code[::-1]
+def gen_global_function_includes() -> str:
+    prefix = "use crate::engine::{"
+    middle = ""
+    for (k, v) in RustGlobalFunctions.items():
+        name = v.name
+        middle += f"{name},"
+    suffix = "};"
+    return prefix + middle + suffix
+
+
+def gen_def() -> List[str]:
+    ret = []
+    for _, func in RustGlobalFunctions.items():
+        ret.append(func.gen_def())
+    ret = ret + HelloProto.gen_readonly_def() + HelloProto.gen_modify_def()
+    return ret
+
+
+def retrieve_info(ctx: RustContext):
     proto = "hello"
     proto_fc = "Hello"
+    def_code = gen_def()
     info = {
         "ProtoDefinition": proto,
         # todo! field name should be configurable
@@ -60,8 +45,8 @@ def retrieve_info(ctx: Context):
         """,
         "ProtoRpcRequestType": f"{proto}::{proto_fc}Request",
         "ProtoRpcResponseType": f"{proto}::{proto_fc}Response",
-        "GlobalFunctionInclude": ctx.gen_global_function_includes(),
-        "InternalStatesDefinition": "\n".join(ctx.def_code),
+        "GlobalFunctionInclude": gen_global_function_includes(),
+        "InternalStatesDefinition": "\n".join(gen_def()),
         "InternalStatesDeclaration": "\n".join(
             [f"use crate::engine::{i};" for i in ctx.gen_struct_names()]
         ),
@@ -71,13 +56,14 @@ def retrieve_info(ctx: Context):
         + "\n".join(ctx.init_code),
         "InternalStatesOnDecompose": "",
         "InternalStatesInConstructor": "\n".join(
-            [f"{i}," for i in ctx.gen_var_names()]
+            [f"{i}," for i in ctx.gen_internal_names()]
         ),
         "InternalStatesInStructDefinition": "\n".join(
             [f"pub(crate) {i}," for i in ctx.gen_struct_declaration()]
         ),
-        "OnTxRpc": "".join(ctx.process_code),
-        "OnRxRpc": r"""// todo """,
+        "RpcRequest": "".join(ctx.req_code),
+        # !todo resp
+        "RpcResponse": "",  # "".join(ctx.resp_code),
     }
     # for k,v in info.items():
     #     print(k)
@@ -85,90 +71,78 @@ def retrieve_info(ctx: Context):
     return info
 
 
-def parse_intermediate_code(name):
-    ctx = {
-        "definition": [],
-        "declaration": [],
-        "internal": [],
-        "init": [],
-        "name": [],
-        "type": [],
-        "process": [],
-    }
-    print("Generating code for " + name)
-    with open(os.path.join(COMPILER_ROOT, f"generated/{name}.rs")) as f:
-        current = "process"
-        for i in f.readlines():
-            if i.startswith("///@@"):
-                j = i.split()
-                if j[1] == "BEG_OF":
-                    if j[2] == "declaration":
-                        current = "declaration"
-                    elif j[2] == "internal":
-                        print("Warning: No Internal Should Be Generated")
-                        current = "internal"
-                    elif j[2] == "init":
-                        current = "init"
-                    elif j[2] == "process":
-                        current = "process"
-                    elif j[2] == "type":
-                        current = "type"
-                    elif j[2] == "name":
-                        current = "name"
-                    elif j[2] == "definition":
-                        current = "definition"
-                elif j[1] == "END_OF":
-                    assert j[2] == current
-                    current = "process"
-            else:
-                if current is not None:
-                    if i.strip() != "":
-                        ctx[current].append(i.strip("\n"))
+api_lib_rs = "pub mod control_plane;"
+api_control_plane_rs = """use serde::{Deserialize, Serialize};
 
-    ctx = fill_internal_states(
-        ctx["definition"],
-        ctx["declaration"],
-        ctx["name"],
-        ctx["type"],
-        ctx["init"],
-        ctx["process"],
-        "hello",
-    )
+type IResult<T> = Result<T, phoenix_api::Error>;
 
-    return ctx
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum Request {
+    NewConfig(),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ResponseKind {}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Response(pub IResult<ResponseKind>);
+"""
 
 
 def gen_template(
+    output_dir,
     ctx,
     template_name,
     template_name_toml,
     template_name_first_cap,
     template_name_all_cap,
 ):
-    target_dir = os.path.join(COMPILER_ROOT, f"generated/{template_name}")
-    os.system(f"rm -rf {target_dir}")
-    os.system(f"mkdir -p {target_dir}")
-    os.chdir(target_dir)
+    # target_dir = os.path.join(COMPILER_ROOT, f"generated/{template_name}")
+    # os.system(f"rm -rf {target_dir}")
+    # os.system(f"mkdir -p {target_dir}")
+    # os.chdir(target_dir)
+    api_dir = os.path.join(output_dir, f"api/{template_name}")
+    api_dir_src = os.path.join(api_dir, "src")
+    plugin_dir = os.path.join(output_dir, f"plugin/{template_name}")
+    plugin_dir_src = os.path.join(plugin_dir, "src")
+    os.system(f"mkdir -p {api_dir_src}")
+    os.system(f"mkdir -p {plugin_dir_src}")
     ctx["TemplateName"] = template_name
     ctx["TemplateNameFirstCap"] = template_name_first_cap
     ctx["TemplateNameAllCap"] = template_name_all_cap
     ctx["TemplateNameCap"] = template_name_first_cap
     # print("Current dir: {}".format(os.getcwd()))
-    with open("config.rs", "w") as f:
+    config_path = os.path.join(plugin_dir_src, "config.rs")
+    lib_path = os.path.join(plugin_dir_src, "lib.rs")
+    module_path = os.path.join(plugin_dir_src, "module.rs")
+    engine_path = os.path.join(plugin_dir_src, "engine.rs")
+    proto_path = os.path.join(plugin_dir_src, "proto.rs")
+    with open(config_path, "w") as f:
         f.write(config_rs.format(Include=include, **ctx))
-    with open("lib.rs", "w") as f:
+    with open(lib_path, "w") as f:
         f.write(lib_rs.format(Include=include, **ctx))
-    with open("module.rs", "w") as f:
+    with open(module_path, "w") as f:
         f.write(module_rs.format(Include=include, **ctx))
-    with open("engine.rs", "w") as f:
+    with open(engine_path, "w") as f:
         # print([i[1] for i in Formatter().parse(engine_rs)  if i[1] is not None])
         f.write(engine_rs.format(Include=include, **ctx))
-    with open("proto.rs", "w") as f:
+    with open(proto_path, "w") as f:
         f.write(proto_rs)
-    with open("Cargo.toml.api", "w") as f:
-        f.write(api_toml.format(TemplateName=template_name_toml))
-    with open("Cargo.toml.policy", "w") as f:
+    with open(os.path.join(plugin_dir, "Cargo.toml"), "w") as f:
         f.write(policy_toml.format(TemplateName=template_name_toml))
+    with open(os.path.join(api_dir_src, "control_plane.rs"), "w") as f:
+        f.write(api_control_plane_rs)
+    with open(os.path.join(api_dir_src, "lib.rs"), "w") as f:
+        f.write(api_lib_rs)
+    with open(os.path.join(api_dir, "Cargo.toml"), "w") as f:
+        f.write(api_toml.format(TemplateName=template_name_toml))
+
+    os.system(f"rustfmt --edition 2018  {config_path}")
+    os.system(f"rustfmt --edition 2018  {lib_path}")
+    os.system(f"rustfmt --edition 2018  {module_path}")
+    os.system(f"rustfmt --edition 2018  {engine_path}")
+    os.system(f"rustfmt --edition 2018  {proto_path}")
+
     print("Template {} generated".format(template_name))
 
 
@@ -192,11 +166,6 @@ def move_template(
     os.system(f"mkdir -p {mrpc_plugin}/{template_name_toml}/src")
     os.system(f"cp ./Cargo.toml.policy {mrpc_plugin}/{template_name_toml}/Cargo.toml")
 
-    os.system(f"rustfmt --edition 2018  ./config.rs")
-    os.system(f"rustfmt --edition 2018  ./lib.rs")
-    os.system(f"rustfmt --edition 2018  ./module.rs")
-    os.system(f"rustfmt --edition 2018  ./engine.rs")
-    os.system(f"rustfmt --edition 2018  ./proto.rs")
     os.system(f"cp ./config.rs {mrpc_plugin}/{template_name_toml}/src/config.rs")
     os.system(f"cp ./lib.rs {mrpc_plugin}/{template_name_toml}/src/lib.rs")
     os.system(f"cp ./module.rs {mrpc_plugin}/{template_name_toml}/src/module.rs")
@@ -213,21 +182,17 @@ def gen_attach_detach(name: str, ctx):
         f.write(detach_toml.format(**ctx))
 
 
-def finalize(name: str, ctx: Context, output_dir: str):
+def finalize(name: str, ctx: RustContext, output_dir: str):
     if name == "logging":
-        # template_name = "nofile_logging"
-        # template_name_toml = "nofile-logging"
-        # template_name_first_cap = "NofileLogging"
-        # template_name_all_cap = "NOFILE_LOGGING"
-        template_name = "file_logging"
-        template_name_toml = "file-logging"
-        template_name_first_cap = "FileLogging"
-        template_name_all_cap = "FILE_LOGGING"
+        template_name = "logging"
+        template_name_toml = "logging"
+        template_name_first_cap = "Logging"
+        template_name_all_cap = "LOGGING"
     elif name == "acl":
-        template_name = "hello_acl"
-        template_name_toml = "hello-acl"
-        template_name_first_cap = "HelloAcl"
-        template_name_all_cap = "HELLO_ACL"
+        template_name = "acl"
+        template_name_toml = "acl"
+        template_name_first_cap = "Acl"
+        template_name_all_cap = "ACL"
     elif name == "fault":
         template_name = "fault"
         template_name_toml = "fault"
@@ -241,15 +206,16 @@ def finalize(name: str, ctx: Context, output_dir: str):
         template_name_first_cap = "".join(cap)
         template_name_all_cap = "_".join(name).upper()
 
-    # ctx.explain()
     info = retrieve_info(ctx)
     gen_template(
+        output_dir,
         info,
         template_name,
         template_name_toml,
         template_name_first_cap,
         template_name_all_cap,
     )
+    return
     move_template(
         output_dir,
         template_name,
