@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Union
 
 from rich.panel import Panel
 
-from compiler.graph.pseudo_element_compiler import pseudo_gen_property
 from compiler.element import compile_element_property
+from compiler.graph.pseudo_element_compiler import pseudo_gen_property
 
 global_element_id = 0
 
