@@ -1,5 +1,5 @@
-from compiler.ir.node import *
-from compiler.ir.visitor import Visitor
+from compiler.element.node import *
+from compiler.element.visitor import Visitor
 
 
 class Printer(Visitor):

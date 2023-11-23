@@ -1,8 +1,8 @@
 from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, TypeVar
 
-from compiler.ir.node import *
-from compiler.ir.node import Expr, Identifier, Internal, MethodCall, Procedure
-from compiler.ir.visitor import Visitor
+from compiler.element.node import *
+from compiler.element.node import Expr, Identifier, Internal, MethodCall, Procedure
+from compiler.element.visitor import Visitor
 
 
 class StateAnalyzer(Visitor):

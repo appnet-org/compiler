@@ -16,7 +16,7 @@ from compiler.graph.backend import scriptgen
 from compiler.graph.frontend import GCParser
 from compiler.graph.logger import IR_LOG, init_logging
 from compiler.graph.pseudo_element_compiler import pseudo_compile
-from compiler.ir import gen_code
+from compiler.element import gen_code
 
 console = Console()
 gir_summary = dict()

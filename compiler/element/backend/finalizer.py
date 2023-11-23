@@ -5,10 +5,10 @@ from string import Formatter
 from typing import Dict, List
 
 from compiler.config import COMPILER_ROOT
-from compiler.ir.backend.boilerplate import *
-from compiler.ir.backend.protobuf import HelloProto
-from compiler.ir.backend.rustgen import RustContext
-from compiler.ir.backend.rusttype import RustGlobalFunctions
+from compiler.element.backend.boilerplate import *
+from compiler.element.backend.protobuf import HelloProto
+from compiler.element.backend.rustgen import RustContext
+from compiler.element.backend.rusttype import RustGlobalFunctions
 
 # name: table_rpc_events
 # type: Vec<struct_rpc_events>
