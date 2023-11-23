@@ -4,6 +4,6 @@ set -e
 
 # install python dependencies
 sudo apt install -y python3-pip
-pip install lark pre-commit tomli tomli_w colorlog
+pip install lark pre-commit tomli tomli_w colorlog rich
 
 set +e
