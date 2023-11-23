@@ -13,7 +13,7 @@ class GCParser:
         self.services = set()
         self.app_edges = []
 
-    def parse(self, spec_path: str) -> Tuple[Dict[str, GraphIR], Dict[str, str]]:
+    def parse(self, spec_path: str) -> Tuple[Dict[str, GraphIR]]:
         """Parse the user specification file and produce graphirs & service locations.
 
         Args:
@@ -48,4 +48,4 @@ class GCParser:
                 pair.extend(spec_dict["link"][eid])
             if len(chain) + len(pair) > 0:
                 graphir[eid] = GraphIR(client, server, chain, pair)
-        return graphir, spec_dict["service_pos"]
+        return graphir

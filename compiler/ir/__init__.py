@@ -27,7 +27,7 @@ def gen_code(
     generator = RustGenerator()
     ctx = RustContext()
 
-    with open(f"../elements/ir/{engine_name}.adn") as f:
+    with open(os.path.join(root_base_dir, f"elements/ir/{engine_name}.adn")) as f:
         spec = f.read()
         ir = compiler.compile(spec)
         p = ir.accept(printer, None)

@@ -49,13 +49,11 @@ def execute_remote_container(service: str, host: str, cmd: List[str]) -> str:
     Returns:
         The output of the command, or "xxx"if "--dry_run" is provided.
     """
-    BACKEND_LOG.debug(
-        f"Executing command {' '.join(cmd)} in hotel_{service.lower()}..."
-    )
+    BACKEND_LOG.debug(f"Executing command {' '.join(cmd)} in {service.lower()}...")
     if os.getenv("DRY_RUN") == "1":
         return "xxx"
     res = subprocess.run(
-        ["ssh", host, "docker", "exec", f"hotel_{service.lower()}"] + cmd,
+        ["ssh", host, "docker", "exec", service.lower()] + cmd,
         capture_output=True,
     )
     error_handling(res, f"Error when executing command {cmd} in container")
@@ -71,7 +69,7 @@ def copy_remote_container(service: str, host: str, local_path: str, remote_path:
         local_path: Path to the local file/directory.
         remote_path: The target path in the remote container.
     """
-    BACKEND_LOG.debug(f"Copy file {local_path} to hotel_{service.lower()}")
+    BACKEND_LOG.debug(f"Copy file {local_path} to {service.lower()}")
     if os.getenv("DRY_RUN") == "1":
         return
     filename = local_path.split("/")[-1]
@@ -81,6 +79,6 @@ def copy_remote_container(service: str, host: str, local_path: str, remote_path:
     error_handling(res, f"Error when rsync-ing file {local_path}")
     execute_remote_host(
         host,
-        ["docker", "cp", f"/tmp/{filename}", f"hotel_{service.lower()}:{remote_path}"],
+        ["docker", "cp", f"/tmp/{filename}", f"{service.lower()}:{remote_path}"],
     )
     execute_remote_host(host, ["rm", "-r", f"/tmp/{filename}"])

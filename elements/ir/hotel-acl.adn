@@ -4,11 +4,11 @@ internal
 }
 
 fn init() {
-    acl.set('danyang', 'Yes');
+    acl.set('seattle', 'Yes');
 }
 
 fn req(rpc_req) {
-	match (acl.get(rpc_req.get('customer_name')) == 'Yes') {
+	match (acl.get(rpc_req.get('location')) == 'Yes') {
 		True => {
 			send(rpc_req, NET);
 		}

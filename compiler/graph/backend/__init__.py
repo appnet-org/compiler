@@ -6,7 +6,7 @@ from typing import Dict
 from compiler.graph.ir import GraphIR
 
 
-def scriptgen(girs: Dict[str, GraphIR], backend: str, service_pos: Dict[str, str]):
+def scriptgen(girs: Dict[str, GraphIR], backend: str, app: str):
     """
     Call corresponding scripg generation procedure according to the backend name.
 
@@ -20,4 +20,4 @@ def scriptgen(girs: Dict[str, GraphIR], backend: str, service_pos: Dict[str, str
     except:
         raise ValueError(f"backend {backend} not supported")
     generator = getattr(module, f"scriptgen_{backend}")
-    generator(girs, service_pos)
+    generator(girs, app)
