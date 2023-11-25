@@ -3,7 +3,7 @@ from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, Ty
 from compiler.element.node import *
 from compiler.element.node import Expr, Identifier, Internal, MethodCall, Procedure
 from compiler.element.visitor import Visitor
-
+from compiler.element.logger import ELEMENT_LOG as LOG
 
 class StateAnalyzer(Visitor):
     def __init__():
@@ -29,7 +29,7 @@ class CopyAnalyzer(Visitor):
     def visitNode(self, node: Node, ctx):
         if node == START_NODE or node == END_NODE or node == PASS_NODE:
             return
-        print(node.__class__.__name__)
+        LOG.error(node.__class__.__name__, "should be visited in copy analyzer")
         raise Exception("Unreachable!")
 
     def visitProgram(self, node: Program, ctx):
@@ -105,7 +105,7 @@ class WriteAnalyzer(Visitor):
     def visitNode(self, node: Node, ctx):
         if node == START_NODE or node == END_NODE or node == PASS_NODE:
             return
-        print(node.__class__.__name__)
+        LOG.error(node.__class__.__name__, "should be visited in write analyzer")
         raise Exception("Unreachable!")
 
     def visitProgram(self, node: Program, ctx):
@@ -192,7 +192,7 @@ class ReadAnalyzer(Visitor):
     def visitNode(self, node: Node, ctx):
         if node == START_NODE or node == END_NODE or node == PASS_NODE:
             return
-        print(node.__class__.__name__)
+        LOG.error(node.__class__.__name__, "should be visited in read analyzer")
         raise Exception("Unreachable!")
 
     def visitProgram(self, node: Program, ctx):
@@ -282,7 +282,7 @@ class DropAnalyzer(Visitor):
     def visitNode(self, node: Node, ctx):
         if node == START_NODE or node == END_NODE or node == PASS_NODE:
             return
-        print(node.__class__.__name__)
+        LOG.error("Node", node.__class__.__name__, "should be visited in drop analyzer")
         raise Exception("Unreachable!")
 
     def visitProgram(self, node: Program, ctx):
@@ -355,7 +355,7 @@ class AliasAnalyzer(Visitor):
     def visitNode(self, node: Node, ctx):
         if node == START_NODE or node == END_NODE or node == PASS_NODE:
             return
-        print(node.__class__.__name__)
+        LOG.error("Node", node.__class__.__name__, "should be visited in alias analyzer")
         raise Exception("Unreachable!")
 
     def visitProgram(self, node: Program, ctx):
@@ -430,7 +430,7 @@ class ExprResolver(Visitor):
         pass
 
     def visitNode(self, node: Node, ctx) -> str:
-        print(node.__class__.__name__)
+        LOG.error(node.__class__.__name__, "should be visited in expr resolver ")
         raise Exception("Unreachable!")
 
     def visitLiteral(self, node: Literal, ctx) -> str:

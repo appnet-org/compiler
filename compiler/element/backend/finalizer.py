@@ -9,7 +9,7 @@ from compiler.element.backend.boilerplate import *
 from compiler.element.backend.protobuf import HelloProto
 from compiler.element.backend.rustgen import RustContext
 from compiler.element.backend.rusttype import RustGlobalFunctions
-
+from compiler.element.logger import ELEMENT_LOG as LOG
 # name: table_rpc_events
 # type: Vec<struct_rpc_events>
 # init: table_rpc_events = Vec::new()
@@ -65,9 +65,7 @@ def retrieve_info(ctx: RustContext):
         # !todo resp
         "RpcResponse": "",  # "".join(ctx.resp_code),
     }
-    # for k,v in info.items():
-    #     print(k)
-    #     print(v)
+
     return info
 
 
@@ -143,7 +141,7 @@ def gen_template(
     os.system(f"rustfmt --edition 2018  {engine_path}")
     os.system(f"rustfmt --edition 2018  {proto_path}")
 
-    print("Template {} generated".format(template_name))
+    LOG.info("Template {} generated".format(template_name))
 
 
 def move_template(
@@ -171,7 +169,7 @@ def move_template(
     os.system(f"cp ./module.rs {mrpc_plugin}/{template_name_toml}/src/module.rs")
     os.system(f"cp ./engine.rs {mrpc_plugin}/{template_name_toml}/src/engine.rs")
     os.system(f"cp ./proto.rs {mrpc_plugin}/{template_name_toml}/src/proto.rs")
-    print("Template {} moved to mrpc folder".format(template_name))
+    LOG.info("Template {} moved to mrpc folder".format(template_name))
 
 
 def gen_attach_detach(name: str, ctx):
@@ -224,18 +222,18 @@ def finalize(name: str, ctx: RustContext, output_dir: str):
     )
 
 
-def finalize_graph(ctx: Dict[str, object], mrpc_dir: str):
-    output_dir = f"{mrpc_dir}/generated"
-    os.chdir(COMPILER_ROOT)
+# def finalize_graph(ctx: Dict[str, object], mrpc_dir: str):
+#     output_dir = f"{mrpc_dir}/generated"
+#     os.chdir(COMPILER_ROOT)
 
-    os.system("rm -rf ./generated/addonctl")
-    os.system("mkdir ./generated/addonctl")
-    os.chdir("./generated/addonctl")
-    for k, v in ctx.items():
-        gen_attach_detach(k, v)
-        print(f"Generated {k} attach/detach toml")
-    os.chdir(COMPILER_ROOT)
+#     os.system("rm -rf ./generated/addonctl")
+#     os.system("mkdir ./generated/addonctl")
+#     os.chdir("./generated/addonctl")
+#     for k, v in ctx.items():
+#         gen_attach_detach(k, v)
+#         print(f"Generated {k} attach/detach toml")
+#     os.chdir(COMPILER_ROOT)
 
-    os.system(f"rm -rf {output_dir}/addonctl")
-    os.system(f"mkdir -p {output_dir}/addonctl")
-    os.system(f"cp -r ./generated/addonctl {output_dir}/")
+#     os.system(f"rm -rf {output_dir}/addonctl")
+#     os.system(f"mkdir -p {output_dir}/addonctl")
+#     os.system(f"cp -r ./generated/addonctl {output_dir}/")

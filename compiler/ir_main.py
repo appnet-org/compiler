@@ -12,6 +12,7 @@ from compiler.element.backend.finalizer import finalize
 from compiler.element.backend.rustgen import RustContext, RustGenerator
 from compiler.element.frontend import IRCompiler, Printer
 from compiler.element.props.flow import FlowGraph
+from compiler.element.logger import ELEMENT_LOG, init_logging
 
 if __name__ == "__main__":
 
@@ -23,6 +24,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "-v", "--verbose", help="Print Debug info", required=False, default=False
     )
+    
+    init_logging(True)
     # parser.add_argument("--verbose", help="Print Debug info", action="store_true")
     # parser.add_argument(
     #     "--mrpc_dir",

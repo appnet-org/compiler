@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 from compiler.element.backend.rusttype import *
 from compiler.element.node import *
 from compiler.element.visitor import Visitor
-
+from compiler.element.logger import ELEMENT_LOG as LOG
 FUNC_REQ = "req"
 FUNC_RESP = "resp"
 FUNC_INIT = "init"
@@ -17,7 +17,7 @@ def map_basic_type(name: str) -> RustType:
     elif name == "string":
         return RustBasicType("String")
     else:
-        print(f"unknown type: {name}")
+        LOG.warning(f"unknown type: {name}")
         return RustType(name)
 
 
@@ -83,8 +83,12 @@ class RustContext:
         match fname:
             case "randomf":
                 return RustGlobalFunctions["random_f64"]
+            case "update_window":
+                return RustGlobalFunctions["update_window"]
+            case "current_time":
+                return RustGlobalFunctions["current_time"]
             case _:
-                raise Exception("unknown function")
+                raise Exception("unknown global function:", fname)
 
     def gen_struct_names(self) -> List[str]:
         ret = []
@@ -292,8 +296,10 @@ class RustGenerator(Visitor):
                         ret = proto_gen_get(var.name, args)
                     case MethodType.SET:
                         ret = proto_gen_set(var.name, args)
+                    case MethodType.DELETE:
+                        raise Exception("delete is not supported in RPC")
                     case _:
-                        raise Exception("unknown method")
+                        raise Exception("unknown method", node.method)
             else:
                 args = [i.accept(self, ctx) for i in node.args]
                 new_arg = []
@@ -313,10 +319,12 @@ class RustGenerator(Visitor):
                         ret += t.gen_get(args)
                     case MethodType.SET:
                         ret += t.gen_set(args)
+                    case MethodType.DELETE:
+                        ret += t.gen_delete(args)
                     case MethodType.SIZE:
                         ret += t.gen_size()
                     case _:
-                        raise Exception("unknown method")
+                        raise Exception("unknown method", node.method)
 
         return ret
 
@@ -372,7 +380,7 @@ class ExprResolver(Visitor):
         pass
 
     def visitNode(self, node: Node, ctx) -> str:
-        print(node.__class__.__name__)
+        LOG.error(node.__class__.__name__, "being visited")
         raise Exception("Unreachable!")
 
     def visitLiteral(self, node: Literal, ctx) -> str:
