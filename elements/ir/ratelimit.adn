@@ -2,7 +2,7 @@ internal {
 	last: int
 	limit: int
 	token: int
-	token_per_second: float
+	per_sec: float
 }
 
 fn init() {
@@ -13,14 +13,14 @@ fn init() {
 }
 
 fn req(rpc_req) {
-	token := min(lim, per_sec * (current_time() - last));
+	token := min(limit, per_sec * (current_time() - last));
 	last := current_time();
     match (token > 1) {
-		True => {
+		true => {
 			token := token - 1;
 			send(rpc_req, NET);
         }
-		False => {
+		false => {
 			send(err('ratelimit'), APP);
 		}
 	};

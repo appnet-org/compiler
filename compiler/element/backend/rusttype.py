@@ -180,11 +180,11 @@ RustGlobalFunctions = {
         RustBasicType("f64"),
         "pub fn Gen_random_f64(l: f64, r: f64) -> f64 { rand::random::<f64>() }",
     ),
-    "min": RustFunctionType(
-        "Gen_min",
+    "min_u64": RustFunctionType(
+        "Gen_min_u64",
         [RustBasicType("u64"), RustBasicType("u64")],
-        RustBasicType("u32"),
-        "pub fn Gen_min(a: u32, b: f32) -> u32 { (a as f32).min(b) as u32}",
+        RustBasicType("u64"),
+        "pub fn Gen_min(a: u64, b: u64) -> u64 { a.min(b) }",
     ),
 }
 

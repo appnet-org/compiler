@@ -12,7 +12,7 @@ def init_logging(dbg: bool):
     handler = colorlog.StreamHandler()
     handler.setFormatter(
         colorlog.ColoredFormatter(
-            "%(log_color)s%(levelname)-7s%(reset)s %(purple)s%(name)-7s%(reset)s - %(message)s"
+            "%(log_color)s%(levelname)-7s [%(filename)s:%(lineno)d] %(message)s"
         )
     )
     for logger in loggers:

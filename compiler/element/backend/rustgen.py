@@ -87,7 +87,10 @@ class RustContext:
                 return RustGlobalFunctions["update_window"]
             case "current_time":
                 return RustGlobalFunctions["current_time"]
+            case "min":
+                return RustGlobalFunctions["min_u64"]
             case _:
+                LOG.error(f"unknown global function: {fname} in func_mapping")
                 raise Exception("unknown global function:", fname)
 
     def gen_struct_names(self) -> List[str]:
@@ -162,6 +165,7 @@ class RustGenerator(Visitor):
         for p in node.params:
             name = p.name
             if ctx.find_var(name) == None:
+                LOG.error(f"param {name} not found in VisitProcedure")
                 raise Exception(f"param {name} not found")
 
         for s in node.body:
@@ -253,6 +257,7 @@ class RustGenerator(Visitor):
     def visitIdentifier(self, node: Identifier, ctx):
         var = ctx.find_var(node.name)
         if var == None:
+            LOG.error(f"variable name {node.name} not found")
             raise Exception(f"variable {node.name} not found")
         else:
             if var.temp or var.rpc:
