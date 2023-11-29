@@ -36,7 +36,6 @@ def gen_def() -> List[str]:
 def retrieve_info(ctx: RustContext):
     proto = "hello"
     proto_fc = "Hello"
-    def_code = gen_def()
     info = {
         "ProtoDefinition": proto,
         # todo! field name should be configurable
@@ -121,15 +120,17 @@ def gen_template(
     with open(lib_path, "w") as f:
         f.write(lib_rs.format(Include=include, **ctx))
     with open(module_path, "w") as f:
-        f.write(module_rs.format(Include=include, **ctx))
+        if placement == "sender":
+            f.write(module_sender_rs.format(Include=include, **ctx))
+        elif placement == "receiver":
+            f.write(module_receiver_rs.format(Include=include, **ctx))
     with open(engine_path, "w") as f:
         # print([i[1] for i in Formatter().parse(engine_rs)  if i[1] is not None])
         if placement == "sender":
             f.write(engine_sender_rs.format(Include=include, **ctx))
         elif placement == "receiver":
             f.write(engine_receiver_rs.format(Include=include, **ctx))
-        else:
-            raise Exception("Unknown placement: {}".format(placement))
+
     with open(proto_path, "w") as f:
         f.write(proto_rs)
     with open(os.path.join(plugin_dir, "Cargo.toml"), "w") as f:

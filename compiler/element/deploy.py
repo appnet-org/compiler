@@ -54,14 +54,14 @@ def move_template(
     LOG.info("Template {} moved to mrpc folder".format(template_name))
 
 def install(engine_name: List[str], phoenix_dir: str):
-    os.chdir(COMPILER_ROOT + "/generated")
+    os.chdir(str(COMPILER_ROOT) + "/generated")
     LOG.info("Deploying to mRPC...")
         
-    engines = []
-    for engine in engine_name:
-        name = f"gen_{engine}_{len(engines)}"
-        engines.append(name)
-    
+    # engines = []
+    # for engine in engine_name:
+    #     name = f"gen_{engine}_{len(engines)}"
+    #     engines.append(name)
+    engines = engine_name
     engines = [to_cargo_toml(i) for i in engines]    
 
     api = [f"generated/api/{i}" for i in engines]
@@ -107,7 +107,7 @@ def install(engine_name: List[str], phoenix_dir: str):
         print("Compiling mRPC Plugin: ", e)
         res = subprocess.run(["cargo", "make", "build-mrpc-plugin-single", e], capture_output=True)
         if res.returncode != 0:
-            LOG.error("Error on compiling mRPC Plugin: ", e)
+            LOG.error("Error on compiling mRPC Plugin: ", res)
             exit(1)
         #os.system(f"cargo make build-mrpc-plugin-single {e}")
     

@@ -42,6 +42,7 @@ if __name__ == "__main__":
 
     # ret = compile_element(engine, verbose)
     # pprint(ret)
-
-    ret = gen_code(engine, engine, str(COMPILER_ROOT) + "/generated", "mrpc", "receiver", verbose)
-    move_template("/home/banruo/phoenix", engine)
+    output_name = "gen" + engine + "receiver"
+    ret = gen_code(engine, output_name, str(COMPILER_ROOT) + "/generated", "mrpc", "receiver", verbose)
+    move_template("/home/banruo/phoenix", output_name)
+    install([output_name], "/home/banruo/phoenix")

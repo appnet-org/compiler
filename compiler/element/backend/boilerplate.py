@@ -89,7 +89,7 @@ pub fn init_addon(config_string: Option<&str>) -> InitFnResult<Box<dyn PhoenixAd
 }}
 """
 
-module_rs = """
+module_sender_rs = """
 use anyhow::{{bail, Result}};
 use nix::unistd::Pid;
 
@@ -195,6 +195,117 @@ impl PhoenixAddon for {TemplateNameFirstCap}Addon {{
     }}
 }}
 """
+
+module_receiver_rs = """
+use anyhow::{{bail, Result}};
+use nix::unistd::Pid;
+
+use phoenix_common::engine::datapath::meta_pool::MetaBufferPool;
+use phoenix_common::addon::{{PhoenixAddon, Version}};
+use phoenix_common::engine::datapath::DataPathNode;
+use phoenix_common::engine::{{Engine, EngineType}};
+use phoenix_common::storage::ResourceCollection;
+
+use super::engine::{TemplateNameFirstCap}Engine;
+use crate::config::{{create_log_file, {TemplateNameFirstCap}Config}};
+{InternalStatesDeclaration}
+{Include}
+{GlobalFunctionInclude}
+
+pub(crate) struct {TemplateNameFirstCap}EngineBuilder {{
+    node: DataPathNode,
+    config: {TemplateNameFirstCap}Config,
+}}
+
+impl {TemplateNameFirstCap}EngineBuilder {{
+    fn new(node: DataPathNode, config: {TemplateNameFirstCap}Config) -> Self {{
+        {TemplateNameFirstCap}EngineBuilder {{ node, config }}
+    }}
+    // TODO! LogFile
+    fn build(self) -> Result<{TemplateNameFirstCap}Engine> {{
+        {InternalStatesOnBuild}
+        const META_BUFFER_POOL_CAP: usize = 128;
+        Ok({TemplateNameFirstCap}Engine {{
+            node: self.node,
+            indicator: Default::default(),
+            config: self.config,
+            meta_buf_pool: MetaBufferPool::new(META_BUFFER_POOL_CAP),
+            {InternalStatesInConstructor}
+        }})
+    }}
+}}
+
+pub struct {TemplateNameFirstCap}Addon {{
+    config: {TemplateNameFirstCap}Config,
+}}
+
+impl {TemplateNameFirstCap}Addon {{
+    pub const {TemplateNameAllCap}_ENGINE: EngineType = EngineType("{TemplateNameFirstCap}Engine");
+    pub const ENGINES: &'static [EngineType] = &[{TemplateNameFirstCap}Addon::{TemplateNameAllCap}_ENGINE];
+}}
+
+impl {TemplateNameFirstCap}Addon {{
+    pub fn new(config: {TemplateNameFirstCap}Config) -> Self {{
+        {TemplateNameFirstCap}Addon {{ config }}
+    }}
+}}
+
+impl PhoenixAddon for {TemplateNameFirstCap}Addon {{
+    fn check_compatibility(&self, _prev: Option<&Version>) -> bool {{
+        true
+    }}
+
+    fn decompose(self: Box<Self>) -> ResourceCollection {{
+        let addon = *self;
+        let mut collections = ResourceCollection::new();
+        collections.insert("config".to_string(), Box::new(addon.config));
+        collections
+    }}
+
+    #[inline]
+    fn migrate(&mut self, _prev_addon: Box<dyn PhoenixAddon>) {{}}
+
+    fn engines(&self) -> &[EngineType] {{
+        {TemplateNameFirstCap}Addon::ENGINES
+    }}
+
+    fn update_config(&mut self, config: &str) -> Result<()> {{
+        self.config = toml::from_str(config)?;
+        Ok(())
+    }}
+
+    fn create_engine(
+        &mut self,
+        ty: EngineType,
+        _pid: Pid,
+        node: DataPathNode,
+    ) -> Result<Box<dyn Engine>> {{
+        if ty != {TemplateNameFirstCap}Addon::{TemplateNameAllCap}_ENGINE {{
+            bail!("invalid engine type {{:?}}", ty)
+        }}
+
+        let builder = {TemplateNameFirstCap}EngineBuilder::new(node, self.config);
+        let engine = builder.build()?;
+        Ok(Box::new(engine))
+    }}
+
+    fn restore_engine(
+        &mut self,
+        ty: EngineType,
+        local: ResourceCollection,
+        node: DataPathNode,
+        prev_version: Version,
+    ) -> Result<Box<dyn Engine>> {{
+        if ty != {TemplateNameFirstCap}Addon::{TemplateNameAllCap}_ENGINE {{
+            bail!("invalid engine type {{:?}}", ty)
+        }}
+
+        let engine = {TemplateNameFirstCap}Engine::restore(local, node, prev_version)?;
+        Ok(Box::new(engine))
+    }}
+}}
+"""
+
 
 engine_sender_rs = """
 use anyhow::{{anyhow, Result}};
@@ -430,7 +541,7 @@ use phoenix_common::log;
 use phoenix_common::module::Version;
 
 use phoenix_common::storage::{{ResourceCollection, SharedStorage}};
-use phoenix_common::engine::datapath::RpcMessageTx;
+use phoenix_common::engine::datapath::{{RpcMessageTx, RpcMessageRx}};
 
 use super::DatapathError;
 use crate::config::{{create_log_file, {TemplateNameCap}Config}};
@@ -560,14 +671,14 @@ impl {TemplateNameCap}Engine {{
 }}
 
 #[inline]
-fn materialize_nocopy(msg: &RpcMessageTx) -> &{ProtoRpcRequestType} {{
+fn materialize_nocopy(msg: &RpcMessageRx) -> &{ProtoRpcRequestType} {{
     let req_ptr = msg.addr_backend as *mut {ProtoRpcRequestType};
     let req = unsafe {{ req_ptr.as_ref().unwrap() }};
     return req;
 }}
 
 #[inline]
-fn materialize_nocopy_mutable(msg: &RpcMessageTx) -> &mut {ProtoRpcRequestType} {{
+fn materialize_nocopy_mutable(msg: &RpcMessageRx) -> &mut {ProtoRpcRequestType} {{
     let req_ptr = msg.addr_backend as *mut {ProtoRpcRequestType};
     let req = unsafe {{ req_ptr.as_mut().unwrap() }};
     return req;
@@ -597,6 +708,8 @@ impl {TemplateNameCap}Engine {{
                         }}
                     }}
                     EngineRxMessage::RpcMessage(msg) => {{
+                        let rpc_req = materialize_nocopy(&msg);
+                        let rpc_req_mut = materialize_nocopy_mutable(&msg);
                         {RpcRequest}
                     }}
                     EngineRxMessage::RecvError(_, _) => {{

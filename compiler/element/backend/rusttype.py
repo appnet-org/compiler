@@ -184,7 +184,7 @@ RustGlobalFunctions = {
         "Gen_min_u64",
         [RustBasicType("u64"), RustBasicType("u64")],
         RustBasicType("u64"),
-        "pub fn Gen_min(a: u64, b: u64) -> u64 { a.min(b) }",
+        "pub fn Gen_min_u64(a: u64, b: u64) -> u64 { a.min(b) }",
     ),
 }
 
