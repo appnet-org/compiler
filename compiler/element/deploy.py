@@ -91,8 +91,8 @@ def install(engine_name: List[str], phoenix_dir: str):
     if res != 0:
         LOG.error("Error on copying updated Cargo.toml")
         exit(1)
-    
-    with open("load-mrpc-plugins-gen.toml", "a") as f:
+   
+    with open("load-mrpc-plugins-gen.toml", "w") as f:
         for e in engines:
             app = modify_load(e)
             f.write(app)
