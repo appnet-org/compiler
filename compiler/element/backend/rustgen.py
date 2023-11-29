@@ -128,8 +128,10 @@ class RustContext:
 
 
 class RustGenerator(Visitor):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, placement: str) -> None:
+        self.placement = placement
+        if placement != "sender" and placement != "receiver":
+            raise Exception("placement should be sender or receiver")
 
     def visitNode(self, node: Node, ctx: RustContext):
         return node.__class__.__name__
@@ -337,47 +339,101 @@ class RustGenerator(Visitor):
         if ctx.current_func == "unknown" or ctx.current_func == "init":
             raise Exception("send not in function")
 
-        if isinstance(node.msg, Identifier):
-            if node.msg.name == "rpc_req":
-                inner = """
-                    let inner_gen = EngineTxMessage::RpcMessage(RpcMessageTx {
-                                meta_buf_ptr: msg.meta_buf_ptr.clone(),
-                                addr_backend: msg.addr_backend ,
-                            });
-                """
-            elif node.msg.name == "rpc_resp":
-                inner = """
-                    let inner_gen = EngineRxMessage::RpcMessage(msg)
-                """
-            else:
-                raise Exception("unknown send target")
+        if isinstance(node.msg, Error):
+            # handle drop
+            raise NotImplementedError("drop not implemented")
         else:
-            inner = node.msg.accept(self, ctx)
-            inner = f"let inner_gen = {inner};\n"
-        if ctx.current_func == FUNC_REQ:
-            if node.direction == "NET":
-                return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
-            elif node.direction == "APP":
-                return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
-        elif ctx.current_func == FUNC_RESP:
-            if node.direction == "NET":
-                return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
-            elif node.direction == "APP":
-                return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
-        else:
-            raise Exception("unknown function")
+            # handle send
+            if not isinstance(node.msg, Identifier) or (node.msg.name != "rpc_req" and node.msg.name != "rpc_resp"):
+                LOG.error("Can only send rpc_req or rpc_resp")
+                raise Exception("Can only send rpc_req or rpc_resp") 
+            if self.placement == "sender":
+                if node.msg.name == "rpc_req":
+                    inner = """
+                        let inner_gen = EngineTxMessage::RpcMessage(RpcMessageTx {
+                                    meta_buf_ptr: msg.meta_buf_ptr.clone(),
+                                    addr_backend: msg.addr_backend ,
+                                });
+                    """
+                elif node.msg.name == "rpc_resp":
+                    inner = """
+                        let inner_gen = EngineRxMessage::RpcMessage(msg)
+                    """
+                if ctx.current_func == FUNC_REQ:
+                    if node.direction == "NET":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+                elif ctx.current_func == FUNC_RESP:
+                    if node.direction == "NET":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+            elif self.placement == "receiver":
+                if node.msg.name == "rpc_req":
+                    inner = """
+                        let inner_gen = EngineRxMessage::RpcMessage(RpcMessageRx {
+                                    meta: msg.meta.clone(),
+                                    addr_app: msg.addr_app,
+                                    addr_backend: msg.addr_backend,
+                                });
+                    """
+                elif node.msg.name == "rpc_resp":
+                    inner = """
+                        let inner_gen = EngineTxMessage::RpcMessage(msg)
+                    """
+                if ctx.current_func == FUNC_REQ:
+                    if node.direction == "NET":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
+                elif ctx.current_func == FUNC_RESP:
+                    if node.direction == "NET":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
 
     def visitLiteral(self, node: Literal, ctx):
         return node.value.replace("'", '"')
 
     def visitError(self, node: Error, ctx) -> str:
-        return """EngineRxMessage::Ack(
+        if self.placement == "sender":
+            return """EngineRxMessage::Ack(
                                 RpcId::new(
                                     unsafe { &*msg.meta_buf_ptr.as_meta_ptr() }.conn_id,
                                     unsafe { &*msg.meta_buf_ptr.as_meta_ptr() }.call_id,
                                 ),
                                 TransportStatus::Error(unsafe { NonZeroU32::new_unchecked(403) }),
                             )"""
+        else:
+            return """
+            let mut meta = unsafe { msg.meta.as_ref().clone() };
+            meta.status_code = StatusCode::AccessDenied;
+            let mut meta_ptr = self
+                .meta_buf_pool
+                .obtain(RpcId(meta.conn_id, meta.call_id))
+                .expect("meta_buf_pool is full");
+            unsafe {
+                meta_ptr.as_meta_ptr().write(meta);
+                meta_ptr.0.as_mut().num_sge = 0;
+                meta_ptr.0.as_mut().value_len = 0;
+            }
+            let rpc_msg = RpcMessageTx {
+                meta_buf_ptr: meta_ptr,
+                addr_backend: 0,
+            };
+                            let new_msg = EngineTxMessage::RpcMessage(rpc_msg);
+                            self.tx_outputs()[0]
+                                .send(new_msg)
+                                .expect("send new message error");
+                            let msg_call_ids =
+                                [meta.call_id, meta.call_id, meta.call_id, meta.call_id];
+                            self.tx_outputs()[0].send(EngineTxMessage::ReclaimRecvBuf(
+                                meta.conn_id,
+                                msg_call_ids,
+                            ))?;
+        
+        """
 
 
 class ExprResolver(Visitor):

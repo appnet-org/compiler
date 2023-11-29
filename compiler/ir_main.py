@@ -13,6 +13,7 @@ from compiler.element.backend.rustgen import RustContext, RustGenerator
 from compiler.element.frontend import IRCompiler, Printer
 from compiler.element.props.flow import FlowGraph
 from compiler.element.logger import ELEMENT_LOG, init_logging
+from compiler.element.deploy import install, move_template
 
 if __name__ == "__main__":
 
@@ -42,4 +43,5 @@ if __name__ == "__main__":
     # ret = compile_element(engine, verbose)
     # pprint(ret)
 
-    ret = gen_code(engine, engine, str(COMPILER_ROOT) + "/generated", "mrpc", verbose)
+    ret = gen_code(engine, engine, str(COMPILER_ROOT) + "/generated", "mrpc", "receiver", verbose)
+    move_template("/home/banruo/phoenix", engine)
