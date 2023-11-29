@@ -1,9 +1,10 @@
 from typing import Dict, List, Optional
 
 from compiler.element.backend.rusttype import *
+from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.visitor import Visitor
-from compiler.element.logger import ELEMENT_LOG as LOG
+
 FUNC_REQ = "req"
 FUNC_RESP = "resp"
 FUNC_INIT = "init"
@@ -360,9 +361,11 @@ class RustGenerator(Visitor):
                 return inner
         else:
             # handle send
-            if not isinstance(node.msg, Identifier) or (node.msg.name != "rpc_req" and node.msg.name != "rpc_resp"):
+            if not isinstance(node.msg, Identifier) or (
+                node.msg.name != "rpc_req" and node.msg.name != "rpc_resp"
+            ):
                 LOG.error("Can only send rpc_req or rpc_resp")
-                raise Exception("Can only send rpc_req or rpc_resp") 
+                raise Exception("Can only send rpc_req or rpc_resp")
             if self.placement == "sender":
                 if node.msg.name == "rpc_req":
                     inner = """

@@ -1,9 +1,10 @@
 from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, TypeVar
 
+from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.node import Expr, Identifier, Internal, MethodCall, Procedure
 from compiler.element.visitor import Visitor
-from compiler.element.logger import ELEMENT_LOG as LOG
+
 
 class StateAnalyzer(Visitor):
     def __init__():
@@ -355,7 +356,9 @@ class AliasAnalyzer(Visitor):
     def visitNode(self, node: Node, ctx):
         if node == START_NODE or node == END_NODE or node == PASS_NODE:
             return
-        LOG.error("Node", node.__class__.__name__, "should be visited in alias analyzer")
+        LOG.error(
+            "Node", node.__class__.__name__, "should be visited in alias analyzer"
+        )
         raise Exception("Unreachable!")
 
     def visitProgram(self, node: Program, ctx):

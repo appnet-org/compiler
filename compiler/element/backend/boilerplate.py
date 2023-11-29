@@ -702,7 +702,7 @@ impl {TemplateNameCap}Engine {{
             Ok(m) => {{
                 match m {{
                     EngineRxMessage::Ack(rpc_id, _status) => {{
-                        if let Ok(()) = self.meta_buf_pool.release(rpc_id) {{                            
+                        if let Ok(()) = self.meta_buf_pool.release(rpc_id) {{
                         }} else {{
                             self.rx_outputs()[0].send(m)?;
                         }}
@@ -722,7 +722,7 @@ impl {TemplateNameCap}Engine {{
             Err(TryRecvError::Disconnected) => return Ok(Status::Disconnected),
         }}
 
-        
+
         Ok(Progress(0))
     }}
 }}
