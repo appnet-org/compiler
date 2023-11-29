@@ -341,7 +341,23 @@ class RustGenerator(Visitor):
 
         if isinstance(node.msg, Error):
             # handle drop
-            raise NotImplementedError("drop not implemented")
+            if self.placement == "sender":
+                msg = node.msg.accept(self, ctx)
+                inner = f"let inner_gen = {msg}"
+                if ctx.current_func == FUNC_REQ:
+                    if node.direction == "NET":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+                elif ctx.current_func == FUNC_RESP:
+                    if node.direction == "NET":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+            else:
+                msg = node.msg.accept(self, ctx)
+                inner = msg
+                return inner
         else:
             # handle send
             if not isinstance(node.msg, Identifier) or (node.msg.name != "rpc_req" and node.msg.name != "rpc_resp"):
@@ -418,21 +434,19 @@ class RustGenerator(Visitor):
                 meta_ptr.0.as_mut().num_sge = 0;
                 meta_ptr.0.as_mut().value_len = 0;
             }
-            let rpc_msg = RpcMessageTx {
+            let new_msg = EngineTxMessage::RpcMessage(RpcMessageTx {
                 meta_buf_ptr: meta_ptr,
                 addr_backend: 0,
-            };
-                            let new_msg = EngineTxMessage::RpcMessage(rpc_msg);
-                            self.tx_outputs()[0]
-                                .send(new_msg)
-                                .expect("send new message error");
-                            let msg_call_ids =
-                                [meta.call_id, meta.call_id, meta.call_id, meta.call_id];
-                            self.tx_outputs()[0].send(EngineTxMessage::ReclaimRecvBuf(
-                                meta.conn_id,
-                                msg_call_ids,
-                            ))?;
-        
+            });
+            self.tx_outputs()[0]
+                .send(new_msg)
+                .expect("send new message error");
+            let msg_call_ids =
+                [meta.call_id, meta.call_id, meta.call_id, meta.call_id];
+            self.tx_outputs()[0].send(EngineTxMessage::ReclaimRecvBuf(
+                meta.conn_id,
+                msg_call_ids,
+            ))?;
         """
 
 

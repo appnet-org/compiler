@@ -25,6 +25,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-v", "--verbose", help="Print Debug info", required=False, default=False
     )
+    parser.add_argument(
+        "-d", "--deploy", help="Deploy to the target directory", required=False, default=False
+    )
     
     init_logging(True)
     # parser.add_argument("--verbose", help="Print Debug info", action="store_true")
@@ -39,10 +42,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
     engine = args.engine
     verbose = args.verbose
+    deploy = args.deploy
 
     # ret = compile_element(engine, verbose)
     # pprint(ret)
     output_name = "gen" + engine + "receiver"
     ret = gen_code(engine, output_name, str(COMPILER_ROOT) + "/generated", "mrpc", "receiver", verbose)
-    move_template("/home/banruo/phoenix", output_name)
-    install([output_name], "/home/banruo/phoenix")
+    if deploy:
+        move_template("/home/banruo/phoenix", output_name)
+        install([output_name], "/home/banruo/phoenix")
