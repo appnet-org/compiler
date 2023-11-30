@@ -12,28 +12,28 @@ fn init(window) {
 fn req(rpc_req) {
 	now := current_time();
 	match(now - last > window) {
-		True => {
+		true => {
 			failure := 0;
 			total := 0;
 			last := now;
 		}
-		False => {
+		false => {
 			// do nothing
 		}
 	}; 
 	match(failure > 0.5 * total) {
-		True => {
+		true => {
 			send(err('admission_control'), APP);
 		}
-		False => {
+		false => {
 			total := total + 1;
 			send(rpc_req, NET);
 		}
 	};
 }
 
-fn resp(resp) {
-	match(resp) {
+fn resp(rpc_resp) {
+	match(rpc_resp) {
 		Some(rpc_resp) => {
 			send(rpc_resp, APP);
 		}

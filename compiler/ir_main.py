@@ -10,7 +10,9 @@ from compiler.config import COMPILER_ROOT
 from compiler.element import compile_element_property, gen_code
 from compiler.element.backend.finalizer import finalize
 from compiler.element.backend.rustgen import RustContext, RustGenerator
+from compiler.element.deploy import install, move_template
 from compiler.element.frontend import IRCompiler, Printer
+from compiler.element.logger import ELEMENT_LOG, init_logging
 from compiler.element.props.flow import FlowGraph
 
 if __name__ == "__main__":
@@ -23,6 +25,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "-v", "--verbose", help="Print Debug info", required=False, default=False
     )
+    parser.add_argument(
+        "-d",
+        "--deploy",
+        help="Deploy to the target directory",
+        required=False,
+        default=False,
+    )
+
+    init_logging(True)
     # parser.add_argument("--verbose", help="Print Debug info", action="store_true")
     # parser.add_argument(
     #     "--mrpc_dir",
@@ -35,8 +46,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
     engine = args.engine
     verbose = args.verbose
+    deploy = args.deploy
 
     # ret = compile_element(engine, verbose)
     # pprint(ret)
-
-    ret = gen_code(engine, engine, str(COMPILER_ROOT) + "/generated", "mrpc", verbose)
+    output_name = "gen" + engine + "server"
+    ret = gen_code(
+        engine,
+        output_name,
+        str(COMPILER_ROOT) + "/generated",
+        "mrpc",
+        "server",
+        verbose,
+    )
+    if deploy:
+        move_template("/home/banruo/phoenix", output_name)
+        install([output_name], "/home/banruo/phoenix")

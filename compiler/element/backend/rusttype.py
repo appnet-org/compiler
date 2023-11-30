@@ -21,6 +21,18 @@ class RustType:
     def gen_init(self) -> str:
         raise NotImplementedError
 
+    def gen_get(self, args):
+        raise NotImplementedError
+
+    def gen_set(self, args):
+        raise NotImplementedError
+
+    def gen_delete(self, args):
+        raise NotImplementedError
+
+    def gen_size(self):
+        raise NotImplementedError
+
 
 class RustBasicType(RustType):
     def __init__(self, name: str, init_val: Optional[str] = None):
@@ -56,6 +68,10 @@ class RustVecType(RustType):
             return f".push({args[1]})"
         else:
             return f".set({args[0]}, {args[1]})"
+
+    def gen_delete(self, args):
+        assert len(args) == 1
+        return f".remove({args[0]})"
 
     def gen_size(self) -> str:
         return f".len()"
@@ -141,7 +157,13 @@ class RustVariable:
 
 
 RustGlobalFunctions = {
-    "cur_ts": RustFunctionType(
+    "update_window": RustFunctionType(
+        "Gen_update_window",
+        [RustBasicType("u64"), RustBasicType("u64")],
+        RustBasicType("u64"),
+        "pub fn Gen_update_window(a: u64, b: u64) -> u64 { a.max(b) }",
+    ),
+    "current_time": RustFunctionType(
         "Gen_current_timestamp",
         [],
         RustBasicType("Instant"),
@@ -159,11 +181,11 @@ RustGlobalFunctions = {
         RustBasicType("f64"),
         "pub fn Gen_random_f64(l: f64, r: f64) -> f64 { rand::random::<f64>() }",
     ),
-    "min": RustFunctionType(
-        "Gen_min",
+    "min_u64": RustFunctionType(
+        "Gen_min_u64",
         [RustBasicType("u64"), RustBasicType("u64")],
-        RustBasicType("u32"),
-        "pub fn Gen_min(a: u32, b: f32) -> u32 { (a as f32).min(b) as u32}",
+        RustBasicType("u64"),
+        "pub fn Gen_min_u64(a: u64, b: u64) -> u64 { a.min(b) }",
     ),
 }
 

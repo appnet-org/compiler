@@ -12,11 +12,11 @@ fn init() {
 
 fn req(rpc_req) {
 	match (outstanding.size() < window) {
-		True => {
-			set(outstanding, rpc_req.get('meta_id'), current_time());
+		true => {
+			outstanding.set(rpc_req.get('meta_id'), current_time());
 			send(rpc_req, NET);
 		}
-		False => {
+		false => {
 			send(err('ratelimit'), APP);
 		}
 	};
@@ -24,8 +24,8 @@ fn req(rpc_req) {
 
 
 fn resp(rpc_resp) {
-    send_time := outstanding.get(resp.get(id));
+    send_time := outstanding.get(rpc_resp.get(id));
     window := update_window(current_time() - send_time);
-    outstanding.delete(resp.get(id));
+    outstanding.delete(rpc_resp.get(id));
     send(rpc_resp, APP);
 }

@@ -10,22 +10,22 @@ fn init() {
 fn req(rpc_req) {
 
 	match (rpc_req.get('A') == 1) {
-		True => {
+		true => {
             alias := rpc_req;
             alias.set('C', '2');
 			send(alias, NET);
 		}
-		False => {
+		false => {
             alias2 := rpc_req;
             temp2 := alias2.get('B');
             send(err(temp), APP);
 		}
 	};
     match (config == rpc.get('D')) {
-		True => {
+		true => {
 			send(rpc_req, NET);
 		}
-		False => {
+		false => {
             rpc_req.set('D', config);
 		}
 	};

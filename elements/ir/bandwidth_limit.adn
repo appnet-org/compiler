@@ -2,10 +2,10 @@ internal {
 	last: int
 	limit: int
 	token: int
-	token_per_second: int
+	per_sec: int
 }
 
-fn init(lim, token, per_sec) {
+fn init() {
 	last := current_time();
 	limit  := 50;
 	token := 500;
@@ -13,14 +13,14 @@ fn init(lim, token, per_sec) {
 }
 
 fn req(rpc_req) {
-	token := min(lim, per_sec * (current_time() - last));
+	token := min(limit, per_sec * (current_time() - last));
 	last := current_time();
 	match(token > 1) {
-		True => {
+		true => {
 			token := token - rpc_req.get('meta_size');
 			send(rpc_req, NET);
 		}
-		False => {
+		false => {
 			send(err('ratelimit'), APP);
 		}
 	};

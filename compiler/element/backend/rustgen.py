@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 
 from compiler.element.backend.rusttype import *
+from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.visitor import Visitor
 
@@ -17,7 +18,7 @@ def map_basic_type(name: str) -> RustType:
     elif name == "string":
         return RustBasicType("String")
     else:
-        print(f"unknown type: {name}")
+        LOG.warning(f"unknown type: {name}")
         return RustType(name)
 
 
@@ -83,8 +84,15 @@ class RustContext:
         match fname:
             case "randomf":
                 return RustGlobalFunctions["random_f64"]
+            case "update_window":
+                return RustGlobalFunctions["update_window"]
+            case "current_time":
+                return RustGlobalFunctions["current_time"]
+            case "min":
+                return RustGlobalFunctions["min_u64"]
             case _:
-                raise Exception("unknown function")
+                LOG.error(f"unknown global function: {fname} in func_mapping")
+                raise Exception("unknown global function:", fname)
 
     def gen_struct_names(self) -> List[str]:
         ret = []
@@ -121,8 +129,10 @@ class RustContext:
 
 
 class RustGenerator(Visitor):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, placement: str) -> None:
+        self.placement = placement
+        if placement != "client" and placement != "server":
+            raise Exception("placement should be sender or receiver")
 
     def visitNode(self, node: Node, ctx: RustContext):
         return node.__class__.__name__
@@ -158,6 +168,7 @@ class RustGenerator(Visitor):
         for p in node.params:
             name = p.name
             if ctx.find_var(name) == None:
+                LOG.error(f"param {name} not found in VisitProcedure")
                 raise Exception(f"param {name} not found")
 
         for s in node.body:
@@ -249,6 +260,7 @@ class RustGenerator(Visitor):
     def visitIdentifier(self, node: Identifier, ctx):
         var = ctx.find_var(node.name)
         if var == None:
+            LOG.error(f"variable name {node.name} not found")
             raise Exception(f"variable {node.name} not found")
         else:
             if var.temp or var.rpc:
@@ -292,8 +304,10 @@ class RustGenerator(Visitor):
                         ret = proto_gen_get(var.name, args)
                     case MethodType.SET:
                         ret = proto_gen_set(var.name, args)
+                    case MethodType.DELETE:
+                        raise Exception("delete is not supported in RPC")
                     case _:
-                        raise Exception("unknown method")
+                        raise Exception("unknown method", node.method)
             else:
                 args = [i.accept(self, ctx) for i in node.args]
                 new_arg = []
@@ -313,10 +327,12 @@ class RustGenerator(Visitor):
                         ret += t.gen_get(args)
                     case MethodType.SET:
                         ret += t.gen_set(args)
+                    case MethodType.DELETE:
+                        ret += t.gen_delete(args)
                     case MethodType.SIZE:
                         ret += t.gen_size()
                     case _:
-                        raise Exception("unknown method")
+                        raise Exception("unknown method", node.method)
 
         return ret
 
@@ -324,47 +340,117 @@ class RustGenerator(Visitor):
         if ctx.current_func == "unknown" or ctx.current_func == "init":
             raise Exception("send not in function")
 
-        if isinstance(node.msg, Identifier):
-            if node.msg.name == "rpc_req":
-                inner = """
-                    let inner_gen = EngineTxMessage::RpcMessage(RpcMessageTx {
-                                meta_buf_ptr: msg.meta_buf_ptr.clone(),
-                                addr_backend: msg.addr_backend ,
-                            });
-                """
-            elif node.msg.name == "rpc_resp":
-                inner = """
-                    let inner_gen = EngineRxMessage::RpcMessage(msg)
-                """
+        if isinstance(node.msg, Error):
+            # handle drop
+            if self.placement == "client":
+                msg = node.msg.accept(self, ctx)
+                inner = f"let inner_gen = {msg}"
+                if ctx.current_func == FUNC_REQ:
+                    if node.direction == "NET":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+                elif ctx.current_func == FUNC_RESP:
+                    if node.direction == "NET":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
             else:
-                raise Exception("unknown send target")
+                msg = node.msg.accept(self, ctx)
+                inner = msg
+                return inner
         else:
-            inner = node.msg.accept(self, ctx)
-            inner = f"let inner_gen = {inner};\n"
-        if ctx.current_func == FUNC_REQ:
-            if node.direction == "NET":
-                return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
-            elif node.direction == "APP":
-                return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
-        elif ctx.current_func == FUNC_RESP:
-            if node.direction == "NET":
-                return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
-            elif node.direction == "APP":
-                return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
-        else:
-            raise Exception("unknown function")
+            # handle send
+            if not isinstance(node.msg, Identifier) or (
+                node.msg.name != "rpc_req" and node.msg.name != "rpc_resp"
+            ):
+                LOG.error("Can only send rpc_req or rpc_resp")
+                raise Exception("Can only send rpc_req or rpc_resp")
+            if self.placement == "client":
+                if node.msg.name == "rpc_req":
+                    inner = """
+                        let inner_gen = EngineTxMessage::RpcMessage(RpcMessageTx {
+                                    meta_buf_ptr: msg.meta_buf_ptr.clone(),
+                                    addr_backend: msg.addr_backend ,
+                                });
+                    """
+                elif node.msg.name == "rpc_resp":
+                    inner = """
+                        let inner_gen = EngineRxMessage::RpcMessage(msg)
+                    """
+                if ctx.current_func == FUNC_REQ:
+                    if node.direction == "NET":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+                elif ctx.current_func == FUNC_RESP:
+                    if node.direction == "NET":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+            elif self.placement == "server":
+                if node.msg.name == "rpc_req":
+                    inner = """
+                        let inner_gen = EngineRxMessage::RpcMessage(RpcMessageRx {
+                                    meta: msg.meta.clone(),
+                                    addr_app: msg.addr_app,
+                                    addr_backend: msg.addr_backend,
+                                });
+                    """
+                elif node.msg.name == "rpc_resp":
+                    inner = """
+                        let inner_gen = EngineTxMessage::RpcMessage(msg)
+                    """
+                if ctx.current_func == FUNC_REQ:
+                    if node.direction == "NET":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
+                elif ctx.current_func == FUNC_RESP:
+                    if node.direction == "NET":
+                        return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
+                    elif node.direction == "APP":
+                        return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
 
     def visitLiteral(self, node: Literal, ctx):
         return node.value.replace("'", '"')
 
     def visitError(self, node: Error, ctx) -> str:
-        return """EngineRxMessage::Ack(
+        if self.placement == "client":
+            return """EngineRxMessage::Ack(
                                 RpcId::new(
                                     unsafe { &*msg.meta_buf_ptr.as_meta_ptr() }.conn_id,
                                     unsafe { &*msg.meta_buf_ptr.as_meta_ptr() }.call_id,
                                 ),
                                 TransportStatus::Error(unsafe { NonZeroU32::new_unchecked(403) }),
                             )"""
+        else:
+            return """
+            let mut meta = unsafe { msg.meta.as_ref().clone() };
+            meta.status_code = StatusCode::AccessDenied;
+            let mut meta_ptr = self
+                .meta_buf_pool
+                .obtain(RpcId(meta.conn_id, meta.call_id))
+                .expect("meta_buf_pool is full");
+            unsafe {
+                meta_ptr.as_meta_ptr().write(meta);
+                meta_ptr.0.as_mut().num_sge = 0;
+                meta_ptr.0.as_mut().value_len = 0;
+            }
+            let new_msg = EngineTxMessage::RpcMessage(RpcMessageTx {
+                meta_buf_ptr: meta_ptr,
+                addr_backend: 0,
+            });
+            self.tx_outputs()[0]
+                .send(new_msg)
+                .expect("send new message error");
+            let msg_call_ids =
+                [meta.call_id, meta.call_id, meta.call_id, meta.call_id];
+            self.tx_outputs()[0].send(EngineTxMessage::ReclaimRecvBuf(
+                meta.conn_id,
+                msg_call_ids,
+            ))?;
+        """
 
 
 class ExprResolver(Visitor):
@@ -372,7 +458,7 @@ class ExprResolver(Visitor):
         pass
 
     def visitNode(self, node: Node, ctx) -> str:
-        print(node.__class__.__name__)
+        LOG.error(node.__class__.__name__, "being visited")
         raise Exception("Unreachable!")
 
     def visitLiteral(self, node: Literal, ctx) -> str:

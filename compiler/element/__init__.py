@@ -19,12 +19,13 @@ def gen_code(
     output_name: str,
     output_dir: str,
     backend_name: str,
+    placement: str,
     verbose: bool = False,
 ) -> str:
     assert backend_name == "mrpc"
     compiler = IRCompiler()
     printer = Printer()
-    generator = RustGenerator()
+    generator = RustGenerator(placement)
     ctx = RustContext()
 
     with open(os.path.join(root_base_dir, f"elements/ir/{engine_name}.adn")) as f:
@@ -36,7 +37,7 @@ def gen_code(
 
         ir.accept(generator, ctx)
 
-        finalize(output_name, ctx, output_dir)
+        finalize(output_name, ctx, output_dir, placement)
 
 
 def compile_element_property(engine_name: str, verbose: bool = False) -> Dict:

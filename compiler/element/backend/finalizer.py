@@ -9,6 +9,7 @@ from compiler.element.backend.boilerplate import *
 from compiler.element.backend.protobuf import HelloProto
 from compiler.element.backend.rustgen import RustContext
 from compiler.element.backend.rusttype import RustGlobalFunctions
+from compiler.element.logger import ELEMENT_LOG as LOG
 
 # name: table_rpc_events
 # type: Vec<struct_rpc_events>
@@ -36,7 +37,6 @@ def gen_def() -> List[str]:
 def retrieve_info(ctx: RustContext):
     proto = "hello"
     proto_fc = "Hello"
-    def_code = gen_def()
     info = {
         "ProtoDefinition": proto,
         # todo! field name should be configurable
@@ -65,9 +65,7 @@ def retrieve_info(ctx: RustContext):
         # !todo resp
         "RpcResponse": "",  # "".join(ctx.resp_code),
     }
-    # for k,v in info.items():
-    #     print(k)
-    #     print(v)
+
     return info
 
 
@@ -90,6 +88,7 @@ pub struct Response(pub IResult<ResponseKind>);
 
 
 def gen_template(
+    placement,
     output_dir,
     ctx,
     template_name,
@@ -122,10 +121,17 @@ def gen_template(
     with open(lib_path, "w") as f:
         f.write(lib_rs.format(Include=include, **ctx))
     with open(module_path, "w") as f:
-        f.write(module_rs.format(Include=include, **ctx))
+        if placement == "client":
+            f.write(module_sender_rs.format(Include=include, **ctx))
+        elif placement == "server":
+            f.write(module_receiver_rs.format(Include=include, **ctx))
     with open(engine_path, "w") as f:
         # print([i[1] for i in Formatter().parse(engine_rs)  if i[1] is not None])
-        f.write(engine_rs.format(Include=include, **ctx))
+        if placement == "client":
+            f.write(engine_sender_rs.format(Include=include, **ctx))
+        elif placement == "server":
+            f.write(engine_receiver_rs.format(Include=include, **ctx))
+
     with open(proto_path, "w") as f:
         f.write(proto_rs)
     with open(os.path.join(plugin_dir, "Cargo.toml"), "w") as f:
@@ -143,46 +149,11 @@ def gen_template(
     os.system(f"rustfmt --edition 2018  {engine_path}")
     os.system(f"rustfmt --edition 2018  {proto_path}")
 
-    print("Template {} generated".format(template_name))
+    LOG.info("Template {} generated".format(template_name))
 
 
-def move_template(
-    mrpc_root, template_name, template_name_toml, template_name_first_cap
-):
-    mrpc_api = mrpc_root + "/generated/api"
-    original_api = mrpc_root + "/phoenix-api/policy"
-
-    os.system("mkdir -p {}".format(mrpc_api))
-
-    os.system(f"rm -rf {mrpc_api}/{template_name_toml}")
-    os.system(f"cp -r {original_api}/logging {mrpc_api}/{template_name_toml}")
-    os.system(f"rm {mrpc_api}/{template_name_toml}/Cargo.toml")
-    os.system(f"cp ./Cargo.toml.api {mrpc_api}/{template_name_toml}/Cargo.toml")
-
-    mrpc_plugin = mrpc_root + "/generated/plugin"
-    os.system("mkdir -p {}".format(mrpc_plugin))
-
-    os.system(f"rm -rf {mrpc_plugin}/{template_name_toml}")
-    os.system(f"mkdir -p {mrpc_plugin}/{template_name_toml}/src")
-    os.system(f"cp ./Cargo.toml.policy {mrpc_plugin}/{template_name_toml}/Cargo.toml")
-
-    os.system(f"cp ./config.rs {mrpc_plugin}/{template_name_toml}/src/config.rs")
-    os.system(f"cp ./lib.rs {mrpc_plugin}/{template_name_toml}/src/lib.rs")
-    os.system(f"cp ./module.rs {mrpc_plugin}/{template_name_toml}/src/module.rs")
-    os.system(f"cp ./engine.rs {mrpc_plugin}/{template_name_toml}/src/engine.rs")
-    os.system(f"cp ./proto.rs {mrpc_plugin}/{template_name_toml}/src/proto.rs")
-    print("Template {} moved to mrpc folder".format(template_name))
-
-
-def gen_attach_detach(name: str, ctx):
-    with open(f"{name}_attach.toml", "w") as f:
-        f.write(attach_toml.format(**ctx))
-
-    with open(f"{name}_detach.toml", "w") as f:
-        f.write(detach_toml.format(**ctx))
-
-
-def finalize(name: str, ctx: RustContext, output_dir: str):
+def finalize(name: str, ctx: RustContext, output_dir: str, placement: str):
+    name = name
     if name == "logging":
         template_name = "logging"
         template_name_toml = "logging"
@@ -208,6 +179,7 @@ def finalize(name: str, ctx: RustContext, output_dir: str):
 
     info = retrieve_info(ctx)
     gen_template(
+        placement,
         output_dir,
         info,
         template_name,
@@ -215,27 +187,3 @@ def finalize(name: str, ctx: RustContext, output_dir: str):
         template_name_first_cap,
         template_name_all_cap,
     )
-    return
-    move_template(
-        output_dir,
-        template_name,
-        template_name_toml,
-        template_name_first_cap,
-    )
-
-
-def finalize_graph(ctx: Dict[str, object], mrpc_dir: str):
-    output_dir = f"{mrpc_dir}/generated"
-    os.chdir(COMPILER_ROOT)
-
-    os.system("rm -rf ./generated/addonctl")
-    os.system("mkdir ./generated/addonctl")
-    os.chdir("./generated/addonctl")
-    for k, v in ctx.items():
-        gen_attach_detach(k, v)
-        print(f"Generated {k} attach/detach toml")
-    os.chdir(COMPILER_ROOT)
-
-    os.system(f"rm -rf {output_dir}/addonctl")
-    os.system(f"mkdir -p {output_dir}/addonctl")
-    os.system(f"cp -r ./generated/addonctl {output_dir}/")
