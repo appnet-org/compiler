@@ -26,7 +26,7 @@ def compile_impl(spec: str, gen_dir: str, backend: str):
     engine_name = spec.split("/")[-1].split(".")[0]
     gen_dir = os.path.join(gen_dir, f"{engine_name}_{backend}")
     os.system(f"mkdir -p {gen_dir}")
-    gen_code(engine_name, engine_name, gen_dir, backend, "receiver")
+    gen_code(engine_name, engine_name, gen_dir, backend, "server")
 
 
 if __name__ == "__main__":

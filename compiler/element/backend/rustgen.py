@@ -131,7 +131,7 @@ class RustContext:
 class RustGenerator(Visitor):
     def __init__(self, placement: str) -> None:
         self.placement = placement
-        if placement != "sender" and placement != "receiver":
+        if placement != "client" and placement != "server":
             raise Exception("placement should be sender or receiver")
 
     def visitNode(self, node: Node, ctx: RustContext):
@@ -342,7 +342,7 @@ class RustGenerator(Visitor):
 
         if isinstance(node.msg, Error):
             # handle drop
-            if self.placement == "sender":
+            if self.placement == "client":
                 msg = node.msg.accept(self, ctx)
                 inner = f"let inner_gen = {msg}"
                 if ctx.current_func == FUNC_REQ:
@@ -366,7 +366,7 @@ class RustGenerator(Visitor):
             ):
                 LOG.error("Can only send rpc_req or rpc_resp")
                 raise Exception("Can only send rpc_req or rpc_resp")
-            if self.placement == "sender":
+            if self.placement == "client":
                 if node.msg.name == "rpc_req":
                     inner = """
                         let inner_gen = EngineTxMessage::RpcMessage(RpcMessageTx {
@@ -388,7 +388,7 @@ class RustGenerator(Visitor):
                         return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
                     elif node.direction == "APP":
                         return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
-            elif self.placement == "receiver":
+            elif self.placement == "server":
                 if node.msg.name == "rpc_req":
                     inner = """
                         let inner_gen = EngineRxMessage::RpcMessage(RpcMessageRx {
@@ -416,7 +416,7 @@ class RustGenerator(Visitor):
         return node.value.replace("'", '"')
 
     def visitError(self, node: Error, ctx) -> str:
-        if self.placement == "sender":
+        if self.placement == "client":
             return """EngineRxMessage::Ack(
                                 RpcId::new(
                                     unsafe { &*msg.meta_buf_ptr.as_meta_ptr() }.conn_id,

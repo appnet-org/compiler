@@ -121,15 +121,15 @@ def gen_template(
     with open(lib_path, "w") as f:
         f.write(lib_rs.format(Include=include, **ctx))
     with open(module_path, "w") as f:
-        if placement == "sender":
+        if placement == "client":
             f.write(module_sender_rs.format(Include=include, **ctx))
-        elif placement == "receiver":
+        elif placement == "server":
             f.write(module_receiver_rs.format(Include=include, **ctx))
     with open(engine_path, "w") as f:
         # print([i[1] for i in Formatter().parse(engine_rs)  if i[1] is not None])
-        if placement == "sender":
+        if placement == "client":
             f.write(engine_sender_rs.format(Include=include, **ctx))
-        elif placement == "receiver":
+        elif placement == "server":
             f.write(engine_receiver_rs.format(Include=include, **ctx))
 
     with open(proto_path, "w") as f:

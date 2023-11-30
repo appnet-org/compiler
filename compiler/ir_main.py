@@ -50,13 +50,13 @@ if __name__ == "__main__":
 
     # ret = compile_element(engine, verbose)
     # pprint(ret)
-    output_name = "gen" + engine + "receiver"
+    output_name = "gen" + engine + "server"
     ret = gen_code(
         engine,
         output_name,
         str(COMPILER_ROOT) + "/generated",
         "mrpc",
-        "receiver",
+        "server",
         verbose,
     )
     if deploy:
