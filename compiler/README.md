@@ -1,61 +1,75 @@
-# Get Started
+# Compiler
 
-We translate each SQL statement to corresponding Rust code.
+## Preparations
 
-First we need to clone  mrpc repo.
+> Please make sure that you clone the adn-compiler repository under `$HOME`.
+> ```bash
+> git clone https://github.com/adn-compiler ~/adn-compiler
+> ```
 
-```bash
-# in ~
-git clone https://github.com/livingshade/phoenix.git
-cd phoenix
-git switch adn
-```
+Clone the multithreaded version of phoenix repository at `$HOME`.
 
 ```bash
-# in compiler
-. ./install.sh
-python3 main.py -e [ENGINE_NAME_CHAIN] --mrpc_dir [MRPC_PATH]
-# For example:
-# python main.py -e "logging->logging" --mrpc_dir ../../phoenix/experimental/mrpc
+git clone https://github.com/kristoff-starling/phoenix --recursive -b multi ~/phoenix
 ```
 
-- ENGINE_NAME_CHAIN
-  - should be a chain of engine names, separated by `->`. For example, `logging->logging` means that we have two logging engine. `fault->logging` means that we have a fault engine followed by a logging engine. Currently we only support `logging` and `fault`.
+<!-- Install necessary dependencies and set environment variables.
 
-- MRPC_PATH
-  - which is the path to mRPC repo. It should be something like `${PATH_TO_PHOENIX}/phoenix/experimental/mrpc`.
-  - By default it is `/users/${UserName}/phoenix/experimental/mrpc`.
+```bash
+source ~/adn-compiler/install.sh
+``` -->
 
-# Overveiw
+## Usage
 
+```bash
+python3 ~/adn-compiler/compiler/main.py --spec path_to_spec --backend BACKEND [--verbose] [--pseudo_property] [--pseudo_impl] [--dry_run]
+
+# An example
+python3 ~/adn-compiler/compiler/main.py --verbose --pseudo_impl --spec ~/adn-compiler/examples/graph_spec/demo.yml --backend mrpc --dry_run
 ```
-compiler
-|---- backend       # backend code (currently only mRPC rust)
-|---- codegen       # generate backend code from SQL
-|---- docs          # documents, rules, etc.
-|---- frontend      # frontend code (SQL)
-  |---- parser      # parse lark-generated AST to our AST
-|---- protobuf      # protobuf related code
-|---- tree          # AST definition, visitor. Unfortunatly "ast" is used in Python, so we use "tree" instead.
-install.sh          # you should run this script before running main.py
-main.py             # main entry
+* `--verbose`: if used, request graphs (i.e., element chains) on each edge will be printed on the terminal.
+* `--pseudo_element`: use the pseudo element compiler provided by the graph compiler, which reads element properties in `element/property/` and copy existing implementations from the phoenix local repository.
+* `--spec path_to_spec`: path to the user specification file.
+* `--backend BACKEND`: currently, only mrpc backend is supported.
+* `--dry_run`: if used, the compiler will not send remote commands into the container.
+
+The compiler will automatically install engines on all the machines and generate `attach_all.sh` and `detach_all.sh` in `graph/gen`.
+
+## Deployment
+
+### Mrpc
+
+Fire up phoenixos and hotel applications.
+
+```bash
+# in all worker machines
+docker pull kristoffstarling/hotel-service:multi
+
+# in $HOME/phoenix/eval/hotel-bench
+# By default, the services are deployed at
+# Frontend - h2
+# Geo      - h3
+# Profile  - h4
+# Rate     - h5
+# Search   - h6
+./start_container
+./start_phoenix
+# in another terminal
+./start_service
 ```
 
+After running the compiler, use `attach_all.sh` and `detach_all.sh` to attach/detach elements.
 
-### todos
+```bash
+# in compiler/graph/gen
+chmod +x attach_all.sh
+chmod +x detach_all.sh
+./attach_all.sh  # attach all engines
+./detach_all.sh  # detach all engines
+```
 
-- We use clone(copy) rather than move(reference) in constructors, which is not good.
-- We should use `&str` rather than `String` for string literals.
-- We should move result from `input` into `output` rather than copy it.
+## Limitations
 
-## Logging
-
-Currently, we only support logging element.
-
-We can generated Rust code that store each inbound RPC message into a vector(table).
-
-- We does not write to a file or to stdout, so it is "invisible". Maybe we need to change SQL sematic, i.e. add keyword like `print`.
-
-- We does not parse the rpc data, so currently only metadata is stored. Since RPC format depends on its protobuf config, and we have not yet import that config into our code.
-
-### SQL Code
+* Container name is hard-coded (only support hotel reservation).
+* Service deployment information is currently provided by the user in the specification file (should query the controller instead).
+* The graph compiler will generate a globally-unique element name for each element instance, but it requires the element's library name to be identical to the element's specification filename.

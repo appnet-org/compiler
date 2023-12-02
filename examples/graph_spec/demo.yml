@@ -1,37 +1,35 @@
+app_name: "hotel_reservation"
+
 app_structure:
     - "Frontend->Search"
-
-service_pos:
-    Frontend: "h2"
-    Search: "h6"
 
 ingress:
     Search:
     -   name: "Logging"
-        spec: "elements/logging.sql"
+        spec: "examples/match_action/logging.adn"
         position: "S"
 
 egress:
     Frontend:
     -   name: "RateLimit"
-        spec: "elements/ratelimit.sql"
+        spec: "examples/match_action/ratelimit.adn"
         config:
         - "bucket_size = 1000"
         - "requests_per_sec = 1000"
         position: "C"
 
     -   name: "LoadBalancing"
-        spec: "elements/lb_random.sql"
+        spec: "examples/match_action/lb_random.adn"
         position: "C"
 
 edge:
     Frontend->Search:
     -   name: "Cache"
-        spec: "elements/cache.sql"
+        spec: "examples/match_action/cache.sql"
         position: "C"
 
     -   name: "Mutation"
-        spec: "elements/mutation.sql"
+        spec: "examples/match_action/mutation.sql"
 
     -   name: "HotelAcl"
-        spec: "elements/hotel-acl.sql"
+        spec: "examples/match_action/hotel-acl.sql"

@@ -1,11 +1,15 @@
+app_name: "rpc_echo_local"
+
 app_structure:
     - "rpc_echo_client2->rpc_echo_server"
+
 egress:
     rpc_echo_client2:
     -   name: "Logging"
-        spec: "elements/logging.adn"
+        spec: "examples/match_action/logging.adn"
         position: "C"
+
 ingress:
     rpc_echo_server:
     -   name: "Acl"
-        spec: "elements/acl.adn"
+        spec: "examples/match_action/acl.adn"

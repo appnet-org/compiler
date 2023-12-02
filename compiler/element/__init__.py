@@ -28,7 +28,9 @@ def gen_code(
     generator = RustGenerator(placement)
     ctx = RustContext()
 
-    with open(os.path.join(root_base_dir, f"elements/ir/{engine_name}.adn")) as f:
+    with open(
+        os.path.join(root_base_dir, f"examples/match_action/{engine_name}.adn")
+    ) as f:
         spec = f.read()
         ir = compiler.compile(spec)
         p = ir.accept(printer, None)
@@ -44,7 +46,9 @@ def compile_element_property(engine_name: str, verbose: bool = False) -> Dict:
     compiler = IRCompiler()
     printer = Printer()
 
-    with open(os.path.join(root_base_dir, f"elements/ir/{engine_name}.adn")) as f:
+    with open(
+        os.path.join(root_base_dir, f"examples/match_action/{engine_name}.adn")
+    ) as f:
         spec = f.read()
         ir = compiler.compile(spec)
         p = ir.accept(printer, None)
