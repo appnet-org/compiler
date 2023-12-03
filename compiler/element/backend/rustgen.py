@@ -422,7 +422,7 @@ class RustGenerator(Visitor):
                                     unsafe { &*msg.meta_buf_ptr.as_meta_ptr() }.conn_id,
                                     unsafe { &*msg.meta_buf_ptr.as_meta_ptr() }.call_id,
                                 ),
-                                TransportStatus::Error(unsafe { NonZeroU32::new_unchecked(403) }),
+                                TransportStatus::Error(unsafe { NonZeroU32::new_unchecked(402) }),
                             )"""
         else:
             return """
