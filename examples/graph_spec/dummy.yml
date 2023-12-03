@@ -1,18 +1,15 @@
+app_name: "hotel_reservation"
+
 app_structure:
     - "Frontend->Search"
     - "Frontend->Profile"
     - "Search->Geo"
     - "Search->Rate"
-service_pos:
-    Frontend: "h2"
-    Geo: "h3"
-    Profile: "h4"
-    Rate: "h5"
-    Search: "h6"
+
 egress:
     Frontend:
     -
         name: "Logging"
-        spec: "elements/logging.sql"
+        spec: "examples/match_action/logging.sql"
         config: []
         position: "C"

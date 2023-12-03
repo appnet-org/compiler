@@ -35,12 +35,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-s", "--spec_path", help="User specification file", type=str, required=True
     )
-    parser.add_argument(
-        "--app",
-        type=str,
-        required=True,
-        choices=["rpc_echo", "hotel", "rpc_echo_local", "hotel_local"],
-    )
     parser.add_argument("-v", "--verbose", help="Print Debug info", action="store_true")
     parser.add_argument("--pseudo_property", action="store_true")
     parser.add_argument("--pseudo_impl", action="store_true")
@@ -59,7 +53,7 @@ if __name__ == "__main__":
         os.environ["DRY_RUN"] = "1"
 
     parser = GCParser()
-    graphirs = parser.parse(args.spec_path)
+    graphirs, app_name = parser.parse(args.spec_path)
 
     if args.verbose:
         for gir in graphirs.values():
@@ -85,7 +79,7 @@ if __name__ == "__main__":
                                 spec, os.path.join(graph_base_dir, "gen"), args.backend
                             )
                     compiled_spec.add(spec)
-        scriptgen(graphirs, args.backend, args.app)
+        scriptgen(graphirs, args.backend, app_name)
 
     if args.verbose:
         IR_LOG.info("GraphIR summary:")

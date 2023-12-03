@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 
 import yaml
 
@@ -13,7 +13,7 @@ class GCParser:
         self.services = set()
         self.app_edges = []
 
-    def parse(self, spec_path: str) -> Tuple[Dict[str, GraphIR]]:
+    def parse(self, spec_path: str) -> Tuple[Union[Dict[str, GraphIR], str]]:
         """Parse the user specification file and produce graphirs & service locations.
 
         Args:
@@ -21,7 +21,7 @@ class GCParser:
 
         Returns:
             * A dictionary mapping edge name to corresponding graphir.
-            * A dictionray mapping service name to hostname.
+            * Application name.
         """
         with open(spec_path, "r") as f:
             spec_dict = yaml.safe_load(f)
@@ -48,4 +48,4 @@ class GCParser:
                 pair.extend(spec_dict["link"][eid])
             if len(chain) + len(pair) > 0:
                 graphir[eid] = GraphIR(client, server, chain, pair)
-        return graphir
+        return graphir, spec_dict["app_name"]
