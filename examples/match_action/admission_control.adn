@@ -8,7 +8,8 @@ internal {
 	requests: int
 }
 
-fn init() {
+fn init(multiplier) {
+	multiplier := 2
 }
 
 fn req(rpc_req) {

@@ -20,9 +20,7 @@ fn req(rpc_req) {
 	        rpc_req.set('meta_dst', addrs.get(idx));
 		}
 	};
-
-    send(rpc_req, NET);
-
+    
 	send(rpc_req, NET);
 }
 
