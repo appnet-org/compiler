@@ -4,7 +4,7 @@ import pathlib
 import re
 import sys
 from pprint import pprint
-from typing import Dict
+from typing import Dict, List
 
 from compiler import root_base_dir
 from compiler.config import COMPILER_ROOT
@@ -15,7 +15,7 @@ from compiler.element.props.flow import FlowGraph
 
 
 def gen_code(
-    engine_name: str,
+    engine_name: List[str],
     output_name: str,
     output_dir: str,
     backend_name: str,
@@ -28,18 +28,23 @@ def gen_code(
     generator = RustGenerator(placement)
     ctx = RustContext()
 
-    with open(
-        os.path.join(root_base_dir, f"examples/match_action/{engine_name}.adn")
-    ) as f:
-        spec = f.read()
-        ir = compiler.compile(spec)
-        p = ir.accept(printer, None)
-        if verbose:
-            print(p)
+    irs = []
 
-        ir.accept(generator, ctx)
+    for name in engine_name:
+        with open(
+            os.path.join(root_base_dir, f"examples/match_action/{name}.adn")
+        ) as f:
+            spec = f.read()
+            ir = compiler.compile(spec)
+            p = ir.accept(printer, None)
+            if verbose:
+                print(p)
 
-        finalize(output_name, ctx, output_dir, placement)
+            irs.append(ir)
+
+    ir.accept(generator, ctx)
+
+    finalize(output_name, ctx, output_dir, placement)
 
 
 def compile_element_property(engine_name: str, verbose: bool = False) -> Dict:
