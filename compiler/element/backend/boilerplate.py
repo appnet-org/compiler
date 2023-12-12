@@ -511,9 +511,14 @@ impl {TemplateNameCap}Engine {{
                         self.rx_outputs()[0].send(EngineRxMessage::Ack(rpc_id, status))?;
                     }}
                     EngineRxMessage::RpcMessage(msg) => {{
-                        let rpc_resp = materialize_nocopy_rx(&msg);
-                        let rpc_resp_mut = materialize_nocopy_mutable_rx(&msg);
-                        {RpcResponse}
+                        let ptr = msg.meta.as_ptr();
+                        if unsafe {{ (*ptr).status_code }} != StatusCode::Success {{
+                            self.rx_outputs()[0].send(EngineRxMessage::RpcMessage((msg)))?;
+                        }} else {{
+                            let rpc_resp = materialize_nocopy_rx(&msg);
+                            let rpc_resp_mut = materialize_nocopy_mutable_rx(&msg);
+                            {RpcResponse}
+                        }}
                     }}
                     m => self.rx_outputs()[0].send(m)?,
                 }}
@@ -722,9 +727,15 @@ impl {TemplateNameCap}Engine {{
             Ok(msg) => {{
                 match msg {{
                     EngineTxMessage::RpcMessage(msg) => {{
-                        let rpc_resp = materialize_nocopy_tx(&msg);
-                        let rpc_resp_mut = materialize_nocopy_mutable_tx(&msg);
-                        {RpcResponse}
+                        let ptr = msg.meta_buf_ptr.as_meta_ptr();
+                         if unsafe {{ (*ptr).status_code }} != StatusCode::Success {{
+                            self.tx_outputs()[0].send(EngineTxMessage::RpcMessage((msg)))?;
+                        }} else {{
+                            let rpc_resp = materialize_nocopy_tx(&msg);
+                            let rpc_resp_mut = materialize_nocopy_mutable_tx(&msg);
+                            {RpcResponse}
+                        }}
+
                     }}
                     m => self.tx_outputs()[0].send(m)?,
                 }}
