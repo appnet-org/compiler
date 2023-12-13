@@ -6,7 +6,7 @@ from compiler.element.node import Expr, Identifier, Internal, MethodCall, Proced
 from compiler.element.visitor import Visitor
 
 
-def consolidate(irs: List[Program]):
+def consolidate(irs: List[Program]) -> Program:
     while len(irs) > 1:
         left = irs.pop(0)
         right = irs.pop(0)
