@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, TypeVar
 
 from compiler.element.logger import ELEMENT_LOG as LOG
@@ -10,23 +11,30 @@ def consolidate(irs: List[Program]) -> Program:
     while len(irs) > 1:
         left = irs.pop(0)
         right = irs.pop(0)
-        new_prog = Program()
-        new_prog.internal = left.internal + right.internal
-        new_prog.init = InitConsolidator().visitProcedure(
-            new_prog.init, (left.init, right.init)
+        new_prog = Program(
+            Internal([]),
+            Procedure("init", [], []),
+            Procedure("req", [], []),
+            Procedure("resp", [], []),
         )
-        new_prog.req = ProcedureConsolidator().visitProcedure(
-            new_prog.req, (left.req, right.req)
-        )
-        new_prog.resp = ProcedureConsolidator().visitProcedure(
-            new_prog.resp, (right.resp, left.resp)
-        )
-        irs.append(new_prog)
 
+        new_prog.definition.internal = deepcopy(
+            left.definition.internal + right.definition.internal
+        )
+
+        InitConsolidator().visitProcedure(new_prog.init, (left.init, right.init))
+        ProcedureConsolidator().visitProcedure(
+            new_prog.req, (deepcopy(left.req), deepcopy(right.req))
+        )
+        ProcedureConsolidator().visitProcedure(
+            new_prog.resp, (deepcopy(right.resp), deepcopy(left.resp))
+        )
+
+        irs.append(new_prog)
     return irs[0]
 
 
-def InitConsolidator(Visitor):
+class InitConsolidator(Visitor):
     def __init__(self):
         pass
 
@@ -39,12 +47,11 @@ def InitConsolidator(Visitor):
     ) -> Procedure:
         l, r = ctx
         node.name = "init"
-        node.param = list(set(l.param + r.param))
-        node.body = l.body + r.body
-        return node
+        node.params = deepcopy(list(set(l.params + r.params)))
+        node.body = deepcopy(l.body + r.body)
 
 
-def ProcedureConsolidator(Visitor):
+class ProcedureConsolidator(Visitor):
     def __init__(self):
         pass
 
@@ -57,46 +64,57 @@ def ProcedureConsolidator(Visitor):
     ) -> Procedure:
         l, r = ctx
         assert l.name == r.name
-        node.name = l.name
-        node.param = list(set(l.param + r.param))
+        node.params = deepcopy(list(set(l.params + r.params)))
         node.body = []
         for s in l.body:
             if isinstance(s, Match):
                 ret = s.accept(self, r.body)
-                node.body.append(ret)
+                node.body.append(deepcopy(ret))
+            elif isinstance(s, Assign):
+                node.body.append(deepcopy(s))
             elif isinstance(s, Send):
                 is_send = s.accept(self, r.body)
                 if is_send:
-                    node.body.append(r.body)
+                    node.body += deepcopy(r.body)
                 else:
-                    node.body.append(s)
+                    node.body.append(deepcopy(s))
+            elif isinstance(s.stmt, Send):
+                is_send = s.stmt.accept(self, r.body)
+                if is_send:
+                    node.body += deepcopy(r.body)
+                else:
+                    node.body.append(deepcopy(s))
             else:
-                node.body.append(s)
-        return node
-
-    def visitStatement(self, node: Statement, ctx):
-        LOG.error("ReqConsolidator: visitStatement not implemented")
-        raise NotImplementedError
+                LOG.warning(f"Unexpected statement {s}")
+                node.body.append(deepcopy(s))
 
     def visitMatch(self, node: Match, ctx: List[Statement]):
-        ret = Match()
-        ret.match = node.match
+        match = Match(deepcopy(node.expr), [])
         for (p, s) in node.actions:
             rs = []
             for st in s:
-                if isinstance(st, Send):
+                if isinstance(st, Match):
+                    ret = st.accept(self, ctx)
+                    rs.append(deepcopy(ret))
+                elif isinstance(st, Assign):
+                    rs.append(deepcopy(st))
+                elif isinstance(st, Send):
                     is_send = st.accept(self, ctx)
                     if is_send:
-                        rs = rs + ctx
+                        rs = rs + deepcopy(ctx)
                     else:
-                        rs.append(st)
-                elif isinstance(st, Match):
-                    ret = st.accept(self, ctx)
-                    rs.append(ret)
+                        rs.append(deepcopy(st))
+                elif isinstance(st.stmt, Send):
+                    is_send = st.stmt.accept(self, ctx)
+                    if is_send:
+                        rs = rs + deepcopy(ctx)
+                    else:
+                        rs.append(deepcopy(st))
                 else:
-                    rs.append(st)
-            ret.actions.append((p, rs))
-        return ret
+                    LOG.warning(f"Unexpected statement {st}")
+                    rs.append(deepcopy(st))
+            match.actions.append((deepcopy(p), rs))
+        return match
 
     def visitSend(self, node: Send, ctx) -> bool:
         if isinstance(node.msg, Error):

@@ -26,24 +26,24 @@ def gen_code(
 ) -> str:
     assert backend_name == "mrpc"
     compiler = IRCompiler()
-    printer = Printer()
     generator = RustGenerator(placement)
+    printer = Printer()
     ctx = RustContext()
 
     irs = []
 
     for name in engine_name:
+        LOG.info(f"Parsing {name}")
         with open(
             os.path.join(root_base_dir, f"examples/match_action/{name}.adn")
         ) as f:
             spec = f.read()
             ir = compiler.compile(spec)
-            # p = ir.accept(printer, None)
+            p = ir.accept(printer, None)
             if verbose:
                 print(p)
-
             irs.append(ir)
-
+    LOG.info("Consolidating IRs")
     consolidated = consolidate(irs)
     p = consolidated.accept(printer, None)
     if verbose:
@@ -53,39 +53,42 @@ def gen_code(
     finalize(output_name, ctx, output_dir, placement)
 
 
-def compile_element_property(engine_name: List[str], verbose: bool = False) -> Dict:
+def compile_element_property(engine_names: List[str], verbose: bool = False) -> Dict:
     compiler = IRCompiler()
     printer = Printer()
 
     ret = (Property(), Property())
     stateful = False
-    with open(
-        os.path.join(root_base_dir, f"examples/match_action/{engine_name}.adn")
-    ) as f:
-        spec = f.read()
-        ir = compiler.compile(spec)
-        p = ir.accept(printer, None)
-        if verbose:
-            print(p)
+    for engine_name in engine_names:
+        with open(
+            os.path.join(root_base_dir, f"examples/match_action/{engine_name}.adn")
+        ) as f:
+            spec = f.read()
+            ir = compiler.compile(spec)
+            p = ir.accept(printer, None)
+            if verbose:
+                print(p)
 
-        req = FlowGraph().analyze(ir.req, verbose)
-        resp = FlowGraph().analyze(ir.resp, verbose)
+            req = FlowGraph().analyze(ir.req, verbose)
+            resp = FlowGraph().analyze(ir.resp, verbose)
 
-        ret[0].block = ret[0].block or req.block
-        ret[0].copy = ret[0].copy or req.copy
-        ret[0].drop = ret[0].drop or req.drop
-        ret[0].read = ret[0].read + req.read
-        ret[0].write = ret[0].write + req.write
-        ret[0].check()
+            ret[0].block = ret[0].block or req.block
+            ret[0].copy = ret[0].copy or req.copy
+            ret[0].drop = ret[0].drop or req.drop
+            ret[0].read = ret[0].read + req.read
+            ret[0].write = ret[0].write + req.write
+            ret[0].check()
 
-        ret[1].block = ret[1].block or resp.block
-        ret[1].copy = ret[1].copy or resp.copy
-        ret[1].drop = ret[1].drop or resp.drop
-        ret[1].read = ret[1].read + resp.read
-        ret[1].write = ret[1].write + resp.write
-        ret[1].check()
+            ret[1].block = ret[1].block or resp.block
+            ret[1].copy = ret[1].copy or resp.copy
+            ret[1].drop = ret[1].drop or resp.drop
+            ret[1].read = ret[1].read + resp.read
+            ret[1].write = ret[1].write + resp.write
+            ret[1].check()
 
-        stateful = stateful or len(ir.definition.internal) > 0
+            stateful = stateful or len(ir.definition.internal) > 0
+    ret[0].check()
+    ret[1].check()
     return {
         "stateful": stateful,
         "request": {
