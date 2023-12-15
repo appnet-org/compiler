@@ -50,6 +50,9 @@ def gen_code(
         LOG.info("Consolidated IR:")
         print(p)
 
+    LOG.info("Generating Rust code")
+    consolidated.accept(generator, ctx)
+
     finalize(output_name, ctx, output_dir, placement)
 
 
