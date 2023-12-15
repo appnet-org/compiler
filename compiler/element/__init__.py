@@ -92,17 +92,20 @@ def compile_element_property(engine_names: List[str], verbose: bool = False) -> 
             stateful = stateful or len(ir.definition.internal) > 0
     ret[0].check()
     ret[1].check()
+    record = len(engine_names) == 1 and (
+        engine_names[0] == "logging" or engine_names[0] == "metrics"
+    )
     return {
         "stateful": stateful,
         "request": {
-            "read": ret[0].read,
+            "record" if record else "read": ret[0].read,
             "write": ret[0].write,
             "drop": ret[0].drop,
             "block": ret[0].block,
             "copy": ret[0].copy,
         },
         "response": {
-            "read": ret[1].read,
+            "record" if record else "read": ret[1].read,
             "write": ret[1].write,
             "drop": ret[1].drop,
             "block": ret[1].block,
