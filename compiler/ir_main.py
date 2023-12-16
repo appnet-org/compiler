@@ -21,7 +21,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-e", "--engine", type=str, help="(Engine_name ',') *", required=True
+        "-e", "--engine", type=str, help="(Engine_name',') *", required=True
     )
     parser.add_argument(
         "-v", "--verbose", help="Print Debug info", required=False, default=False
@@ -52,7 +52,8 @@ if __name__ == "__main__":
     #     "-o", "--output", type=str, help="Output type: ast, ir, mrpc", default="mrpc"
     # )
     args = parser.parse_args()
-    engine = args.engine
+    engines = args.engine.split(",")
+    LOG.info(f"engines: {engines}")
     verbose = args.verbose
     deploy = args.deploy
     placement = args.placement
@@ -63,11 +64,11 @@ if __name__ == "__main__":
     else:
         raise Exception("invalid Placement, c/s expected")
 
-    ret = compile_element_property(engine, verbose)
+    ret = compile_element_property(engines, verbose)
     LOG.info(f"prop: {ret}")
-    output_name = "gen" + engine + placement
+    output_name = "gen" + "".join(engines) + placement
     ret = gen_code(
-        engine,
+        engines,
         output_name,
         str(COMPILER_ROOT) + "/generated",
         "mrpc",

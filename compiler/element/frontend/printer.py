@@ -1,3 +1,4 @@
+from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.visitor import Visitor
 
@@ -42,9 +43,9 @@ class Printer(Visitor):
     def visitMatch(self, node: Match, ctx):
         ret = f"Match {node.expr.accept(self, ctx)}:\n"
         for (p, s) in node.actions:
-            leg = f"    {p.accept(self, ctx)} =>"
+            leg = f"    {p.accept(self, ctx)} =>\n"
             for st in s:
-                leg += f"{st.accept(self, ctx)}\n"
+                leg += f"       {st.accept(self, ctx)}\n"
             ret += leg
         return ret
 
