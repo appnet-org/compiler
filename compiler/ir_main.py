@@ -8,8 +8,8 @@ from typing import Dict
 
 from compiler.config import COMPILER_ROOT
 from compiler.element import compile_element_property, gen_code
-from compiler.element.backend.finalizer import finalize
-from compiler.element.backend.rustgen import RustContext, RustGenerator
+from compiler.element.backend.mrpc.finalizer import finalize
+from compiler.element.backend.mrpc.rustgen import RustContext, RustGenerator
 from compiler.element.deploy import install, move_template
 from compiler.element.frontend import IRCompiler, Printer
 from compiler.element.logger import ELEMENT_LOG as LOG
