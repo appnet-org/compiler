@@ -18,6 +18,7 @@ pub fn _start() {{
     proxy_wasm::set_http_context(|context_id, _| -> Box<dyn HttpContext> {{
         Box::new({FilterName}Body {{ context_id }})
     }});
+    {Init}
 }}
 
 struct {FilterName}Root;
