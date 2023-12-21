@@ -47,9 +47,7 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
             identifier = element.lib_name + placement
             if identifier not in compiled_name:
                 if pseudo_impl:
-                    pseudo_compile(
-                        element.lib_name, gen_dir, args.backend, placement
-                    )
+                    pseudo_compile(element.lib_name, gen_dir, args.backend, placement)
                 else:
                     compile_impl(
                         element.name,

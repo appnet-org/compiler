@@ -55,7 +55,9 @@ def pseudo_compile(ename: str, gen_dir: str, backend: str, placement: str):
         impl_path = f"{ename}_{placement}_{backend}"
     else:
         impl_path = f"{ename}_{backend}"
-    from_path, to_path = os.path.join(os.getenv("HOME"), "handwritten-elements", impl_path), os.path.join(gen_dir, impl_path)
+    from_path, to_path = os.path.join(
+        os.getenv("HOME"), "handwritten-elements", impl_path
+    ), os.path.join(gen_dir, impl_path)
     assert os.path.exists(from_path), f"{impl_path} not found"
     os.system(f"mkdir -p {gen_dir}")
     os.system(f"cp {from_path} {to_path} -r")

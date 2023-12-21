@@ -2,16 +2,17 @@ from __future__ import annotations
 
 import os
 import time
-import yaml
-from typing import Dict
-from kubernetes import client, config
-from pprint import pprint
 from pathlib import Path
+from pprint import pprint
+from typing import Dict
 
-from compiler.graph.logger import BACKEND_LOG
-from compiler.graph.ir import GraphIR
+import yaml
+from kubernetes import client, config
+
 from compiler import graph_base_dir
-from compiler.graph.backend.utils import execute_local, copy_remote_host, kapply
+from compiler.graph.backend.utils import copy_remote_host, execute_local, kapply
+from compiler.graph.ir import GraphIR
+from compiler.graph.logger import BACKEND_LOG
 
 attach_yml = """apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
@@ -34,7 +35,7 @@ spec:
               name: "envoy.filters.http.router"
     patch:
       operation: INSERT_BEFORE
-      value: 
+      value:
         name: envoy.filters.http.wasm
         typed_config:
           "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
@@ -72,7 +73,7 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str):
 
     # compile elements
     # compiled_elements = set()
-    # for gir in girs.values():   
+    # for gir in girs.values():
     #     for element in gir.elements["req_client"] + gir.elements["req_server"]:
     #         if element.lib_name not in compiled_elements:
     #             compiled_elements.add(element.lib_name)
@@ -94,7 +95,9 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str):
     #             ])
 
     # install elements
-    with open(os.path.join(Path(__file__).parent, "ping-app-istio-template.yml"), "r") as f:
+    with open(
+        os.path.join(Path(__file__).parent, "ping-app-istio-template.yml"), "r"
+    ) as f:
         yml_list = list(yaml.safe_load_all(f))
     frontend_deploy, ping_deploy, pong_deploy = yml_list[1], yml_list[3], yml_list[5]
     for gir in girs.values():
@@ -102,22 +105,30 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str):
             (e, gir.server) for e in gir.elements["req_server"]
         ]
         for (element, sname) in elist:
-            copy_remote_host(service_pos_dict[app][sname], f"/tmp/{element.lib_name}.wasm", "/tmp/")
+            copy_remote_host(
+                service_pos_dict[app][sname], f"/tmp/{element.lib_name}.wasm", "/tmp/"
+            )
             target_yml = locals()[f"{sname}_deploy"]
-            target_yml["spec"]["template"]["spec"]["containers"][1]["volumeMounts"].append({
-                "mountPath": f"/etc/{element.lib_name}.wasm",
-                "name": f"{element.lib_name}-wasm",
-            })
-            target_yml["spec"]["template"]["spec"]["volumes"].append({
-                "hostPath": {
-                    "path": f"/tmp/{element.lib_name}.wasm",
-                    "type": "File",
-                },
-                "name": f"{element.lib_name}-wasm",
-            })
+            target_yml["spec"]["template"]["spec"]["containers"][1][
+                "volumeMounts"
+            ].append(
+                {
+                    "mountPath": f"/etc/{element.lib_name}.wasm",
+                    "name": f"{element.lib_name}-wasm",
+                }
+            )
+            target_yml["spec"]["template"]["spec"]["volumes"].append(
+                {
+                    "hostPath": {
+                        "path": f"/tmp/{element.lib_name}.wasm",
+                        "type": "File",
+                    },
+                    "name": f"{element.lib_name}-wasm",
+                }
+            )
     with open(os.path.join(local_gen_dir, "install.yml"), "w") as f:
-        yaml.dump_all(yml_list, f, default_flow_style=False) 
-    
+        yaml.dump_all(yml_list, f, default_flow_style=False)
+
     # Kubernetes apply
     kapply(os.path.join(local_gen_dir, "install.yml"))
 
@@ -131,12 +142,16 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str):
                 "metadata_name": f"{e.lib_name}-filter-{placement}",
                 "name": f"{e.lib_name}-{placement}",
                 "service": sname,
-                "bound": "SIDECAR_OUTBOUND" if placement == "client" else "SIDECAR_INBOUND",
+                "bound": "SIDECAR_OUTBOUND"
+                if placement == "client"
+                else "SIDECAR_INBOUND",
                 "port": port_dict[app][gir.server],
                 "vmid": f"vm.sentinel.{e.lib_name}-{placement}",
                 "filename": f"/etc/{e.lib_name}.wasm",
             }
-            attach_path = os.path.join(local_gen_dir, f"{e.lib_name}-{placement}-{sname}.yml")
+            attach_path = os.path.join(
+                local_gen_dir, f"{e.lib_name}-{placement}-{sname}.yml"
+            )
             with open(attach_path, "w") as f:
                 f.write(attach_yml.format(**contents))
             kapply(attach_path)

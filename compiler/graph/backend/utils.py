@@ -4,8 +4,9 @@ Utility functions for executing commands in remote hosts/containers.
 import os
 import subprocess
 import time
-from kubernetes import client, config
 from typing import List
+
+from kubernetes import client, config
 
 from compiler.graph.logger import BACKEND_LOG
 
@@ -67,7 +68,7 @@ def execute_local(cmd: List[str]) -> str:
 
     Args:
         cmd: A list including the command and all arguments.
-    
+
     Returns:
         The output of the command, or "xxx" if "--dry_run" is provided.
     """
@@ -126,10 +127,12 @@ def wait_until_running():
     # Find the status of echo server and wait for it.
     while True:
         ret = v1.list_namespaced_pod(namespace="default")
-        status = [i.status.phase == "Running" for i in ret.items if "echo" in i.metadata.name]
+        status = [
+            i.status.phase == "Running" for i in ret.items if "echo" in i.metadata.name
+        ]
         if False not in status:
             BACKEND_LOG.debug("kpods check done")
-            return 
+            return
         else:
             time.sleep(2)
 
