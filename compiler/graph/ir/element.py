@@ -34,14 +34,11 @@ class AbsElement:
 
     @property
     def deploy_name(self) -> str:
-        names = []
-        for name in self.name:
-            names.append("".join(map(lambda s: s.capitalize(), name.split("_"))))
-        return "".join(names)
+        return "".join([self.name[0].capitalize()] + self.name[1:])
 
     @property
     def lib_name(self) -> str:
-        return "_".join(self.name)
+        return "".join(self.name)
 
     @property
     def configs(self) -> str:
@@ -78,7 +75,7 @@ class AbsElement:
                 if self.pseudo_property:
                     self._prop = pseudo_gen_property(self)
                 else:
-                    self._prop = compile_element_property(self.lib_name)
+                    self._prop = compile_element_property(self.name)
                 # TODO: remove this after property compiler has deduplication
                 for path in ["request", "response"]:
                     for p in self._prop[path].keys():
