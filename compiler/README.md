@@ -1,22 +1,11 @@
-# Compiler
+# Compiler Usage
 
-## Preparations
-
-> Please make sure that you clone the adn-compiler repository under `$HOME`.
-> ```bash
-> git clone https://github.com/adn-compiler ~/adn-compiler
-> ```
+<!-- ## Preparations
 
 Clone the multithreaded version of phoenix repository at `$HOME`.
 
 ```bash
 git clone https://github.com/kristoff-starling/phoenix --recursive -b multi ~/phoenix
-```
-
-<!-- Install necessary dependencies and set environment variables.
-
-```bash
-source ~/adn-compiler/install.sh
 ``` -->
 
 ## Usage
@@ -35,7 +24,7 @@ python3 ~/adn-compiler/compiler/main.py --verbose --pseudo_impl --spec ~/adn-com
 
 The compiler will automatically install engines on all the machines and generate `attach_all.sh` and `detach_all.sh` in `graph/gen`.
 
-## Deployment
+<!-- ## Deployment
 
 ### Mrpc
 
@@ -72,4 +61,4 @@ chmod +x detach_all.sh
 
 * Container name is hard-coded (only support hotel reservation).
 * Service deployment information is currently provided by the user in the specification file (should query the controller instead).
-* The graph compiler will generate a globally-unique element name for each element instance, but it requires the element's library name to be identical to the element's specification filename.
+* The graph compiler will generate a globally-unique element name for each element instance, but it requires the element's library name to be identical to the element's specification filename. -->
