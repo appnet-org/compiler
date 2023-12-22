@@ -11,16 +11,16 @@ from compiler.element.backend.envoy.wasmtype import WasmGlobalFunctions
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 
-def retrieve(ctx: WasmContext) -> Dict:
+def retrieve(ctx: WasmContext, name: str) -> Dict:
     #!todo init
     return {
-        "FilterName": "",
+        "FilterName": name,
         "GlobalVariables": "",
-        "Init": "",
-        "RequestHeaders": "",
-        "RequestBody": "",
-        "ResponseHeaders": "",
-        "ResponseBody": "",
+        "Init": "".join(ctx.init_code),
+        "RequestHeaders": "".join(ctx.req_hdr_code),
+        "RequestBody": "".join(ctx.req_body_code),
+        "ResponseHeaders": "".join(ctx.resp_hdr_code),
+        "ResponseBody": "".join(ctx.resp_body_code),
     }
 
 
@@ -33,5 +33,5 @@ def gen_template(_placement, output_dir, snippet, lib_name):
 
 
 def finalize(name: str, ctx: WasmContext, output_dir: str, placement: str):
-    snippet = retrieve(ctx)
+    snippet = retrieve(ctx, name)
     gen_template(placement, output_dir, snippet, name)

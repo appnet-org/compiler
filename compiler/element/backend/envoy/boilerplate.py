@@ -3,7 +3,7 @@ use proxy_wasm::traits::{{Context, HttpContext}};
 use proxy_wasm::types::{{Action, LogLevel}};
 use proxy_wasm::traits::RootContext;
 
-/pub mod ping {{
+pub mod ping {{
     include!(concat!(env!("OUT_DIR"), "/ping_pb.rs"));
 }}
 
@@ -15,8 +15,7 @@ pub fn _start() {{
     proxy_wasm::set_http_context(|context_id, _| -> Box<dyn HttpContext> {{
         Box::new({FilterName}Body {{ context_id }})
     }});
-    {Init}
-}}
+ }}
 
 struct {FilterName}Root;
 
@@ -25,6 +24,7 @@ impl Context for {FilterName}Root {{}}
 impl RootContext for {FilterName}Root {{
     fn on_vm_start(&mut self, _: usize) -> bool {{
         log::warn!("executing on_vm_start");
+        {Init}
         true
     }}
 }}

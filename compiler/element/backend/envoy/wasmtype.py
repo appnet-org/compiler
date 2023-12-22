@@ -99,7 +99,8 @@ class WasmRpcType(WasmType):
         self.fields = fields
 
     def gen_get(self, args: List[str]) -> str:
-        return "." + args[0]
+        assert len(args) == 1
+        return "." + args[0].strip('"')
 
 
 class WasmFunctionType(WasmType):

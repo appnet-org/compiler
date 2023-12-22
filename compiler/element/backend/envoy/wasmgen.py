@@ -128,10 +128,13 @@ class WasmGenerator(Visitor):
         match node.name:
             case "init":
                 ctx.current_func = FUNC_INIT
+                proto_name = "init"  # unused, make python happy
             case "req":
                 ctx.current_func = FUNC_REQ_BODY
+                proto_name = "Request"
             case "resp":
                 ctx.current_func = FUNC_RESP_BODY
+                proto_name = "Response"
             case _:
                 raise Exception("unknown function")
         ctx.clear_temps()
@@ -142,7 +145,7 @@ class WasmGenerator(Visitor):
         prefix = f"""
         if let Some(body) = self.get_http_{name}_body(0, body_size) {{
 
-            match ping::PingEcho{name}::decode(&body[5..]) {{
+            match ping::PingEcho{proto_name}::decode(&body[5..]) {{
                 Ok(rpc_{name}) => {{
         """
         suffix = f"""
@@ -152,17 +155,20 @@ class WasmGenerator(Visitor):
         }}
 
         """
-        ctx.push_code(prefix)
+        if name != "init":
+            ctx.push_code(prefix)
+
         for p in node.params:
             name = p.name
             if ctx.find_var(name) == None:
                 LOG.error(f"param {name} not found in VisitProcedure")
                 raise Exception(f"param {name} not found")
-
         for s in node.body:
             code = s.accept(self, ctx)
             ctx.push_code(code)
-        ctx.push_code(suffix)
+
+        if name != "init":
+            ctx.push_code(suffix)
 
     def visitStatement(self, node: Statement, ctx: WasmContext) -> str:
         if node.stmt == None:
@@ -309,8 +315,20 @@ class WasmGenerator(Visitor):
         return ret
 
     def visitSend(self, node: Send, ctx) -> str:
-        #! todo do not support doing things after send!
-        return "return Action::Continue;"
+        #! todo currently do not support doing things after send!
+        if isinstance(node.msg, Error):
+            return """
+                        self.send_http_response(
+                            403,
+                            vec![
+                                ("grpc-status", "1"),
+                            ],
+                            None,
+                        );
+                        return Action::Pause;
+                    """
+        else:
+            return "return Action::Continue;"
 
     def visitLiteral(self, node: Literal, ctx):
         return node.value.replace("'", '"')
