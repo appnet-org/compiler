@@ -32,12 +32,13 @@ def gen_code(
     if backend_name == "mrpc":
         generator = RustGenerator(placement)
         finalize = RustFinalize
+        ctx = RustContext()
     elif backend_name == "envoy":
         generator = WasmGenerator(placement)
         finalize = WasmFinalize
+        ctx = WasmContext()
 
     printer = Printer()
-    ctx = RustContext()
 
     irs = []
     for name in engine_name:
@@ -62,7 +63,7 @@ def gen_code(
     else:
         consolidated = irs[0]
 
-    LOG.info("Generating Rust code")
+    LOG.info(f"Generating {backend_name} code")
     consolidated.accept(generator, ctx)
 
     finalize(output_name, ctx, output_dir, placement)

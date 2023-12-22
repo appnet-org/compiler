@@ -5,8 +5,10 @@ from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.visitor import Visitor
 
-FUNC_REQ = "req"
-FUNC_RESP = "resp"
+FUNC_REQ_HEADER = "req_hdr"
+FUNC_REQ_BODY = "req_body"
+FUNC_RESP_HEADER = "resp_hdr"
+FUNC_RESP_BODY = "resp_body"
 FUNC_INIT = "init"
 
 
@@ -17,8 +19,10 @@ class WasmContext:
         self.current_func: str = "unknown"
         self.params: List[WasmVariable] = []
         self.init_code: List[str] = []
-        self.req_code: List[str] = []
-        self.resp_code: List[str] = []
+        self.req_hdr_code: List[str] = []
+        self.resp_hdr_code: List[str] = []
+        self.req_body_code: List[str] = []
+        self.resp_body_code: List[str] = []
 
     def declare(self, name: str, rtype: WasmType, temp: bool, atomic: bool) -> None:
         if name in self.name2var:
@@ -41,10 +45,14 @@ class WasmContext:
     def push_code(self, code: str) -> None:
         if self.current_func == FUNC_INIT:
             self.init_code.append(code)
-        elif self.current_func == FUNC_REQ:
-            self.req_code.append(code)
-        elif self.current_func == FUNC_RESP:
-            self.resp_code.append(code)
+        elif self.current_func == FUNC_REQ_HEADER:
+            self.req_hdr_code.append(code)
+        elif self.current_func == FUNC_REQ_BODY:
+            self.req_body_code.append(code)
+        elif self.current_func == FUNC_RESP_HEADER:
+            self.resp_hdr_code.append(code)
+        elif self.current_func == FUNC_RESP_BODY:
+            self.resp_body_code.append(code)
         else:
             raise Exception("unknown function")
 
@@ -113,10 +121,48 @@ class WasmGenerator(Visitor):
         for i, t in node.internal:
             name = i.name
             wasm_type = t.accept(self, ctx)
-            ctx.declare(name, wasm_type, False)
+            ctx.declare(name, wasm_type, False, True)
 
     def visitProcedure(self, node: Procedure, ctx: WasmContext):
-        raise NotImplementedError
+        #!todo add hdr
+        match node.name:
+            case "init":
+                ctx.current_func = FUNC_INIT
+            case "req":
+                ctx.current_func = FUNC_REQ_BODY
+            case "resp":
+                ctx.current_func = FUNC_RESP_BODY
+            case _:
+                raise Exception("unknown function")
+        ctx.clear_temps()
+        name = node.name
+        if name != "init":
+            ctx.declare(f"rpc_{name}", WasmRpcType("req", []), True, False)
+
+        prefix = f"""
+        if let Some(body) = self.get_http_{name}_body(0, body_size) {{
+
+            match ping::PingEcho{name}::decode(&body[5..]) {{
+                Ok(rpc_{name}) => {{
+        """
+        suffix = f"""
+                        }}
+                Err(e) => log::warn!("decode error: {{}}", e),
+            }}
+        }}
+
+        """
+        ctx.push_code(prefix)
+        for p in node.params:
+            name = p.name
+            if ctx.find_var(name) == None:
+                LOG.error(f"param {name} not found in VisitProcedure")
+                raise Exception(f"param {name} not found")
+
+        for s in node.body:
+            code = s.accept(self, ctx)
+            ctx.push_code(code)
+        ctx.push_code(suffix)
 
     def visitStatement(self, node: Statement, ctx: WasmContext) -> str:
         if node.stmt == None:
@@ -150,7 +196,19 @@ class WasmGenerator(Visitor):
         raise NotImplementedError
 
     def visitPattern(self, node: Pattern, ctx):
-        raise NotImplementedError
+        if isinstance(node.value, Identifier):
+            assert node.some
+            name = node.value.name
+            if ctx.find_var(name) == None:
+                ctx.declare(name, WasmBasicType("String"), True, False)  # declare temp
+            else:
+                LOG.error("variable already defined should not appear in Some")
+                raise Exception(f"variable {name} already defined")
+            return f"Some({node.value.accept(self, ctx)})"
+        if node.some:
+            return f"Some({node.value.accept(self, ctx)})"
+        else:
+            return node.value.accept(self, ctx)
 
     def visitExpr(self, node: Expr, ctx):
         return f"({node.lhs.accept(self, ctx)} {node.op.accept(self, ctx)} {node.rhs.accept(self, ctx)})"
@@ -228,10 +286,31 @@ class WasmGenerator(Visitor):
         raise NotADirectoryError
 
     def visitMethodCall(self, node: MethodCall, ctx) -> str:
-        raise NotImplementedError
+        var = ctx.find_var(node.obj.name)
+        if var == None:
+            raise Exception(f"object {node.obj.name} not found")
+        t = var.type
+        args = [i.accept(self, ctx) for i in node.args]
+        if ctx.current_func == FUNC_INIT:
+            ret = node.obj.name
+        else:
+            ret = node.obj.accept(self, ctx)
+        match node.method:
+            case MethodType.GET:
+                ret += t.gen_get(args)
+            case MethodType.SET:
+                ret += t.gen_set(args)
+            case MethodType.DELETE:
+                ret += t.gen_delete(args)
+            case MethodType.SIZE:
+                ret += t.gen_size()
+            case _:
+                raise Exception("unknown method", node.method)
+        return ret
 
     def visitSend(self, node: Send, ctx) -> str:
-        raise NotImplementedError
+        #! todo do not support doing things after send!
+        return "return Action::Continue;"
 
     def visitLiteral(self, node: Literal, ctx):
         return node.value.replace("'", '"')

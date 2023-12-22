@@ -33,7 +33,5 @@ def gen_template(_placement, output_dir, snippet, lib_name):
 
 
 def finalize(name: str, ctx: WasmContext, output_dir: str, placement: str):
-    name = name
-
     snippet = retrieve(ctx)
-    gen_template(placement, output_dir, snippet)
+    gen_template(placement, output_dir, snippet, name)

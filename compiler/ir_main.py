@@ -70,7 +70,7 @@ if __name__ == "__main__":
     ret = gen_code(
         engines,
         output_name,
-        str(COMPILER_ROOT) + "/generated",
+        str(COMPILER_ROOT) + "/generated/" + str(backend),
         backend,
         placement,
         verbose,

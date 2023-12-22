@@ -3,13 +3,10 @@ use proxy_wasm::traits::{{Context, HttpContext}};
 use proxy_wasm::types::{{Action, LogLevel}};
 use proxy_wasm::traits::RootContext;
 
-// use prost::Message;
-// TODO: Change if your change the proto file
-pub mod ping {{
+/pub mod ping {{
     include!(concat!(env!("OUT_DIR"), "/ping_pb.rs"));
 }}
 
-// TODO: Add global variable here
 
 #[no_mangle]
 pub fn _start() {{

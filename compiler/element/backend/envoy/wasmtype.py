@@ -99,7 +99,7 @@ class WasmRpcType(WasmType):
         self.fields = fields
 
     def gen_get(self, args: List[str]) -> str:
-        raise Exception("Rpc get should use proto getter")
+        return "." + args[0]
 
 
 class WasmFunctionType(WasmType):
