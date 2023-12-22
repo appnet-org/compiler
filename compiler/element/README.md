@@ -14,7 +14,7 @@ python ir_main.py -e acl -v True
 
 ## Supported Backends
 
-- [**mRPC**](https://github.com/phoenix-dataplane/phoenix) 
+- [**mRPC**](https://github.com/phoenix-dataplane/phoenix)
 - [**Envoy**](https://www.envoyproxy.io/) (via [**Proxy WASM**](https://github.com/proxy-wasm/proxy-wasm-rust-sdk))
 - [**gRPC**](https://github.com/grpc/grpc-go) (via [**Interceptors**](https://github.com/grpc-ecosystem/go-grpc-middleware))
     - In progress
