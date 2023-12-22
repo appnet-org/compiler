@@ -34,6 +34,8 @@ See [compiler README ](./compiler/README.md) for usage.
 ```
 Repo Root
 |---- examples   
+  |---- graph   # Example Graph Specifications
+  |---- element # Example Element Specifications
 |---- compiler  # Compiler source code
   |---- docs    # Miscellaneous docs
   |---- element # Source code for ADN graph compiler
