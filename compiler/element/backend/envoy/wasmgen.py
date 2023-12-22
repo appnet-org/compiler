@@ -20,12 +20,12 @@ class WasmContext:
         self.req_code: List[str] = []
         self.resp_code: List[str] = []
 
-    def declare(self, name: str, rtype: WasmType, temp: bool) -> None:
+    def declare(self, name: str, rtype: WasmType, temp: bool, atomic: bool) -> None:
         if name in self.name2var:
             raise Exception(f"variable {name} already defined")
         else:
             var = WasmVariable(
-                name, rtype, temp, name == "rpc_req" or name == "rpc_resp"
+                name, rtype, temp, name == "rpc_req" or name == "rpc_resp", atomic
             )
             self.name2var[name] = var
             if not temp and not var.rpc:
@@ -112,8 +112,8 @@ class WasmGenerator(Visitor):
     def visitInternal(self, node: Internal, ctx: WasmContext) -> None:
         for i, t in node.internal:
             name = i.name
-            rust_type = t.accept(self, ctx)
-            ctx.declare(name, rust_type, False)
+            wasm_type = t.accept(self, ctx)
+            ctx.declare(name, wasm_type, False)
 
     def visitProcedure(self, node: Procedure, ctx: WasmContext):
         raise NotImplementedError
@@ -198,7 +198,31 @@ class WasmGenerator(Visitor):
                 return "self." + node.name
 
     def visitType(self, node: Type, ctx):
-        raise NotImplementedError
+        def map_basic_type(name: str):
+            match name:
+                case "float":
+                    return WasmBasicType("f32")
+                case "int":
+                    return WasmBasicType("i32")
+                case "string":
+                    return WasmBasicType("String")
+                case "Instant":
+                    return WasmBasicType("Instant")
+                case _:
+                    LOG.warning(f"unknown type: {name}")
+                    return WasmType(name)
+
+        name: str = node.name
+        if name.startswith("Vec<"):
+            last = name[4:].split(">")[0].strip()
+            return WasmVecType("Vec", map_basic_type(last))
+        elif name.startswith("Map<"):
+            middle = name[4:].split(">")[0]
+            key = middle.split(",")[0].strip()
+            value = middle.split(",")[1].strip()
+            return WasmMapType("HashMap", map_basic_type(key), map_basic_type(value))
+        else:
+            return map_basic_type(last)
 
     def visitFuncCall(self, node: FuncCall, ctx) -> str:
         raise NotADirectoryError

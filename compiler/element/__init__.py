@@ -8,7 +8,9 @@ from typing import Dict, List
 
 from compiler import root_base_dir
 from compiler.config import COMPILER_ROOT
-from compiler.element.backend.mrpc.finalizer import finalize
+from compiler.element.backend.envoy.finalizer import finalize as WasmFinalize
+from compiler.element.backend.envoy.wasmgen import WasmContext, WasmGenerator
+from compiler.element.backend.mrpc.finalizer import finalize as RustFinalize
 from compiler.element.backend.mrpc.rustgen import RustContext, RustGenerator
 from compiler.element.frontend import IRCompiler, Printer
 from compiler.element.logger import ELEMENT_LOG as LOG
@@ -24,14 +26,20 @@ def gen_code(
     placement: str,
     verbose: bool = False,
 ) -> str:
-    assert backend_name == "mrpc"
+    assert backend_name == "mrpc" or backend_name == "envoy"
     compiler = IRCompiler()
-    generator = RustGenerator(placement)
+
+    if backend_name == "mrpc":
+        generator = RustGenerator(placement)
+        finalize = RustFinalize
+    elif backend_name == "envoy":
+        generator = WasmGenerator(placement)
+        finalize = WasmFinalize
+
     printer = Printer()
     ctx = RustContext()
 
     irs = []
-
     for name in engine_name:
         LOG.info(f"Parsing {name}")
         with open(
@@ -43,12 +51,16 @@ def gen_code(
             if verbose:
                 print(p)
             irs.append(ir)
-    LOG.info("Consolidating IRs")
-    consolidated = consolidate(irs)
-    p = consolidated.accept(printer, None)
-    if verbose:
-        LOG.info("Consolidated IR:")
-        print(p)
+
+    if len(engine_name) > 1:
+        LOG.info("Consolidating IRs")
+        consolidated = consolidate(irs)
+        p = consolidated.accept(printer, None)
+        if verbose:
+            LOG.info("Consolidated IR:")
+            print(p)
+    else:
+        consolidated = irs[0]
 
     LOG.info("Generating Rust code")
     consolidated.accept(generator, ctx)

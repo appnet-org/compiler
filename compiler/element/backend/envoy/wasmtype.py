@@ -126,6 +126,7 @@ class WasmVariable:
         wasm_type: WasmType,
         temp: bool,
         rpc: bool,
+        atomic: bool,
         mut: bool = True,
         init: Optional[str] = None,
     ) -> None:
@@ -133,6 +134,7 @@ class WasmVariable:
         self.type = wasm_type
         self.temp = temp
         self.rpc = rpc
+        self.atomic = atomic
         self.mut = mut
 
         if init is None:

@@ -17,7 +17,6 @@ from compiler.element.logger import init_logging
 from compiler.element.props.flow import FlowGraph
 
 if __name__ == "__main__":
-
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -40,7 +39,7 @@ if __name__ == "__main__":
         required=True,
         default="c",
     )
-
+    parser.add_argument("-b", "--backend", help="Backend Code Target", required=True)
     init_logging(True)
     # parser.add_argument("--verbose", help="Print Debug info", action="store_true")
     # parser.add_argument(
@@ -53,6 +52,7 @@ if __name__ == "__main__":
     # )
     args = parser.parse_args()
     engines = args.engine.split(",")
+    backend = args.backend
     LOG.info(f"engines: {engines}")
     verbose = args.verbose
     deploy = args.deploy
@@ -71,7 +71,7 @@ if __name__ == "__main__":
         engines,
         output_name,
         str(COMPILER_ROOT) + "/generated",
-        "mrpc",
+        backend,
         placement,
         verbose,
     )
