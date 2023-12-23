@@ -72,27 +72,34 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str):
     os.makedirs(local_gen_dir, exist_ok=True)
 
     # compile elements
-    # compiled_elements = set()
-    # for gir in girs.values():
-    #     for element in gir.elements["req_client"] + gir.elements["req_server"]:
-    #         if element.lib_name not in compiled_elements:
-    #             compiled_elements.add(element.lib_name)
-    #             impl_dir = os.path.join(local_gen_dir, f"{element.lib_name}_envoy")
-    #             # compile
-    #             execute_local([
-    #                 "cargo",
-    #                 "build",
-    #                 "--target=wasm32-wasi",
-    #                 "--manifest-path",
-    #                 os.path.join(impl_dir, "Cargo.toml"),
-    #                 "--release",
-    #             ])
-    #             # copy binary to /tmp
-    #             execute_local([
-    #                 "cp",
-    #                 os.path.join(impl_dir, f"target/wasm32-wasi/release/{element.lib_name}.wasm"),
-    #                 "/tmp"
-    #             ])
+    compiled_elements = set()
+    for gir in girs.values():
+        for element in gir.elements["req_client"] + gir.elements["req_server"]:
+            if element.lib_name not in compiled_elements:
+                compiled_elements.add(element.lib_name)
+                impl_dir = os.path.join(local_gen_dir, f"{element.lib_name}_envoy")
+                # compile
+                execute_local(
+                    [
+                        "cargo",
+                        "build",
+                        "--target=wasm32-wasi",
+                        "--manifest-path",
+                        os.path.join(impl_dir, "Cargo.toml"),
+                        "--release",
+                    ]
+                )
+                # copy binary to /tmp
+                execute_local(
+                    [
+                        "cp",
+                        os.path.join(
+                            impl_dir,
+                            f"target/wasm32-wasi/release/{element.lib_name}.wasm",
+                        ),
+                        "/tmp",
+                    ]
+                )
 
     # install elements
     with open(
