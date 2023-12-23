@@ -139,7 +139,7 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str):
         ]
         for (e, sname, placement) in elist:
             contents = {
-                "metadata_name": f"{e.lib_name}-filter-{placement}",
+                "metadata_name": f"{e.lib_name}-{sname}-{placement}",
                 "name": f"{e.lib_name}-{placement}",
                 "service": sname,
                 "bound": "SIDECAR_OUTBOUND"
