@@ -120,6 +120,21 @@ class WasmFunctionType(WasmType):
         return f"{self.name}({', '.join(args)})"
 
 
+class WasmMutex(WasmType):
+    def __init__(self, inner: WasmType):
+        self.name = "Mutex"
+        self.inner = inner
+
+    def __str__(self) -> str:
+        return "Mutex<" + str(self.inner) + ">"
+
+    def gen_init(self) -> str:
+        return f"Mutex::new({self.inner.gen_init()})"
+
+    def gen_get(self) -> str:
+        return f""
+
+
 class WasmVariable:
     def __init__(
         self,
@@ -128,7 +143,6 @@ class WasmVariable:
         temp: bool,
         rpc: bool,
         atomic: bool,
-        mut: bool = True,
         init: Optional[str] = None,
     ) -> None:
         self.name = name
@@ -136,7 +150,6 @@ class WasmVariable:
         self.temp = temp
         self.rpc = rpc
         self.atomic = atomic
-        self.mut = mut
 
         if init is None:
             self.init = ""
@@ -146,14 +159,23 @@ class WasmVariable:
     def __str__(self) -> str:
         return f"{'mut ' if self.mut else ''}{self.name}: {self.type}"
 
+    def is_unwrapped(self) -> bool:
+        return not self.temp and not self.atomic
+
     def gen_init_localvar(self) -> str:
         return f"let mut {self.name} = {self.init};"
 
     def gen_init_self(self) -> str:
-        return f"self.{self.name} = {self.init};"
+        if self.is_unwrapped():
+            return f"{self.name} = {self.init};"
+        else:
+            return f"""
+                let mut {self.name}_inner = {self.name}.lock().unwrap();\n
+                {self.name}_inner = {self.init};\n
+        """
 
-    def gen_struct_declaration(self) -> str:
-        return f"{self.name}: {self.type.name}"
+    def gen_init_global(self) -> str:
+        assert self.atomic
 
 
 WasmGlobalFunctions = {}

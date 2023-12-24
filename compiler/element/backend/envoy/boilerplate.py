@@ -2,11 +2,16 @@ lib_rs = """
 use proxy_wasm::traits::{{Context, HttpContext}};
 use proxy_wasm::types::{{Action, LogLevel}};
 use proxy_wasm::traits::RootContext;
+use lazy_static::lazy_static;
+use std::collections::HashMap;
+use std::sync::Mutex;
+use prost::Message;
 
 pub mod ping {{
     include!(concat!(env!("OUT_DIR"), "/ping_pb.rs"));
 }}
 
+{GlobalVariables}
 
 #[no_mangle]
 pub fn _start() {{
@@ -29,8 +34,6 @@ impl RootContext for {FilterName}Root {{
     }}
 }}
 
-{GlobalVariables}
-
 struct {FilterName}Body {{
     #[allow(unused)]
     context_id: u32,
@@ -48,7 +51,7 @@ impl HttpContext for {FilterName}Body {{
         Action::Continue
     }}
 
-    fn on_http_request_body(&mut self, _body_size: usize, end_of_stream: bool) -> Action {{
+    fn on_http_request_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {{
         log::warn!("executing on_http_request_body");
         if !end_of_stream {{
             return Action::Pause;
@@ -66,7 +69,7 @@ impl HttpContext for {FilterName}Body {{
         Action::Continue
     }}
 
-    fn on_http_response_body(&mut self, _body_size: usize, end_of_stream: bool) -> Action {{
+    fn on_http_response_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {{
         log::warn!("executing on_http_response_body");
         if !end_of_stream {{
             return Action::Pause;

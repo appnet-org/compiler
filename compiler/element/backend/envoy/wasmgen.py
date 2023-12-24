@@ -15,6 +15,7 @@ FUNC_INIT = "init"
 class WasmContext:
     def __init__(self) -> None:
         self.internal_states: List[WasmVariable] = []
+        self.inners: List[WasmVariable] = []
         self.name2var: Dict[str, WasmVariable] = {}
         self.current_func: str = "unknown"
         self.params: List[WasmVariable] = []
@@ -28,12 +29,33 @@ class WasmContext:
         if name in self.name2var:
             raise Exception(f"variable {name} already defined")
         else:
+            LOG.info(f"declare {name}")
+
             var = WasmVariable(
-                name, rtype, temp, name == "rpc_req" or name == "rpc_resp", atomic
+                name,
+                rtype,
+                temp,
+                name == "rpc_request" or name == "rpc_response",
+                atomic,
             )
-            self.name2var[name] = var
-            if not temp and not var.rpc:
+            if not temp and not var.rpc and atomic:
+                var.init = rtype.gen_init()
                 self.internal_states.append(var)
+                v_inner = WasmVariable(name + "_inner", rtype, False, False, False)
+                self.inners.append(v_inner)
+                self.name2var[name] = v_inner
+            elif name == "rpc_request":
+                self.name2var["rpc_req"] = var
+            elif name == "rpc_response":
+                self.name2var["rpc_resp"] = var
+            else:
+                self.name2var[name] = var
+
+    def gen_inners(self) -> str:
+        ret = ""
+        for v in self.internal_states:
+            ret = ret + f"let mut {v.name}_inner = {v.name}.lock().unwrap();\n"
+        return ret
 
     def clear_temps(self) -> None:
         new_dic = {}
@@ -65,37 +87,18 @@ class WasmContext:
     def explain(self) -> str:
         return f"Context.Explain:\n\t{self.internal_states}\n\t{self.name2var}\n\t{self.current_func}\n\t{self.params}\n\t{self.init_code}\n\t{self.req_code}\n\t{self.resp_code}"
 
-    def gen_struct_names(self) -> List[str]:
-        ret = []
-        # todo! check this
-        # for i in self.internal_states:
-        #     ret.append(i.name)
-        return ret
-
-    def gen_init_localvar(self) -> List[str]:
-        ret = []
-        for _, v in self.name2var.items():
-            if not v.temp and not v.rpc:
-                ret.append(v.gen_init_localvar())
-        return ret
-
-    def gen_internal_names(self) -> List[str]:
-        ret = []
-        for i in self.internal_states:
-            ret.append(i.name)
-        return ret
-
-    def gen_init_tempvar(self) -> List[str]:
-        ret = []
-        for _, v in self.name2var.items():
-            if v.temp and not v.rpc:
-                ret.append(v.gen_init_localvar())
-        return ret
-
-    def gen_struct_declaration(self) -> List[str]:
-        ret = []
+    def gen_global_var_def(self) -> str:
+        ret = ""
         for v in self.internal_states:
-            ret.append(v.gen_struct_declaration())
+            wrapped = WasmMutex(v.type)
+            ret = (
+                ret
+                + f"""
+                lazy_static! {{
+                    static ref {v.name}: {str(wrapped)} = {wrapped.gen_init()};
+                }}\n
+            """
+            )
         return ret
 
 
@@ -138,9 +141,16 @@ class WasmGenerator(Visitor):
             case _:
                 raise Exception("unknown function")
         ctx.clear_temps()
-        name = node.name
+        if node.name == "req":
+            name = "request"
+        elif node.name == "resp":
+            name = "response"
+        else:
+            name = node.name
         if name != "init":
-            ctx.declare(f"rpc_{name}", WasmRpcType("req", []), True, False)
+            ctx.declare(f"rpc_{name}", WasmRpcType(f"rpc_{name}", []), True, False)
+        inners = ctx.gen_inners()
+        ctx.push_code(inners)
 
         prefix = f"""
         if let Some(body) = self.get_http_{name}_body(0, body_size) {{
@@ -155,11 +165,13 @@ class WasmGenerator(Visitor):
         }}
 
         """
+
         if name != "init":
             ctx.push_code(prefix)
 
         for p in node.params:
             name = p.name
+            LOG.info(f"try to find {name}")
             if ctx.find_var(name) == None:
                 LOG.error(f"param {name} not found in VisitProcedure")
                 raise Exception(f"param {name} not found")
@@ -257,9 +269,10 @@ class WasmGenerator(Visitor):
             raise Exception(f"variable {node.name} not found")
         else:
             if var.temp or var.rpc:
-                return node.name
+                return var.name
             else:
-                return "self." + node.name
+                assert var.is_unwrapped()
+                return var.name
 
     def visitType(self, node: Type, ctx):
         def map_basic_type(name: str):
@@ -294,11 +307,23 @@ class WasmGenerator(Visitor):
     def visitMethodCall(self, node: MethodCall, ctx) -> str:
         var = ctx.find_var(node.obj.name)
         if var == None:
+            LOG.error(f"{node.obj.name} is not declared")
             raise Exception(f"object {node.obj.name} not found")
         t = var.type
+
         args = [i.accept(self, ctx) for i in node.args]
+
+        if not var.rpc:
+            new_arg = []
+            for i in args:
+                if i.startswith('"'):
+                    new_arg.append(i + ".to_string()")
+                else:
+                    new_arg.append(i)
+            args = new_arg
+
         if ctx.current_func == FUNC_INIT:
-            ret = node.obj.name
+            ret = var.name
         else:
             ret = node.obj.accept(self, ctx)
         match node.method:
@@ -335,34 +360,3 @@ class WasmGenerator(Visitor):
 
     def visitError(self, node: Error, ctx) -> str:
         raise NotImplementedError
-
-
-class ExprResolver(Visitor):
-    def __init__(self) -> None:
-        pass
-
-    def visitNode(self, node: Node, ctx) -> str:
-        LOG.error(node.__class__.__name__, "being visited")
-        raise Exception("Unreachable!")
-
-    def visitLiteral(self, node: Literal, ctx) -> str:
-        return node.value.replace("'", '"')
-
-    def visitIdentifier(self, node: Identifier, ctx) -> str:
-        return node.name
-
-    def visitExpr(self, node: Expr, ctx) -> str:
-        return node.lhs.accept(self, ctx) + str(node.op) + node.rhs.accept(self, ctx)
-
-    def visitError(self, node: Error, ctx) -> str:
-        return "ERROR"
-
-    def visitMethodCall(self, node: MethodCall, ctx):
-        return (
-            node.obj.accept(self, ctx)
-            + "."
-            + node.method.name
-            + "("
-            + ",".join([a.accept(self, ctx) for a in node.args])
-            + ")"
-        )

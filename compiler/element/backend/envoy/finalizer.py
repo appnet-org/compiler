@@ -15,7 +15,7 @@ def retrieve(ctx: WasmContext, name: str) -> Dict:
     #!todo init
     return {
         "FilterName": name,
-        "GlobalVariables": "",
+        "GlobalVariables": ctx.gen_global_var_def(),
         "Init": "".join(ctx.init_code),
         "RequestHeaders": "".join(ctx.req_hdr_code),
         "RequestBody": "".join(ctx.req_body_code),
