@@ -119,14 +119,19 @@ def copy_remote_container(service: str, host: str, local_path: str, remote_path:
     execute_remote_host(host, ["rm", "-r", f"/tmp/{filename}"])
 
 
-def wait_until_running():
+def wait_until_running(namespace: str = "default"):
+    """Wait until all pods are running. Ususally used after `kubectl delete` to ensure synchronization.
+
+    Args:
+        namespace(optional): the pod namespace to monitor.
+    """
     config.load_kube_config()
 
     v1 = client.CoreV1Api()
 
     # Find the status of echo server and wait for it.
     while True:
-        ret = v1.list_namespaced_pod(namespace="default")
+        ret = v1.list_namespaced_pod(namespace=namespace)
         status = [
             i.status.phase == "Running" for i in ret.items if "echo" in i.metadata.name
         ]
@@ -138,6 +143,11 @@ def wait_until_running():
 
 
 def kapply(file: str):
+    """Run `kubectl apply -f file` and restart pods to ensure all changes are synchronized.
+
+    Args:
+        file: configuration filename.
+    """
     execute_local(["kubectl", "apply", "-f", file])
     execute_local(["kubectl", "delete", "pods", "--all"])
     wait_until_running()

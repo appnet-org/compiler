@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import os
-import time
 from pathlib import Path
-from pprint import pprint
 from typing import Dict
 
 import yaml
-from kubernetes import client, config
 
 from compiler import graph_base_dir
 from compiler.graph.backend.utils import copy_remote_host, execute_local, kapply
 from compiler.graph.ir import GraphIR
-from compiler.graph.logger import BACKEND_LOG
 
 attach_yml = """apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
@@ -101,7 +97,7 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str):
                     ]
                 )
 
-    # install elements
+    # Copy filter binaries to worker nodes and generate mount scripts
     with open(
         os.path.join(Path(__file__).parent, "ping-app-istio-template.yml"), "r"
     ) as f:
@@ -136,7 +132,7 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str):
     with open(os.path.join(local_gen_dir, "install.yml"), "w") as f:
         yaml.dump_all(yml_list, f, default_flow_style=False)
 
-    # Kubernetes apply
+    # Mount elements to the sidecar pods
     kapply(os.path.join(local_gen_dir, "install.yml"))
 
     # attach elements
