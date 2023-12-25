@@ -7,6 +7,7 @@ from typing import Dict
 import yaml
 
 from compiler import graph_base_dir
+from compiler.graph.backend import BACKEND_CONFIG_DIR
 from compiler.graph.backend.utils import copy_remote_host, execute_local, kapply
 from compiler.graph.ir import GraphIR
 
@@ -99,7 +100,7 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str):
 
     # Copy filter binaries to worker nodes and generate mount scripts
     with open(
-        os.path.join(Path(__file__).parent, "ping-app-istio-template.yml"), "r"
+        os.path.join(BACKEND_CONFIG_DIR, "ping-app-istio-template.yml"), "r"
     ) as f:
         yml_list = list(yaml.safe_load_all(f))
     frontend_deploy, ping_deploy, pong_deploy = yml_list[1], yml_list[3], yml_list[5]
