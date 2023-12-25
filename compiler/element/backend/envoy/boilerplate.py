@@ -13,6 +13,8 @@ pub mod ping {{
 
 {GlobalVariables}
 
+{GlobalFuncDef}
+
 #[no_mangle]
 pub fn _start() {{
     proxy_wasm::set_log_level(LogLevel::Trace);

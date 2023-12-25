@@ -16,6 +16,7 @@ def retrieve(ctx: WasmContext, name: str) -> Dict:
     return {
         "FilterName": name,
         "GlobalVariables": ctx.gen_global_var_def(),
+        "GlobalFuncDef": "".join([f.definition for f in WasmGlobalFunctions.values()]),
         "Init": "".join(ctx.init_code),
         "RequestHeaders": "".join(ctx.req_hdr_code),
         "RequestBody": "".join(ctx.req_body_code),

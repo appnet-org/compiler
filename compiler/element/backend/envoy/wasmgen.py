@@ -164,12 +164,11 @@ class WasmGenerator(Visitor):
 
         """
 
-        if name != "init":
+        if ctx.current_func != FUNC_INIT:
             ctx.push_code(prefix)
 
         for p in node.params:
             name = p.name
-            LOG.info(f"try to find {name}")
             if ctx.find_var(name) == None:
                 LOG.error(f"param {name} not found in VisitProcedure")
                 raise Exception(f"param {name} not found")
@@ -177,7 +176,7 @@ class WasmGenerator(Visitor):
             code = s.accept(self, ctx)
             ctx.push_code(code)
 
-        if name != "init":
+        if ctx.current_func != FUNC_INIT:
             ctx.push_code(suffix)
 
     def visitStatement(self, node: Statement, ctx: WasmContext) -> str:
@@ -208,8 +207,40 @@ class WasmGenerator(Visitor):
         template += "}"
         return template
 
-    def visitAssign(self, node: Assign, ctx: WasmContext):
-        raise NotImplementedError
+    def visitAssign(self, node: Assign, ctx: WasmContext) -> str:
+        value = node.right.accept(self, ctx)
+        var = ctx.find_var(node.left.name)
+
+        if ctx.current_func == FUNC_INIT:
+            if var == None:
+                LOG.error(f"variable not found in assign")
+                raise ValueError
+            if not var.temp and not var.atomic:
+                if isinstance(var.type, WasmBasicType):
+                    lhs = "*" + var.name
+                else:
+                    lhs = var.name
+            else:
+                lhs = var.name
+            if var.type.name == "String":
+                rhs = f"{value}.to_string()"
+            else:
+                rhs = value
+            return f"{lhs} = {rhs};"
+        else:
+            if var == None:
+                ctx.declare(node.left.name, WasmType("unknown"), True, False)
+                lhs = "let mut " + node.left.name
+                return f"{lhs} = {value};\n"
+            else:
+                if not var.temp and not var.atomic:
+                    if isinstance(var.type, WasmBasicType):
+                        lhs = "*" + var.name
+                    else:
+                        lhs = var.name
+                else:
+                    lhs = var.name
+                return f"{lhs} = ({value}) as {var.type.name};\n"
 
     def visitPattern(self, node: Pattern, ctx):
         if isinstance(node.value, Identifier):
@@ -270,7 +301,10 @@ class WasmGenerator(Visitor):
                 return var.name
             else:
                 assert var.is_unwrapped()
-                return var.name
+                if isinstance(var.type, WasmBasicType):
+                    return "*" + var.name
+                else:
+                    return var.name
 
     def visitType(self, node: Type, ctx):
         def map_basic_type(name: str):
@@ -297,10 +331,44 @@ class WasmGenerator(Visitor):
             value = middle.split(",")[1].strip()
             return WasmMapType("HashMap", map_basic_type(key), map_basic_type(value))
         else:
-            return map_basic_type(last)
+            return map_basic_type(name)
 
     def visitFuncCall(self, node: FuncCall, ctx) -> str:
-        raise NotADirectoryError
+        def func_mapping(fname: str) -> WasmFunctionType:
+            match fname:
+                case "randomf":
+                    return WasmGlobalFunctions["random_f32"]
+                case "update_window":
+                    return WasmGlobalFunctions["update_window"]
+                case "current_time":
+                    return WasmGlobalFunctions["current_time"]
+                case "min":
+                    return WasmGlobalFunctions["min_f64"]
+                case "time_diff":
+                    return WasmGlobalFunctions["time_diff"]
+                case "time_diff_ref":
+                    return WasmGlobalFunctions["time_diff_ref"]
+                case "encrypt":
+                    return WasmGlobalFunctions["encrypt"]
+                case "decrypt":
+                    return WasmGlobalFunctions["decrypt"]
+                case _:
+                    LOG.error(f"unknown global function: {fname} in func_mapping")
+                    raise Exception("unknown global function:", fname)
+
+        fn_name = node.name.name
+        fn: WasmFunctionType = func_mapping(fn_name)
+        types = fn.args
+        args = [f"{i.accept(self, ctx)}" for i in node.args if i is not None]
+        for idx, ty in enumerate(types):
+            if ty.name == "&str":
+                args[idx] = f"&{args[idx]}"
+            elif ty.name == "Instant":
+                args[idx] = f"{args[idx]}.clone()"
+            else:
+                args[idx] = f"({args[idx]} as {ty.name})"
+        ret = fn.gen_call(args)
+        return ret
 
     def visitMethodCall(self, node: MethodCall, ctx) -> str:
         var = ctx.find_var(node.obj.name)

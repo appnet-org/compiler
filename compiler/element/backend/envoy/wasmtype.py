@@ -4,6 +4,8 @@ import copy
 from enum import Enum
 from typing import List, Optional
 
+from compiler.element.logger import ELEMENT_LOG as LOG
+
 
 class WasmType:
     def __init__(self, name: str):
@@ -43,7 +45,15 @@ class WasmBasicType(WasmType):
         return True
 
     def gen_init(self) -> str:
-        raise NotImplementedError
+        match self.name:
+            case "String":
+                return "String::new()"
+            case "f32":
+                return "0.0"
+            case "f64":
+                return "0.0"
+            case _:
+                return "0"
 
 
 class WasmVecType(WasmType):
@@ -178,4 +188,65 @@ class WasmVariable:
         assert self.atomic
 
 
-WasmGlobalFunctions = {}
+WasmGlobalFunctions = {
+    "encrypt": WasmFunctionType(
+        "Gen_encrypt",
+        [WasmType("&str"), WasmType("&str")],
+        WasmBasicType("String"),
+        """pub fn Gen_encrypt(a: &str, b: &str) -> String {
+            let mut ret = String::new();
+            for (x, y) in a.bytes().zip(b.bytes()) {
+                ret.push((x ^ y) as char);
+            }
+            ret
+        }""",
+    ),
+    "decrypt": WasmFunctionType(
+        "Gen_decrypt",
+        [WasmType("&str"), WasmType("&str")],
+        WasmBasicType("String"),
+        """pub fn Gen_decrypt(a: &str, b: &str) -> String {
+            let mut ret = String::new();
+            for (x, y) in a.bytes().zip(b.bytes()) {
+                ret.push((x ^ y) as char);
+            }
+            ret
+    }""",
+    ),
+    "update_window": WasmFunctionType(
+        "Gen_update_window",
+        [WasmBasicType("u64"), WasmBasicType("u64")],
+        WasmBasicType("u64"),
+        "pub fn Gen_update_window(a: u64, b: u64) -> u64 { a.max(b) }",
+    ),
+    # "current_time": WasmFunctionType(
+    #     "Gen_current_timestamp",
+    #     [],
+    #     WasmBasicType("Instant"),
+    #     "pub fn Gen_current_timestamp() -> Instant { Instant::now() }",
+    # ),
+    # "time_diff": WasmFunctionType(
+    #     "Gen_time_difference",
+    #     [WasmBasicType("Instant"), WasmBasicType("Instant")],
+    #     WasmBasicType("f32"),
+    #     "pub fn Gen_time_difference(a: Instant, b: Instant) -> f32 {(a - b).as_secs_f64() as f32}",
+    # ),
+    "random_f32": WasmFunctionType(
+        "Gen_random_f32",
+        [WasmBasicType("f32"), WasmBasicType("f32")],
+        WasmBasicType("f32"),
+        "pub fn Gen_random_f32(l: f32, r: f32) -> f32 { rand::random::<f32>() }",
+    ),
+    "min_u64": WasmFunctionType(
+        "Gen_min_u64",
+        [WasmBasicType("u64"), WasmBasicType("u64")],
+        WasmBasicType("u64"),
+        "pub fn Gen_min_u64(a: u64, b: u64) -> u64 { a.min(b) }",
+    ),
+    "min_f64": WasmFunctionType(
+        "Gen_min_f64",
+        [WasmBasicType("f64"), WasmBasicType("f64")],
+        WasmBasicType("f64"),
+        "pub fn Gen_min_f64(a: f64, b: f64) -> f64 { a.min(b) }",
+    ),
+}
