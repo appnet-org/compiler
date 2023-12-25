@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import importlib
+import os
+from pathlib import Path
 from typing import Dict
 
 from compiler.graph.ir import GraphIR
+
+BACKEND_CONFIG_DIR = os.path.join(Path(__file__).parent, "config")
 
 
 def scriptgen(girs: Dict[str, GraphIR], backend: str, app: str):
