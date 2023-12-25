@@ -42,7 +42,7 @@ def pseudo_gen_property(element) -> Dict[str, Dict[str, Any]]:
     return property
 
 
-def pseudo_compile(ename: str, gen_dir: str, backend: str):
+def pseudo_compile(ename: str, gen_dir: str, backend: str, placement: str):
     """Generate element implementation by copying existing source code to the target path.
 
     Args:
@@ -50,17 +50,26 @@ def pseudo_compile(ename: str, gen_dir: str, backend: str):
         gen_dir: Target path of implementation.
         backend: Backend name.
     """
-    assert backend in ["mrpc"], f"backend {backend} not supported"
-    assert ename in support_list, f"element {ename} not supported"
-
+    assert backend in ["mrpc", "envoy"], f"backend {backend} not supported"
     if backend == "mrpc":
-        phoenix_dir = os.getenv("PHOENIX_DIR")
-        assert phoenix_dir is not None, "environment variable PHOENIX_DIR not set"
-        os.system(f"mkdir -p {gen_dir}/{ename}_mrpc/api")
-        os.system(
-            f"cp -Tr {phoenix_dir}/experimental/mrpc/phoenix-api/policy/{ename} {gen_dir}/{ename}_mrpc/api/{ename}"
-        )
-        os.system(f"mkdir -p {gen_dir}/{ename}_mrpc/plugin")
-        os.system(
-            f"cp -Tr {phoenix_dir}/experimental/mrpc/plugin/policy/{ename} {gen_dir}/{ename}_mrpc/plugin/{ename}"
-        )
+        impl_path = f"{ename}_{placement}_{backend}"
+    else:
+        impl_path = f"{ename}_{backend}"
+    from_path, to_path = os.path.join(
+        os.getenv("HOME"), "handwritten-elements", impl_path
+    ), os.path.join(gen_dir, impl_path)
+    assert os.path.exists(from_path), f"{impl_path} not found"
+    os.system(f"mkdir -p {gen_dir}")
+    os.system(f"cp {from_path} {to_path} -r")
+
+    # if backend == "mrpc":
+    #     phoenix_dir = os.getenv("PHOENIX_DIR")
+    #     assert phoenix_dir is not None, "environment variable PHOENIX_DIR not set"
+    #     os.system(f"mkdir -p {gen_dir}/{ename}_mrpc/api")
+    #     os.system(
+    #         f"cp -Tr {phoenix_dir}/experimental/mrpc/phoenix-api/policy/{ename} {gen_dir}/{ename}_mrpc/api/{ename}"
+    #     )
+    #     os.system(f"mkdir -p {gen_dir}/{ename}_mrpc/plugin")
+    #     os.system(
+    #         f"cp -Tr {phoenix_dir}/experimental/mrpc/plugin/policy/{ename} {gen_dir}/{ename}_mrpc/plugin/{ename}"
+    #     )

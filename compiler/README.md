@@ -16,13 +16,33 @@ python3 ~/adn-compiler/compiler/main.py --spec path_to_spec --backend BACKEND [-
 # An example
 python3 ~/adn-compiler/compiler/main.py --verbose --pseudo_impl --spec ~/adn-compiler/examples/graph_spec/demo.yml --backend mrpc --dry_run
 ```
-* `--verbose`: if used, request graphs (i.e., element chains) on each edge will be printed on the terminal.
-* `--pseudo_element`: use the pseudo element compiler provided by the graph compiler, which reads element properties in `element/property/` and copy existing implementations from the phoenix local repository.
-* `--spec path_to_spec`: path to the user specification file.
-* `--backend BACKEND`: currently, only mrpc backend is supported.
-* `--dry_run`: if used, the compiler will not send remote commands into the container.
 
-The compiler will automatically install engines on all the machines and generate `attach_all.sh` and `detach_all.sh` in `graph/gen`.
+```bash
+❯ python3 ~/adn-compiler-dev/compiler/main.py --help
+
+usage: main.py [-h] -s SPEC_PATH [-v][--pseudo_property] [--pseudo_impl] -b {mrpc,envoy}
+               [--mrpc_dir MRPC_DIR] [--dry_run] [--no_optimize] [--debug]
+
+options:
+  -h, --help            show this help message and exit
+  -s SPEC_PATH, --spec_path SPEC_PATH
+                        Path to user specification file
+  -v, --verbose         If added, request graphs (i.e., element chains) on each edge will be printed on
+                        the terminal
+  --pseudo_property     If added, use hand-coded properties instead of auto-generated ones
+  --pseudo_impl         If added, use hand-coded impl instead of auto-generated ones
+  -b {mrpc,envoy}, --backend {mrpc,envoy}
+                        Backend name
+  --mrpc_dir MRPC_DIR   Path to mrpc repo
+  --dry_run             If added, the compilation terminates after optimization (i.e., no backend
+                        scriptgen)
+  --no_optimize         If added, no optimization will be applied to GraphIR
+  --debug               Print debug info
+```
+
+The compiler will automatically install elements on all the nodes and
+* generate `attach_all.sh` and `detach_all.sh` in `graph/gen` if the backend is mrpc.
+* directly attach elements if the backend is envoy. Use `kubectl delete envoyfilter --all` to detach them.
 
 <!-- ## Deployment
 

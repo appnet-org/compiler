@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 from rich.columns import Columns
 from rich.console import Console
@@ -24,53 +24,56 @@ console = Console()
 gir_summary = dict()
 
 
-def compile_impl(engine_name: str, gen_dir: str, backend: str, placement: str):
-    gen_dir = os.path.join(gen_dir, f"{engine_name}_{placement}_{backend}")
+def compile_impl(engine_name: List[str], gen_dir: str, backend: str, placement: str):
+    gen_name = "".join(engine_name)
+    if backend == "mrpc":
+        gen_dir = os.path.join(gen_dir, f"{gen_name}_{placement}_{backend}")
+    else:
+        gen_dir = os.path.join(gen_dir, f"{gen_name}_{backend}")
     os.system(f"mkdir -p {gen_dir}")
-    gen_code(engine_name, engine_name, gen_dir, backend, placement)
+    gen_code(engine_name, gen_name, gen_dir, backend, placement)
 
 
 def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
     compiled_name = set()
+    gen_dir = os.path.join(graph_base_dir, "gen")
+    os.system(f"rm {gen_dir} -rf")
     for gir in graphirs.values():  # For each edge in the application
         elist = [(e, "client") for e in gir.elements["req_client"]] + [
             (e, "server") for e in gir.elements["req_server"]
         ]
         for (element, placement) in elist:
             # For each element in the edge
-            for name in element.name:
-                identifier = name + placement
-                if identifier not in compiled_name:
-                    if pseudo_impl:
-                        pseudo_compile(
-                            name, os.path.join(graph_base_dir, "gen"), args.backend
-                        )
-                    else:
-                        compile_impl(
-                            name,
-                            os.path.join(graph_base_dir, "gen"),
-                            args.backend,
-                            placement,
-                        )
-                    compiled_name.add(identifier)
+            identifier = element.lib_name + placement
+            if identifier not in compiled_name:
+                if pseudo_impl:
+                    pseudo_compile(element.lib_name, gen_dir, args.backend, placement)
+                else:
+                    compile_impl(
+                        element.name,
+                        gen_dir,
+                        args.backend,
+                        placement,
+                    )
+                compiled_name.add(identifier)
 
 
 def print_gir_summary(graphirs: Dict[str, GraphIR]):
     IR_LOG.info("GraphIR summary:")
     for gir in graphirs.values():
         gir_summary[gir.name]["post-optimized"] = gir.to_rich()
-        gir_summary[gir.name]["property"] = {}
-        for element in gir.elements["req_client"] + gir.elements["req_server"]:
-            gir_summary[gir.name]["property"][element.deploy_name] = element.prop
+        # gir_summary[gir.name]["property"] = {}
+        # for element in gir.elements["req_client"] + gir.elements["req_server"]:
+        #     gir_summary[gir.name]["property"][element.deploy_name] = element.prop
     for gname, summary in gir_summary.items():
         console.print()
         console.print(gname, style="underline bold italic")
         console.print(Columns(["\n :snail: :\n"] + summary["pre-optimized"]))
         console.print(Columns(["\n :rocket: :\n"] + summary["post-optimized"]))
-        if args.debug:
-            console.print("Properties:")
-            for ename, prop in summary["property"].items():
-                console.print(f"{ename}: {prop['request']}")
+        # if args.debug:
+        #     console.print("Properties:")
+        #     for ename, prop in summary["property"].items():
+        #         console.print(f"{ename}: {prop['request']}")
 
 
 def main(args):
@@ -143,7 +146,7 @@ if __name__ == "__main__":
         help="Backend name",
         type=str,
         required=True,
-        choices=["mrpc"],
+        choices=["mrpc", "envoy"],
     )
     parser.add_argument(
         "--mrpc_dir",
