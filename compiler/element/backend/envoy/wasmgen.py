@@ -29,8 +29,6 @@ class WasmContext:
         if name in self.name2var:
             raise Exception(f"variable {name} already defined")
         else:
-            LOG.info(f"declare {name}")
-
             var = WasmVariable(
                 name,
                 rtype,
