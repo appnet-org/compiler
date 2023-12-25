@@ -43,9 +43,7 @@ def gen_code(
     irs = []
     for name in engine_name:
         LOG.info(f"Parsing {name}")
-        with open(
-            os.path.join(root_base_dir, f"examples/match_action/{name}.adn")
-        ) as f:
+        with open(os.path.join(root_base_dir, f"examples/element/{name}.adn")) as f:
             spec = f.read()
             ir = compiler.compile(spec)
             p = ir.accept(printer, None)
@@ -77,7 +75,7 @@ def compile_element_property(engine_names: List[str], verbose: bool = False) -> 
     stateful = False
     for engine_name in engine_names:
         with open(
-            os.path.join(root_base_dir, f"examples/match_action/{engine_name}.adn")
+            os.path.join(root_base_dir, f"examples/element/{engine_name}.adn")
         ) as f:
             spec = f.read()
             ir = compiler.compile(spec)
