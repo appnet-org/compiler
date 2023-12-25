@@ -79,3 +79,36 @@ impl HttpContext for {FilterName}Body {{
     }}
 }}
 """
+
+cargo_toml = """
+[package]
+name = "{FilterName}"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+prost-build = "0.11.1"
+
+[dependencies]
+log = "0.4"
+prost = "0.11.0"
+proxy-wasm = "0.2.0"
+lazy_static = "1.4.0"
+rand = "0.7.0"
+getrandom = {{ version = "0.2", features = ["js"] }}
+"""
+
+build_sh = """
+#!/usr/bin/env bash
+
+WORKDIR=`dirname $(realpath $0)`
+cd $WORKDIR
+
+cargo build --target=wasm32-wasi --release
+cp target/wasm32-wasi/release/{FilterName}.wasm /tmp
+
+"""

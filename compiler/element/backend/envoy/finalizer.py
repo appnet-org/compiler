@@ -25,10 +25,25 @@ def retrieve(ctx: WasmContext, name: str) -> Dict:
 
 
 def gen_template(_placement, output_dir, snippet, lib_name):
+    os.system(f"rm -rf {output_dir}")
     os.system(f"mkdir -p {output_dir}")
-    with open(f"{output_dir}/lib.rs", "w") as f:
+    os.system(f"mkdir -p {output_dir}/src")
+
+    with open(f"{output_dir}/src/lib.rs", "w") as f:
         f.write(lib_rs.format(**snippet))
-    os.system(f"rustfmt --edition 2018  {output_dir}/lib.rs")
+    with open(f"{output_dir}/Cargo.toml", "w") as f:
+        f.write(cargo_toml.format(**snippet))
+    with open(f"{output_dir}/build.sh", "w") as f:
+        f.write(build_sh.format(**snippet))
+
+    template_path = os.path.join(COMPILER_ROOT, "element/backend/envoy/templates")
+    os.system(f"cp {template_path}/build.rs {output_dir}")
+    os.system(f"cp {template_path}/ping.proto {output_dir}")
+    os.system(f"cp {template_path}/pong.proto {output_dir}")
+    os.system(f"cp {template_path}/rust-toolchain.toml {output_dir}")
+
+    os.system(f"rustfmt --edition 2018  {output_dir}/src/lib.rs")
+
     LOG.info("Template {} generated".format(lib_name))
 
 
