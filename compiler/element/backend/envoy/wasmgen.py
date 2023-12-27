@@ -316,7 +316,7 @@ class WasmGenerator(Visitor):
                 case "string":
                     return WasmBasicType("String")
                 case "Instant":
-                    return WasmBasicType("Instant")
+                    return WasmBasicType("f32")
                 case _:
                     LOG.warning(f"unknown type: {name}")
                     return WasmType(name)
@@ -333,7 +333,7 @@ class WasmGenerator(Visitor):
         else:
             return map_basic_type(name)
 
-    def visitFuncCall(self, node: FuncCall, ctx) -> str:
+    def visitFuncCall(self, node: FuncCall, ctx: WasmContext) -> str:
         def func_mapping(fname: str) -> WasmFunctionType:
             match fname:
                 case "randomf":
@@ -366,7 +366,7 @@ class WasmGenerator(Visitor):
             elif ty.name == "Instant":
                 args[idx] = f"{args[idx]}.clone()"
             else:
-                args[idx] = f"({args[idx]} as {ty.name})"
+                args[idx] = f"(({args[idx]}).clone() as {ty.name})"
         ret = fn.gen_call(args)
         return ret
 
@@ -393,7 +393,7 @@ class WasmGenerator(Visitor):
         if var.rpc:
             match node.method:
                 case MethodType.GET:
-                    ret = proto_gen_get(var.nameargs)
+                    ret = proto_gen_get(var.name, args)
                 case MethodType.SET:
                     ret = proto_gen_set(var.name, args)
                 case MethodType.DELETE:

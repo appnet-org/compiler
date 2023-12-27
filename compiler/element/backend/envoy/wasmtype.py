@@ -114,11 +114,14 @@ class WasmRpcType(WasmType):
 
 
 class WasmFunctionType(WasmType):
-    def __init__(self, name: str, args: List[WasmType], ret: WasmType, definition: str):
+    def __init__(
+        self, name: str, args: List[WasmType], ret: WasmType, ctx: bool, definition: str
+    ):
         super().__init__(name)
         self.args = args
         self.ret = ret
         self.definition = definition
+        self.ctx = ctx
 
     def __str__(self) -> str:
         return f"{self.name}({', '.join([str(i) for i in self.args])}) -> {self.ret}"
@@ -127,6 +130,8 @@ class WasmFunctionType(WasmType):
         return self.definition
 
     def gen_call(self, args: Optional[List[str]] = []) -> str:
+        if self.ctx:
+            args = ["self"] + args
         return f"{self.name}({', '.join(args)})"
 
 
@@ -193,6 +198,7 @@ WasmGlobalFunctions = {
         "Gen_encrypt",
         [WasmType("&str"), WasmType("&str")],
         WasmBasicType("String"),
+        False,
         """pub fn Gen_encrypt(a: &str, b: &str) -> String {
             let mut ret = String::new();
             for (x, y) in a.bytes().zip(b.bytes()) {
@@ -205,6 +211,7 @@ WasmGlobalFunctions = {
         "Gen_decrypt",
         [WasmType("&str"), WasmType("&str")],
         WasmBasicType("String"),
+        False,
         """pub fn Gen_decrypt(a: &str, b: &str) -> String {
             let mut ret = String::new();
             for (x, y) in a.bytes().zip(b.bytes()) {
@@ -217,36 +224,44 @@ WasmGlobalFunctions = {
         "Gen_update_window",
         [WasmBasicType("u64"), WasmBasicType("u64")],
         WasmBasicType("u64"),
+        False,
         "pub fn Gen_update_window(a: u64, b: u64) -> u64 { a.max(b) }",
     ),
-    # "current_time": WasmFunctionType(
-    #     "Gen_current_timestamp",
-    #     [],
-    #     WasmBasicType("Instant"),
-    #     "pub fn Gen_current_timestamp() -> Instant { Instant::now() }",
-    # ),
-    # "time_diff": WasmFunctionType(
-    #     "Gen_time_difference",
-    #     [WasmBasicType("Instant"), WasmBasicType("Instant")],
-    #     WasmBasicType("f32"),
-    #     "pub fn Gen_time_difference(a: Instant, b: Instant) -> f32 {(a - b).as_secs_f64() as f32}",
-    # ),
+    "current_time": WasmFunctionType(
+        "Gen_current_timestamp",
+        [],
+        WasmBasicType("f32"),
+        True,
+        """pub fn Gen_current_timestamp(ctx: &mut impl HttpContext) -> f32 {
+            DateTime::<Utc>::from(ctx.get_current_time()).timestamp() as f32
+        }""",
+    ),
+    "time_diff": WasmFunctionType(
+        "Gen_time_difference",
+        [WasmBasicType("f32"), WasmBasicType("f32")],
+        WasmBasicType("f32"),
+        False,
+        "pub fn Gen_time_difference(a: f32, b: f32) -> f32 { a - b }",
+    ),
     "random_f32": WasmFunctionType(
         "Gen_random_f32",
         [WasmBasicType("f32"), WasmBasicType("f32")],
         WasmBasicType("f32"),
+        False,
         "pub fn Gen_random_f32(l: f32, r: f32) -> f32 { rand::random::<f32>() }",
     ),
     "min_u64": WasmFunctionType(
         "Gen_min_u64",
         [WasmBasicType("u64"), WasmBasicType("u64")],
         WasmBasicType("u64"),
+        False,
         "pub fn Gen_min_u64(a: u64, b: u64) -> u64 { a.min(b) }",
     ),
     "min_f64": WasmFunctionType(
         "Gen_min_f64",
         [WasmBasicType("f64"), WasmBasicType("f64")],
         WasmBasicType("f64"),
+        False,
         "pub fn Gen_min_f64(a: f64, b: f64) -> f64 { a.min(b) }",
     ),
 }
@@ -257,6 +272,7 @@ WasmProtoFunctions = [
         "PingEcho_request_modify_body",
         [WasmBasicType("&str")],
         WasmBasicType("()"),
+        False,
         """
             pub fn PingEcho_request_modify_body(&mut self, req: &mut ping::PingEchoRequest, value: &str) -> () {
                 let mut new_body = Vec::new();
@@ -275,6 +291,7 @@ WasmProtoFunctions = [
         "PingEcho_response_modify_body",
         [WasmBasicType("&str")],
         WasmBasicType("()"),
+        False,
         """
             pub fn PingEcho_response_modify_body(&mut self, req: &mut ping::PingEchoResponse, value: &str) -> () {
                 let mut new_body = Vec::new();
