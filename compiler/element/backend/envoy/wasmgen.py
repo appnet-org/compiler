@@ -154,7 +154,7 @@ class WasmGenerator(Visitor):
         if let Some(body) = self.get_http_{name}_body(0, body_size) {{
 
             match ping::PingEcho{proto_name}::decode(&body[5..]) {{
-                Ok(rpc_{name}) => {{
+                Ok(mut rpc_{name}) => {{
         """
         suffix = f"""
                         }}
@@ -376,7 +376,6 @@ class WasmGenerator(Visitor):
             LOG.error(f"{node.obj.name} is not declared")
             raise Exception(f"object {node.obj.name} not found")
         t = var.type
-
         args = [i.accept(self, ctx) for i in node.args]
 
         if not var.rpc:
@@ -387,22 +386,34 @@ class WasmGenerator(Visitor):
                 else:
                     new_arg.append(i)
             args = new_arg
-
         if ctx.current_func == FUNC_INIT:
             ret = var.name
         else:
             ret = node.obj.accept(self, ctx)
-        match node.method:
-            case MethodType.GET:
-                ret += t.gen_get(args)
-            case MethodType.SET:
-                ret += t.gen_set(args)
-            case MethodType.DELETE:
-                ret += t.gen_delete(args)
-            case MethodType.SIZE:
-                ret += t.gen_size()
-            case _:
-                raise Exception("unknown method", node.method)
+        if var.rpc:
+            match node.method:
+                case MethodType.GET:
+                    ret = proto_gen_get(var.nameargs)
+                case MethodType.SET:
+                    ret = proto_gen_set(var.name, args)
+                case MethodType.DELETE:
+                    raise NotImplementedError
+                case MethodType.SIZE:
+                    ret = proto_gen_size(args)
+                case _:
+                    raise Exception("unknown method", node.method)
+        else:
+            match node.method:
+                case MethodType.GET:
+                    ret += t.gen_get(args)
+                case MethodType.SET:
+                    ret += t.gen_set(args)
+                case MethodType.DELETE:
+                    ret += t.gen_delete(args)
+                case MethodType.SIZE:
+                    ret += t.gen_size()
+                case _:
+                    raise Exception("unknown method", node.method)
         return ret
 
     def visitSend(self, node: Send, ctx) -> str:
@@ -426,3 +437,28 @@ class WasmGenerator(Visitor):
 
     def visitError(self, node: Error, ctx) -> str:
         raise NotImplementedError
+
+
+def proto_gen_get(rpc: str, args: List[str]) -> str:
+    assert len(args) == 1
+    arg = args[0].strip('"')
+    if arg.startswith("meta"):
+        raise NotImplementedError
+    return f"{rpc}.{arg}"
+
+
+def proto_gen_set(rpc: str, args: List[str]) -> str:
+    assert len(args) == 2
+    k = args[0].strip('"')
+    v = args[1]
+    if k.startswith("meta"):
+        raise NotImplementedError
+    if rpc == "rpc_request":
+        return f"self.PingEcho_request_modify_{k}(&mut {rpc}, {v})"
+    elif rpc == "rpc_response":
+        return f"self.PingEcho_response_modify_{k}(&mut {rpc}, {v})"
+
+
+def proto_gen_size(rpc: str, args: List[str]) -> str:
+    assert len(args) == 0
+    return f"{rpc}.size()"

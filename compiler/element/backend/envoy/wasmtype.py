@@ -250,3 +250,43 @@ WasmGlobalFunctions = {
         "pub fn Gen_min_f64(a: f64, b: f64) -> f64 { a.min(b) }",
     ),
 }
+
+
+WasmProtoFunctions = [
+    WasmFunctionType(
+        "PingEcho_request_modify_body",
+        [WasmBasicType("&str")],
+        WasmBasicType("()"),
+        """
+            pub fn PingEcho_request_modify_body(&mut self, req: &mut ping::PingEchoRequest, value: &str) -> () {
+                let mut new_body = Vec::new();
+                req.body = value.to_string();
+                req.encode(&mut new_body).expect("Failed to encode");
+                let new_body_length = new_body.len() as u32;
+                let mut grpc_header = Vec::new();
+                grpc_header.push(0); // Compression flag
+                grpc_header.extend_from_slice(&new_body_length.to_be_bytes());
+                grpc_header.append(&mut new_body);
+                self.set_http_request_body(0, grpc_header.len(), &grpc_header);
+            }
+        """,
+    ),
+    WasmFunctionType(
+        "PingEcho_response_modify_body",
+        [WasmBasicType("&str")],
+        WasmBasicType("()"),
+        """
+            pub fn PingEcho_response_modify_body(&mut self, req: &mut ping::PingEchoResponse, value: &str) -> () {
+                let mut new_body = Vec::new();
+                req.body = value.to_string();
+                req.encode(&mut new_body).expect("Failed to encode");
+                let new_body_length = new_body.len() as u32;
+                let mut grpc_header = Vec::new();
+                grpc_header.push(0); // Compression flag
+                grpc_header.extend_from_slice(&new_body_length.to_be_bytes());
+                grpc_header.append(&mut new_body);
+                self.set_http_request_body(0, grpc_header.len(), &grpc_header);
+            }
+        """,
+    ),
+]

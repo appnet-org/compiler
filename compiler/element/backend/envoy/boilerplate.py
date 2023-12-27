@@ -15,6 +15,7 @@ pub mod ping {{
 
 {GlobalFuncDef}
 
+
 #[no_mangle]
 pub fn _start() {{
     proxy_wasm::set_log_level(LogLevel::Trace);
@@ -25,6 +26,10 @@ pub fn _start() {{
  }}
 
 struct {FilterName}Root;
+
+impl {FilterName}Body {{
+    {ProtoFuncDef}
+}}
 
 impl Context for {FilterName}Root {{}}
 
