@@ -51,37 +51,37 @@ impl Context for {FilterName}Body {{}}
 
 impl HttpContext for {FilterName}Body {{
     fn on_http_request_headers(&mut self, _num_of_headers: usize, end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_request_headers");
-        if !end_of_stream {{
-            return Action::Continue;
-        }}
+        log::warn!("executing on_http_request_headers generated");
+        // if !end_of_stream {{
+        //     return Action::Continue;
+        // }}
         {RequestHeaders}
         Action::Continue
     }}
 
     fn on_http_request_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_request_body");
-        if !end_of_stream {{
-            return Action::Pause;
-        }}
+        log::warn!("executing on_http_request_body generated");
+        // if !end_of_stream {{
+        //    return Action::Pause;
+        // }}
         {RequestBody}
         Action::Continue
     }}
 
     fn on_http_response_headers(&mut self, _num_headers: usize, end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_response_headers");
-        if !end_of_stream {{
-            return Action::Continue;
-        }}
+        log::warn!("executing on_http_response_headers generated");
+        // if !end_of_stream {{
+        //    return Action::Continue;
+        // }}
         {ResponseHeaders}
         Action::Continue
     }}
 
     fn on_http_response_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_response_body");
-        if !end_of_stream {{
-            return Action::Pause;
-        }}
+        log::warn!("executing on_http_response_body generated");
+        // if !end_of_stream {{
+        //    return Action::Pause;
+        // }}
         {ResponseBody}
         Action::Continue
     }}
