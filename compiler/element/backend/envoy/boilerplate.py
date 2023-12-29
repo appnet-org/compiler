@@ -6,6 +6,7 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use prost::Message;
+use chrono::{{DateTime, Utc}};
 
 pub mod ping {{
     include!(concat!(env!("OUT_DIR"), "/ping_pb.rs"));
@@ -14,6 +15,7 @@ pub mod ping {{
 {GlobalVariables}
 
 {GlobalFuncDef}
+
 
 #[no_mangle]
 pub fn _start() {{
@@ -25,6 +27,10 @@ pub fn _start() {{
  }}
 
 struct {FilterName}Root;
+
+impl {FilterName}Body {{
+    {ProtoFuncDef}
+}}
 
 impl Context for {FilterName}Root {{}}
 
@@ -45,37 +51,37 @@ impl Context for {FilterName}Body {{}}
 
 impl HttpContext for {FilterName}Body {{
     fn on_http_request_headers(&mut self, _num_of_headers: usize, end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_request_headers");
-        if !end_of_stream {{
-            return Action::Continue;
-        }}
+        log::warn!("executing on_http_request_headers generated");
+        // if !end_of_stream {{
+        //     return Action::Continue;
+        // }}
         {RequestHeaders}
         Action::Continue
     }}
 
     fn on_http_request_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_request_body");
-        if !end_of_stream {{
-            return Action::Pause;
-        }}
+        log::warn!("executing on_http_request_body generated");
+        // if !end_of_stream {{
+        //    return Action::Pause;
+        // }}
         {RequestBody}
         Action::Continue
     }}
 
     fn on_http_response_headers(&mut self, _num_headers: usize, end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_response_headers");
-        if !end_of_stream {{
-            return Action::Continue;
-        }}
+        log::warn!("executing on_http_response_headers generated");
+        // if !end_of_stream {{
+        //    return Action::Continue;
+        // }}
         {ResponseHeaders}
         Action::Continue
     }}
 
     fn on_http_response_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_response_body");
-        if !end_of_stream {{
-            return Action::Pause;
-        }}
+        log::warn!("executing on_http_response_body generated");
+        // if !end_of_stream {{
+        //    return Action::Pause;
+        // }}
         {ResponseBody}
         Action::Continue
     }}
@@ -102,6 +108,7 @@ proxy-wasm = "0.2.0"
 lazy_static = "1.4.0"
 rand = "0.7.0"
 getrandom = {{ version = "0.2", features = ["js"] }}
+chrono = {{ version = "0.4", default-features = false, features = ["clock", "std"] }}
 """
 
 build_sh = """
