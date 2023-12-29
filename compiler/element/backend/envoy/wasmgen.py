@@ -446,7 +446,7 @@ def proto_gen_get(rpc: str, args: List[str]) -> str:
     arg = args[0].strip('"')
     if arg.startswith("meta"):
         raise NotImplementedError
-    return f"{rpc}.{arg}"
+    return f"{rpc}.{arg}.clone()"
 
 
 def proto_gen_set(rpc: str, args: List[str]) -> str:
