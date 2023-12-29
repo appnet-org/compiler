@@ -232,7 +232,7 @@ WasmGlobalFunctions = {
         [],
         WasmBasicType("f32"),
         True,
-        """pub fn Gen_current_timestamp(ctx: &mut impl HttpContext) -> f32 {
+        """pub fn Gen_current_timestamp(ctx: & impl Context) -> f32 {
             DateTime::<Utc>::from(ctx.get_current_time()).timestamp() as f32
         }""",
     ),
