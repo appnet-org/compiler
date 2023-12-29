@@ -15,7 +15,7 @@ fn init() {
 fn req(rpc_req) {
 	token := min(limit, token + (per_sec * time_diff(current_time(), last)));
 	last := current_time();
-    size := rpc_req.len()
+    size := rpc_req.byte_size();
     match (token >= size) {
 		true => {
 			token := token - size;

@@ -400,6 +400,8 @@ class WasmGenerator(Visitor):
                     raise NotImplementedError
                 case MethodType.SIZE:
                     ret = proto_gen_size(args)
+                case MethodType.BYTE_SIZE:
+                    return proto_gen_bytesize(var.name, args)
                 case _:
                     raise Exception("unknown method", node.method)
         else:
@@ -462,3 +464,9 @@ def proto_gen_set(rpc: str, args: List[str]) -> str:
 def proto_gen_size(rpc: str, args: List[str]) -> str:
     assert len(args) == 0
     return f"{rpc}.size()"
+
+
+def proto_gen_bytesize(rpc: str, args: List[str]) -> str:
+    assert len(args) == 0
+    #! fix me, todo should return usize
+    return f"mem::size_of_val(&{rpc}) as f32"

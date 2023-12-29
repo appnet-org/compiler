@@ -146,8 +146,8 @@ class IRTransformer(Transformer):
     def size(self, s):
         return MethodType.SIZE, []
 
-    def len_(self, l):
-        return MethodType.LEN, []
+    def byte_size(self, l):
+        return MethodType.BYTE_SIZE, []
 
     def op(self, o) -> Operator:
         return o[0]
@@ -175,6 +175,12 @@ class IRTransformer(Transformer):
 
     def op_neq(self, o):
         return Operator.NEQ
+
+    def op_lt(self, o):
+        return Operator.LT
+
+    def op_gt(self, o):
+        return Operator.GT
 
     def op_le(self, o):
         return Operator.LE

@@ -72,6 +72,7 @@ class Expr(Node):
         self.lhs = lhs
         self.op = op
         self.rhs = rhs
+        self.type = "unknown"
 
 
 class Identifier(Node):
@@ -172,7 +173,7 @@ class MethodType(EnumNode):
     SET = 2
     DELETE = 3
     SIZE = 4
-    LEN = 5
+    BYTE_SIZE = 5
     FOR_EACH = 6
 
 
