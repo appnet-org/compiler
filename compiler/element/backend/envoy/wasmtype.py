@@ -115,13 +115,18 @@ class WasmRpcType(WasmType):
 
 class WasmFunctionType(WasmType):
     def __init__(
-        self, name: str, args: List[WasmType], ret: WasmType, ctx: bool, definition: str
+        self,
+        name: str,
+        args: List[WasmType],
+        ret: WasmType,
+        use_self: bool,
+        definition: str,
     ):
         super().__init__(name)
         self.args = args
         self.ret = ret
         self.definition = definition
-        self.ctx = ctx
+        self.use_self = use_self
 
     def __str__(self) -> str:
         return f"{self.name}({', '.join([str(i) for i in self.args])}) -> {self.ret}"
@@ -130,7 +135,7 @@ class WasmFunctionType(WasmType):
         return self.definition
 
     def gen_call(self, args: Optional[List[str]] = []) -> str:
-        if self.ctx:
+        if self.use_self:
             args = ["self"] + args
         return f"{self.name}({', '.join(args)})"
 
@@ -267,8 +272,8 @@ WasmGlobalFunctions = {
 }
 
 
-WasmProtoFunctions = [
-    WasmFunctionType(
+WasmSelfFunctions = {
+    "request_modify": WasmFunctionType(
         "PingEcho_request_modify_body",
         [WasmBasicType("&str")],
         WasmBasicType("()"),
@@ -287,7 +292,7 @@ WasmProtoFunctions = [
             }
         """,
     ),
-    WasmFunctionType(
+    "response_modify": WasmFunctionType(
         "PingEcho_response_modify_body",
         [WasmBasicType("&str")],
         WasmBasicType("()"),
@@ -306,4 +311,29 @@ WasmProtoFunctions = [
             }
         """,
     ),
-]
+    "encrypt": WasmFunctionType(
+        "Gen_encrypt",
+        [WasmBasicType("&str")],
+        WasmBasicType("()"),
+        False,
+        """
+            pub fn Gen_encrypt(&mut self, req: &mut ping::PingEchoResponse, password: String) -> () {
+                    let mut new_body = Vec::new();
+                    let password = password.as_bytes();
+                    let req_body_ref = req.body.as_mut_ptr();
+                    let len = req.body.as_bytes().len();
+                    for i in 0..len {
+                        unsafe { *(req_body_ref.wrapping_add(i)) ^= password[i] };
+                    }
+                    req.encode(&mut new_body).expect("Failed to encode");
+
+                    let new_body_length = new_body.len() as u32;
+                    let mut grpc_header = Vec::new();
+                    grpc_header.push(0); // Compression flag
+                    grpc_header.extend_from_slice(&new_body_length.to_be_bytes());
+                    grpc_header.append(&mut new_body);
+                    self.set_http_request_body(0, grpc_header.len(), &grpc_header);
+            }
+        """,
+    ),
+}

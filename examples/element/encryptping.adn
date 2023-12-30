@@ -6,9 +6,9 @@ fn init() {
 }
 
 fn req(rpc_req) {
-    encrypted := rpc_req.get('body');
-    decrypted := decrypt(encrypted, password);
-    rpc_req.set('body', decrypted);
+	ori := rpc_req.get('body');
+    encrypted := encrypt(ori, password);
+    rpc_req.set('body', encrypted);
     send(rpc_req, NET);
 }
 

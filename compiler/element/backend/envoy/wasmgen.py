@@ -349,9 +349,9 @@ class WasmGenerator(Visitor):
                 case "time_diff_ref":
                     return WasmGlobalFunctions["time_diff_ref"]
                 case "encrypt":
-                    return WasmGlobalFunctions["encrypt"]
+                    return WasmSelfFunctions["encrypt"]
                 case "decrypt":
-                    return WasmGlobalFunctions["decrypt"]
+                    return WasmSelfFunctions["decrypt"]
                 case _:
                     LOG.error(f"unknown global function: {fname} in func_mapping")
                     raise Exception("unknown global function:", fname)
@@ -455,6 +455,7 @@ def proto_gen_set(rpc: str, args: List[str]) -> str:
     v = args[1]
     if k.startswith("meta"):
         raise NotImplementedError
+    #! fix that use name match
     if rpc == "rpc_request":
         return f"self.PingEcho_request_modify_{k}(&mut {rpc}, {v})"
     elif rpc == "rpc_response":
