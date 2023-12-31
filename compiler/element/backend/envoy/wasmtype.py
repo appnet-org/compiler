@@ -255,6 +255,13 @@ WasmGlobalFunctions = {
         False,
         "pub fn Gen_random_f32(l: f32, r: f32) -> f32 { rand::random::<f32>() }",
     ),
+    "random_u32": WasmFunctionType(
+        "Gen_random_u32",
+        [WasmBasicType("u32"), WasmBasicType("u32")],
+        WasmBasicType("u32"),
+        False,
+        "pub fn Gen_random_u32(l: u32, r: u32) -> u32 { rand::random::<u32>() }",
+    ),
     "min_u64": WasmFunctionType(
         "Gen_min_u64",
         [WasmBasicType("u64"), WasmBasicType("u64")],
@@ -269,6 +276,19 @@ WasmGlobalFunctions = {
         False,
         "pub fn Gen_min_f64(a: f64, b: f64) -> f64 { a.min(b) }",
     ),
+    "encrypt": WasmFunctionType(
+        "Gen_encrypt",
+        [WasmType("&str"), WasmType("&str")],
+        WasmBasicType("String"),
+        False,
+        """pub fn Gen_encrypt(a: &str, b: &str) -> String {
+            let mut ret = String::new();
+            for (x, y) in a.bytes().zip(b.bytes()) {
+                ret.push((x ^ y) as char);
+            }
+            ret
+        }""",
+    ),
 }
 
 
@@ -279,7 +299,7 @@ WasmSelfFunctions = {
         WasmBasicType("()"),
         False,
         """
-            pub fn PingEcho_request_modify_body(&mut self, req: &mut ping::PingEchoRequest, value: &str) -> () {
+            pub fn PingEcho_request_modify_body(&mut self, req: &mut ping::PingEchoRequest, value: String) -> () {
                 let mut new_body = Vec::new();
                 req.body = value.to_string();
                 req.encode(&mut new_body).expect("Failed to encode");
@@ -298,7 +318,7 @@ WasmSelfFunctions = {
         WasmBasicType("()"),
         False,
         """
-            pub fn PingEcho_response_modify_body(&mut self, req: &mut ping::PingEchoResponse, value: &str) -> () {
+            pub fn PingEcho_response_modify_body(&mut self, req: &mut ping::PingEchoResponse, value: String) -> () {
                 let mut new_body = Vec::new();
                 req.body = value.to_string();
                 req.encode(&mut new_body).expect("Failed to encode");
@@ -308,31 +328,6 @@ WasmSelfFunctions = {
                 grpc_header.extend_from_slice(&new_body_length.to_be_bytes());
                 grpc_header.append(&mut new_body);
                 self.set_http_request_body(0, grpc_header.len(), &grpc_header);
-            }
-        """,
-    ),
-    "encrypt": WasmFunctionType(
-        "Gen_encrypt",
-        [WasmBasicType("&str")],
-        WasmBasicType("()"),
-        False,
-        """
-            pub fn Gen_encrypt(&mut self, req: &mut ping::PingEchoResponse, password: String) -> () {
-                    let mut new_body = Vec::new();
-                    let password = password.as_bytes();
-                    let req_body_ref = req.body.as_mut_ptr();
-                    let len = req.body.as_bytes().len();
-                    for i in 0..len {
-                        unsafe { *(req_body_ref.wrapping_add(i)) ^= password[i] };
-                    }
-                    req.encode(&mut new_body).expect("Failed to encode");
-
-                    let new_body_length = new_body.len() as u32;
-                    let mut grpc_header = Vec::new();
-                    grpc_header.push(0); // Compression flag
-                    grpc_header.extend_from_slice(&new_body_length.to_be_bytes());
-                    grpc_header.append(&mut new_body);
-                    self.set_http_request_body(0, grpc_header.len(), &grpc_header);
             }
         """,
     ),

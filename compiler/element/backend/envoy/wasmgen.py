@@ -338,6 +338,8 @@ class WasmGenerator(Visitor):
             match fname:
                 case "randomf":
                     return WasmGlobalFunctions["random_f32"]
+                case "randomu":
+                    return WasmGlobalFunctions["random_u32"]
                 case "update_window":
                     return WasmGlobalFunctions["update_window"]
                 case "current_time":
@@ -349,9 +351,9 @@ class WasmGenerator(Visitor):
                 case "time_diff_ref":
                     return WasmGlobalFunctions["time_diff_ref"]
                 case "encrypt":
-                    return WasmSelfFunctions["encrypt"]
+                    return WasmGlobalFunctions["encrypt"]
                 case "decrypt":
-                    return WasmSelfFunctions["decrypt"]
+                    return WasmGlobalFunctions["decrypt"]
                 case _:
                     LOG.error(f"unknown global function: {fname} in func_mapping")
                     raise Exception("unknown global function:", fname)
@@ -452,7 +454,7 @@ def proto_gen_get(rpc: str, args: List[str]) -> str:
 def proto_gen_set(rpc: str, args: List[str]) -> str:
     assert len(args) == 2
     k = args[0].strip('"')
-    v = args[1]
+    v = args[1] + ".to_string()"
     if k.startswith("meta"):
         raise NotImplementedError
     #! fix that use name match
