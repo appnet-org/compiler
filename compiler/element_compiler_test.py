@@ -41,7 +41,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-b", "--backend", help="Backend Code Target", required=True)
     init_logging(True)
-    
+
     # Some preprocessing
     args = parser.parse_args()
     elements = args.element.split(",")
@@ -60,8 +60,8 @@ if __name__ == "__main__":
     # Generate the element properties.
     ret = compile_element_property(elements, verbose)
     LOG.info(f"prop: {ret}")
-    
-    # Generate real element code 
+
+    # Generate real element code
     output_name = "Gen" + "".join(elements).title() + placement
     ret = gen_code(
         elements,
@@ -71,7 +71,7 @@ if __name__ == "__main__":
         placement,
         verbose,
     )
-    
+
     if deploy:
         move_template("/home/banruo/phoenix", output_name)
         install([output_name], "/home/banruo/phoenix")
