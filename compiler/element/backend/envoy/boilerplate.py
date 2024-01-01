@@ -23,7 +23,7 @@ pub fn _start() {{
     proxy_wasm::set_log_level(LogLevel::Trace);
     proxy_wasm::set_root_context(|_| -> Box<dyn RootContext> {{ Box::new({FilterName}Root) }});
     proxy_wasm::set_http_context(|context_id, _| -> Box<dyn HttpContext> {{
-        Box::new({FilterName}Body {{ context_id }})
+        Box::new({FilterName}Body {{ context_id, meta_status: "unknown".to_string() }})
     }});
  }}
 
@@ -46,6 +46,7 @@ impl RootContext for {FilterName}Root {{
 struct {FilterName}Body {{
     #[allow(unused)]
     context_id: u32,
+    meta_status: String,
 }}
 
 impl Context for {FilterName}Body {{}}
