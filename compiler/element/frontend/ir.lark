@@ -39,7 +39,7 @@ pattern: const
 
 expr:  "(" expr ")" | identifier | method | func | const | expr op expr
 
-method: identifier "." (get | set_ | delete | len_ | size)
+method: identifier "." (get | set_ | delete | byte_size | size)
 
 func: identifier arguments
 
@@ -50,7 +50,7 @@ const: CNAME | quoted_string | NUMBER
 get: "get" "(" expr ")"
 set_: "set" ( "(" expr "," expr ")" | "(" expr ")" )
 delete: "delete" "(" expr ")"
-len_: "len()"
+byte_size: "byte_size()"
 size: "size()"
 
 op: "*" -> op_mul
@@ -61,10 +61,10 @@ op: "*" -> op_mul
        | "||" -> op_lor
        | "==" -> op_eq
        | "!=" -> op_neq
-       | "<" -> op_le
-       | ">" -> op_ge
-       | "<=" -> op_leq
-       | ">=" -> op_geq
+       | "<" -> op_lt
+       | ">" -> op_gt
+       | "<=" -> op_le
+       | ">=" -> op_ge
 
 quoted_string: /'[^']*'/
 

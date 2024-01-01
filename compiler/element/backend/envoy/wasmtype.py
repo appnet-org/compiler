@@ -115,13 +115,18 @@ class WasmRpcType(WasmType):
 
 class WasmFunctionType(WasmType):
     def __init__(
-        self, name: str, args: List[WasmType], ret: WasmType, ctx: bool, definition: str
+        self,
+        name: str,
+        args: List[WasmType],
+        ret: WasmType,
+        use_self: bool,
+        definition: str,
     ):
         super().__init__(name)
         self.args = args
         self.ret = ret
         self.definition = definition
-        self.ctx = ctx
+        self.use_self = use_self
 
     def __str__(self) -> str:
         return f"{self.name}({', '.join([str(i) for i in self.args])}) -> {self.ret}"
@@ -130,7 +135,7 @@ class WasmFunctionType(WasmType):
         return self.definition
 
     def gen_call(self, args: Optional[List[str]] = []) -> str:
-        if self.ctx:
+        if self.use_self:
             args = ["self"] + args
         return f"{self.name}({', '.join(args)})"
 
@@ -232,7 +237,7 @@ WasmGlobalFunctions = {
         [],
         WasmBasicType("f32"),
         True,
-        """pub fn Gen_current_timestamp(ctx: &mut impl HttpContext) -> f32 {
+        """pub fn Gen_current_timestamp(ctx: & impl Context) -> f32 {
             DateTime::<Utc>::from(ctx.get_current_time()).timestamp() as f32
         }""",
     ),
@@ -250,6 +255,13 @@ WasmGlobalFunctions = {
         False,
         "pub fn Gen_random_f32(l: f32, r: f32) -> f32 { rand::random::<f32>() }",
     ),
+    "random_u32": WasmFunctionType(
+        "Gen_random_u32",
+        [WasmBasicType("u32"), WasmBasicType("u32")],
+        WasmBasicType("u32"),
+        False,
+        "pub fn Gen_random_u32(l: u32, r: u32) -> u32 { rand::random::<u32>() }",
+    ),
     "min_u64": WasmFunctionType(
         "Gen_min_u64",
         [WasmBasicType("u64"), WasmBasicType("u64")],
@@ -264,17 +276,30 @@ WasmGlobalFunctions = {
         False,
         "pub fn Gen_min_f64(a: f64, b: f64) -> f64 { a.min(b) }",
     ),
+    "encrypt": WasmFunctionType(
+        "Gen_encrypt",
+        [WasmType("&str"), WasmType("&str")],
+        WasmBasicType("String"),
+        False,
+        """pub fn Gen_encrypt(a: &str, b: &str) -> String {
+            let mut ret = String::new();
+            for (x, y) in a.bytes().zip(b.bytes()) {
+                ret.push((x ^ y) as char);
+            }
+            ret
+        }""",
+    ),
 }
 
 
-WasmProtoFunctions = [
-    WasmFunctionType(
+WasmSelfFunctions = {
+    "request_modify": WasmFunctionType(
         "PingEcho_request_modify_body",
         [WasmBasicType("&str")],
         WasmBasicType("()"),
         False,
         """
-            pub fn PingEcho_request_modify_body(&mut self, req: &mut ping::PingEchoRequest, value: &str) -> () {
+            pub fn PingEcho_request_modify_body(&mut self, req: &mut ping::PingEchoRequest, value: String) -> () {
                 let mut new_body = Vec::new();
                 req.body = value.to_string();
                 req.encode(&mut new_body).expect("Failed to encode");
@@ -287,13 +312,13 @@ WasmProtoFunctions = [
             }
         """,
     ),
-    WasmFunctionType(
+    "response_modify": WasmFunctionType(
         "PingEcho_response_modify_body",
         [WasmBasicType("&str")],
         WasmBasicType("()"),
         False,
         """
-            pub fn PingEcho_response_modify_body(&mut self, req: &mut ping::PingEchoResponse, value: &str) -> () {
+            pub fn PingEcho_response_modify_body(&mut self, req: &mut ping::PingEchoResponse, value: String) -> () {
                 let mut new_body = Vec::new();
                 req.body = value.to_string();
                 req.encode(&mut new_body).expect("Failed to encode");
@@ -306,4 +331,4 @@ WasmProtoFunctions = [
             }
         """,
     ),
-]
+}

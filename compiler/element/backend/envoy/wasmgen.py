@@ -338,6 +338,8 @@ class WasmGenerator(Visitor):
             match fname:
                 case "randomf":
                     return WasmGlobalFunctions["random_f32"]
+                case "randomu":
+                    return WasmGlobalFunctions["random_u32"]
                 case "update_window":
                     return WasmGlobalFunctions["update_window"]
                 case "current_time":
@@ -400,6 +402,8 @@ class WasmGenerator(Visitor):
                     raise NotImplementedError
                 case MethodType.SIZE:
                     ret = proto_gen_size(args)
+                case MethodType.BYTE_SIZE:
+                    return proto_gen_bytesize(var.name, args)
                 case _:
                     raise Exception("unknown method", node.method)
         else:
@@ -444,15 +448,16 @@ def proto_gen_get(rpc: str, args: List[str]) -> str:
     arg = args[0].strip('"')
     if arg.startswith("meta"):
         raise NotImplementedError
-    return f"{rpc}.{arg}"
+    return f"{rpc}.{arg}.clone()"
 
 
 def proto_gen_set(rpc: str, args: List[str]) -> str:
     assert len(args) == 2
     k = args[0].strip('"')
-    v = args[1]
+    v = args[1] + ".to_string()"
     if k.startswith("meta"):
         raise NotImplementedError
+    #! fix that use name match
     if rpc == "rpc_request":
         return f"self.PingEcho_request_modify_{k}(&mut {rpc}, {v})"
     elif rpc == "rpc_response":
@@ -462,3 +467,9 @@ def proto_gen_set(rpc: str, args: List[str]) -> str:
 def proto_gen_size(rpc: str, args: List[str]) -> str:
     assert len(args) == 0
     return f"{rpc}.size()"
+
+
+def proto_gen_bytesize(rpc: str, args: List[str]) -> str:
+    assert len(args) == 0
+    #! fix me, todo should return usize
+    return f"mem::size_of_val(&{rpc}) as f32"
