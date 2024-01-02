@@ -99,6 +99,26 @@ class WasmContext:
             )
         return ret
 
+    def gen_meta_get(self, field: str):
+        assert field.startswith("meta")
+        if field == "meta_status":
+            if self.current_func == FUNC_REQ_BODY:
+                raise Exception("Should not read meta in request")
+            if self.current_func == FUNC_RESP_BODY:
+                self.resp_hdr_code.append(
+                    """
+                    if let Some(status_code) = self.get_http_response_header(":status") {
+                        if status_code == "200" {
+                            self.meta_status = "success".to_string();
+                        } else {
+                            self.meta_status = "failure".to_string();
+                        }
+                    } else {
+                        panic!("No status code found in response headers");
+                    }
+                """
+                )
+
 
 class WasmGenerator(Visitor):
     def __init__(self, placement: str) -> None:
@@ -395,9 +415,9 @@ class WasmGenerator(Visitor):
         if var.rpc:
             match node.method:
                 case MethodType.GET:
-                    ret = proto_gen_get(var.name, args)
+                    ret = proto_gen_get(var.name, args, ctx)
                 case MethodType.SET:
-                    ret = proto_gen_set(var.name, args)
+                    ret = proto_gen_set(var.name, args, ctx)
                 case MethodType.DELETE:
                     raise NotImplementedError
                 case MethodType.SIZE:
@@ -443,15 +463,17 @@ class WasmGenerator(Visitor):
         raise NotImplementedError
 
 
-def proto_gen_get(rpc: str, args: List[str]) -> str:
+def proto_gen_get(rpc: str, args: List[str], ctx: WasmContext) -> str:
     assert len(args) == 1
     arg = args[0].strip('"')
     if arg.startswith("meta"):
-        raise NotImplementedError
-    return f"{rpc}.{arg}.clone()"
+        ctx.gen_meta_get(arg)
+        return f"self.{arg}"
+    else:
+        return f"{rpc}.{arg}.clone()"
 
 
-def proto_gen_set(rpc: str, args: List[str]) -> str:
+def proto_gen_set(rpc: str, args: List[str], ctx: WasmContext) -> str:
     assert len(args) == 2
     k = args[0].strip('"')
     v = args[1] + ".to_string()"
