@@ -28,8 +28,8 @@ def proto_gen_get(rpc: str, placement: str, args: List[str]) -> str:
     assert len(args) == 1
     arg = args[0].strip('"')
     if arg.startswith("meta"):
-        if (rpc == "rpc_req" and placement == "client") or (
-            rpc == "rpc_resp" and placement == "server"
+        if (rpc == "rpc_req" and placement == "Client") or (
+            rpc == "rpc_resp" and placement == "Server"
         ):
             return f"{arg}_readonly_tx(&msg)"
         else:
@@ -44,8 +44,8 @@ def proto_gen_set(rpc: str, placement: str, args: List[str]) -> str:
     assert len(args) == 2
     arg1 = args[0].strip('"')
     if arg1.startswith("meta"):
-        if (rpc == "rpc_req" and placement == "client") or (
-            rpc == "rpc_resp" and placement == "server"
+        if (rpc == "rpc_req" and placement == "Client") or (
+            rpc == "rpc_resp" and placement == "Server"
         ):
             return f"{arg1}_write_tx(&msg, {args[1]})"
         else:
@@ -162,7 +162,7 @@ class RustContext:
 class RustGenerator(Visitor):
     def __init__(self, placement: str) -> None:
         self.placement = placement
-        if placement != "client" and placement != "server":
+        if placement != "Client" and placement != "Server":
             raise Exception("placement should be sender or receiver")
 
     def visitNode(self, node: Node, ctx: RustContext):
@@ -403,7 +403,7 @@ class RustGenerator(Visitor):
             raise Exception("send not in function")
         if isinstance(node.msg, Error):
             # handle drop
-            if self.placement == "client":
+            if self.placement == "Client":
                 msg = node.msg.accept(self, ctx)
                 inner = f"let inner_gen = {msg};"
                 if ctx.current_func == FUNC_REQ:
@@ -427,7 +427,7 @@ class RustGenerator(Visitor):
             ):
                 LOG.error("Can only send rpc_req or rpc_resp")
                 raise Exception("Can only send rpc_req or rpc_resp")
-            if self.placement == "client":
+            if self.placement == "Client":
                 if node.msg.name == "rpc_req":
                     inner = """
                         let inner_gen = EngineTxMessage::RpcMessage(RpcMessageTx {
@@ -449,7 +449,7 @@ class RustGenerator(Visitor):
                         return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
                     elif node.direction == "APP":
                         return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
-            elif self.placement == "server":
+            elif self.placement == "Server":
                 if node.msg.name == "rpc_req":
                     inner = """
                         let inner_gen = EngineRxMessage::RpcMessage(RpcMessageRx {
@@ -477,7 +477,7 @@ class RustGenerator(Visitor):
         return node.value.replace("'", '"')
 
     def visitError(self, node: Error, ctx) -> str:
-        if self.placement == "client":
+        if self.placement == "Client":
             return """EngineRxMessage::Ack(
                                 RpcId::new(
                                     unsafe { &*msg.meta_buf_ptr.as_meta_ptr() }.conn_id,
