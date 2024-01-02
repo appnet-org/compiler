@@ -20,7 +20,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-e", "--engine", type=str, help="(Engine_name',') *", required=True
+        "-e", "--element", type=str, help="(Element_name',') *", required=True
     )
     parser.add_argument(
         "-v", "--verbose", help="Print Debug info", required=False, default=False
@@ -41,40 +41,37 @@ if __name__ == "__main__":
     )
     parser.add_argument("-b", "--backend", help="Backend Code Target", required=True)
     init_logging(True)
-    # parser.add_argument("--verbose", help="Print Debug info", action="store_true")
-    # parser.add_argument(
-    #     "--mrpc_dir",
-    #     type=str,
-    #     default=f"../../phoenix/experimental/mrpc",
-    # )
-    # parser.add_argument(
-    #     "-o", "--output", type=str, help="Output type: ast, ir, mrpc", default="mrpc"
-    # )
+
+    # Some preprocessing
     args = parser.parse_args()
-    engines = args.engine.split(",")
+    elements = args.element.split(",")
     backend = args.backend
-    LOG.info(f"engines: {engines}")
     verbose = args.verbose
     deploy = args.deploy
-    placement = args.placement
+    placement = args.placement.lower()
+    LOG.info(f"elements: {elements}")
     if placement == "c":
-        placement = "client"
+        placement = "Client"
     elif placement == "s":
-        placement = "server"
+        placement = "Server"
     else:
         raise Exception("invalid Placement, c/s expected")
 
-    ret = compile_element_property(engines, verbose)
+    # Generate the element properties.
+    ret = compile_element_property(elements, verbose)
     LOG.info(f"prop: {ret}")
-    output_name = "gen" + "".join(engines) + placement
+
+    # Generate real element code
+    output_name = "Gen" + "".join(elements).title() + placement
     ret = gen_code(
-        engines,
+        elements,
         output_name,
         str(COMPILER_ROOT) + "/generated/" + str(backend),
         backend,
         placement,
         verbose,
     )
+
     if deploy:
         move_template("/home/banruo/phoenix", output_name)
         install([output_name], "/home/banruo/phoenix")
