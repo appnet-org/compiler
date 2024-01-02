@@ -103,7 +103,7 @@ class WasmContext:
 class WasmGenerator(Visitor):
     def __init__(self, placement: str) -> None:
         self.placement = placement
-        if placement != "client" and placement != "server":
+        if placement != "Client" and placement != "Server":
             raise Exception("placement should be sender or receiver")
 
     def visitNode(self, node: Node, ctx: WasmContext):
