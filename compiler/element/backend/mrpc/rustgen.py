@@ -28,8 +28,8 @@ def proto_gen_get(rpc: str, placement: str, args: List[str]) -> str:
     assert len(args) == 1
     arg = args[0].strip('"')
     if arg.startswith("meta"):
-        if (rpc == "rpc_req" and placement == "Client") or (
-            rpc == "rpc_resp" and placement == "Server"
+        if (rpc == "rpc_req" and placement == "client") or (
+            rpc == "rpc_resp" and placement == "server"
         ):
             return f"{arg}_readonly_tx(&msg)"
         else:
@@ -44,8 +44,8 @@ def proto_gen_set(rpc: str, placement: str, args: List[str]) -> str:
     assert len(args) == 2
     arg1 = args[0].strip('"')
     if arg1.startswith("meta"):
-        if (rpc == "rpc_req" and placement == "Client") or (
-            rpc == "rpc_resp" and placement == "Server"
+        if (rpc == "rpc_req" and placement == "client") or (
+            rpc == "rpc_resp" and placement == "server"
         ):
             return f"{arg1}_write_tx(&msg, {args[1]})"
         else:
@@ -54,6 +54,11 @@ def proto_gen_set(rpc: str, placement: str, args: List[str]) -> str:
         return f"hello_HelloRequest_{arg1}_modify({rpc}_mut, {args[1]}.as_bytes())"
     elif rpc == "rpc_resp":
         return f"hello_HelloRequest_{arg1}_modify({rpc}_mut, {args[1]}.as_bytes())"
+
+
+def proto_gen_bytesize(rpc: str, placement: str, args: List[str]) -> str:
+    assert len(args) == 0
+    return f"mem::size_of_val({rpc}_mut) as f32"
 
 
 class RustContext:
@@ -162,7 +167,7 @@ class RustContext:
 class RustGenerator(Visitor):
     def __init__(self, placement: str) -> None:
         self.placement = placement
-        if placement != "Client" and placement != "Server":
+        if placement != "client" and placement != "server":
             raise Exception("placement should be sender or receiver")
 
     def visitNode(self, node: Node, ctx: RustContext):
@@ -366,6 +371,8 @@ class RustGenerator(Visitor):
                         ret = proto_gen_get(var.name, self.placement, args)
                     case MethodType.SET:
                         ret = proto_gen_set(var.name, self.placement, args)
+                    case MethodType.BYTE_SIZE:
+                        ret = proto_gen_bytesize(var.name, self.placement, args)
                     case MethodType.DELETE:
                         raise Exception("delete is not supported in RPC")
                     case _:
@@ -403,7 +410,7 @@ class RustGenerator(Visitor):
             raise Exception("send not in function")
         if isinstance(node.msg, Error):
             # handle drop
-            if self.placement == "Client":
+            if self.placement == "client":
                 msg = node.msg.accept(self, ctx)
                 inner = f"let inner_gen = {msg};"
                 if ctx.current_func == FUNC_REQ:
@@ -427,7 +434,7 @@ class RustGenerator(Visitor):
             ):
                 LOG.error("Can only send rpc_req or rpc_resp")
                 raise Exception("Can only send rpc_req or rpc_resp")
-            if self.placement == "Client":
+            if self.placement == "client":
                 if node.msg.name == "rpc_req":
                     inner = """
                         let inner_gen = EngineTxMessage::RpcMessage(RpcMessageTx {
@@ -449,7 +456,7 @@ class RustGenerator(Visitor):
                         return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
                     elif node.direction == "APP":
                         return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
-            elif self.placement == "Server":
+            elif self.placement == "server":
                 if node.msg.name == "rpc_req":
                     inner = """
                         let inner_gen = EngineRxMessage::RpcMessage(RpcMessageRx {
@@ -477,7 +484,7 @@ class RustGenerator(Visitor):
         return node.value.replace("'", '"')
 
     def visitError(self, node: Error, ctx) -> str:
-        if self.placement == "Client":
+        if self.placement == "client":
             return """EngineRxMessage::Ack(
                                 RpcId::new(
                                     unsafe { &*msg.meta_buf_ptr.as_meta_ptr() }.conn_id,

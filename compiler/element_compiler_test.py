@@ -51,9 +51,9 @@ if __name__ == "__main__":
     placement = args.placement.lower()
     LOG.info(f"elements: {elements}")
     if placement == "c":
-        placement = "Client"
+        placement = "client"
     elif placement == "s":
-        placement = "Server"
+        placement = "server"
     else:
         raise Exception("invalid Placement, c/s expected")
 
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     LOG.info(f"prop: {ret}")
 
     # Generate real element code
-    output_name = "Gen" + "".join(elements).title() + placement
+    output_name = "gen" + "".join(elements) + placement.lower()
     ret = gen_code(
         elements,
         output_name,

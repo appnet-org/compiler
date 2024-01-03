@@ -35,9 +35,9 @@ def move_template(phoenix_dir, template_name):
     mrpc_api = phoenix_dir + "/experimental/mrpc/generated/api"
     mrpc_toml = phoenix_dir + "/experimental/mrpc/generated/toml"
 
-    prefix_api = str(COMPILER_ROOT) + "/generated/api/" + template_name
-    prefix_plugin = str(COMPILER_ROOT) + "/generated/plugin/" + template_name
-    prefix_toml = str(COMPILER_ROOT) + "/generated/toml/" + template_name
+    prefix_api = str(COMPILER_ROOT) + "/generated/mrpc/api/" + template_name
+    prefix_plugin = str(COMPILER_ROOT) + "/generated/mrpc/plugin/" + template_name
+    prefix_toml = str(COMPILER_ROOT) + "/generated/mrpc/toml/" + template_name
 
     os.system(f"mkdir -p {mrpc_api}")
     os.system(f"rm -rf {mrpc_api}/{template_name}")
@@ -71,7 +71,7 @@ def move_template(phoenix_dir, template_name):
 
 
 def install(engine_name: List[str], phoenix_dir: str):
-    os.chdir(str(COMPILER_ROOT) + "/generated")
+    os.chdir(str(COMPILER_ROOT) + "/generated/mrpc")
     LOG.info("Deploying to mRPC...")
 
     # engines = []
