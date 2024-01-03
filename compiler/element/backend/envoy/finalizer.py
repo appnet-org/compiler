@@ -1,8 +1,5 @@
 import os
-import sys
-from pprint import pprint
-from string import Formatter
-from typing import Dict, List
+from typing import Dict
 
 from compiler.config import COMPILER_ROOT
 from compiler.element.backend.envoy.boilerplate import *
@@ -49,7 +46,7 @@ def gen_template(_placement, output_dir, snippet, lib_name):
 
     os.system(f"rustfmt --edition 2018  {output_dir}/src/lib.rs")
 
-    LOG.info("Template {} generated".format(lib_name))
+    LOG.info(f"Backend code for {lib_name} generated. You can find the source code at {output_dir}")
 
 
 def finalize(name: str, ctx: WasmContext, output_dir: str, placement: str):

@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, TypeVar
+from typing import Dict, List, Optional, Tuple
 
 from compiler.element.node import *
 from compiler.element.node import Expr, Identifier, MethodCall

@@ -34,12 +34,16 @@ See [compiler README ](./compiler/README.md) for usage.
 ```
 Repo Root
 |---- examples   
-  |---- graph   # Example Graph Specifications
-  |---- element # Example Element Specifications
-|---- compiler  # Compiler source code
-  |---- docs    # Miscellaneous docs
-  |---- element # Source code for ADN graph compiler
-  |---- graph   # Source code for ADN element compiler
+  |---- graph          # Example Graph Specifications
+  |---- element        # Example Element Specifications
+|---- compiler         # Compiler source code
+  |---- docs           # Miscellaneous docs
+  |---- element        # Source code for the element compiler
+    |---- backend      # Source code for backend (code generation)
+    |---- frontend     # Source code for frontend (parse tree and IR generation)
+    |---- optimize     # Source code for various IR optimizatons
+    |---- props        # Source code for property analyzer
+  |---- graph          # Source code for the graph compiler
 ```
 
 # Reference
