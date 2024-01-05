@@ -1,4 +1,5 @@
 import argparse
+import datetime
 
 from compiler.config import COMPILER_ROOT
 from compiler.element import compile_element_property, gen_code
@@ -46,10 +47,14 @@ if __name__ == "__main__":
         raise Exception("invalid Placement, c/s expected")
 
     # Generate the element properties.
+    start = datetime.datetime.now()
     ret = compile_element_property(elements, verbose)
+    end = datetime.datetime.now()
     LOG.info(f"Element properties: {ret}")
+    LOG.info(f"Property Analysis took: {(end-start).microseconds/1000}ms")
 
     # Generate real element code
+    start = datetime.datetime.now()
     output_name = "Gen" + "".join(elements).title() + placement
     ret = gen_code(
         elements,
@@ -59,6 +64,8 @@ if __name__ == "__main__":
         placement,
         verbose,
     )
+    end = datetime.datetime.now()
+    LOG.info(f"Code Generation took: {(end-start).microseconds/1000}ms")
 
     if deploy:
         move_template("/home/banruo/phoenix", output_name)

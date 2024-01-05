@@ -1,4 +1,3 @@
-
 import os
 from typing import Dict, List
 
@@ -23,7 +22,7 @@ def gen_code(
 ) -> str:
     """
     Generates backend code.
-    
+
     Args:
         element_names (List[str]): List of element names to generate code for.
         output_name (str): The name of the output file.
@@ -35,7 +34,7 @@ def gen_code(
     Raises:
         AssertionError: If the backend_name is not 'mrpc' or 'envoy'.
     """
-    
+
     # Currently, we only support mRPC and Envoy (Proxy WASM) as the backends
     assert backend_name == "mrpc" or backend_name == "envoy"
     compiler = IRCompiler()
@@ -56,12 +55,14 @@ def gen_code(
     irs = []
     for element_name in element_names:
         LOG.info(f"(CodeGen) Parsing {element_name}")
-        # TODO(xz): add the path to the configuration instead of hard-coded here. 
-        with open(os.path.join(root_base_dir, f"examples/element/{element_name}.adn")) as f:
+        # TODO(xz): add the path to the configuration instead of hard-coded here.
+        with open(
+            os.path.join(root_base_dir, f"examples/element/{element_name}.adn")
+        ) as f:
             spec = f.read()
             ir = compiler.compile(spec)
-            p = ir.accept(printer, None)
             if verbose:
+                p = ir.accept(printer, None)
                 print(p)
             irs.append(ir)
 
@@ -85,7 +86,7 @@ def gen_code(
 def compile_element_property(element_names: List[str], verbose: bool = False) -> Dict:
     """
     Compiles and analyzes properties of elements defined using ADN syntax.
-    
+
     Each .adn file contains the specification of an element's behavior. The function
     uses an IRCompiler to compile these specifications into an intermediate representation (IR),
     and then analyzes the properties of the request and response flows using FlowGraph.
@@ -111,7 +112,7 @@ def compile_element_property(element_names: List[str], verbose: bool = False) ->
     LOG.info("Analyzing element properties")
     ret = (Property(), Property())
     stateful = False
-    
+
     for element_name in element_names:
         LOG.info(f"(Property Analyzer) Parsing {element_name}")
         # TODO(xz): add the path to the configuration instead of hard-coded here.
@@ -121,22 +122,23 @@ def compile_element_property(element_names: List[str], verbose: bool = False) ->
             # Read the specification from file and generate the intermediate representation
             spec = f.read()
             ir = compiler.compile(spec)
-            p = ir.accept(printer, None) # XZ: What does accept do?
+
             if verbose:
+                p = ir.accept(printer, None)
                 print(p)
 
             # Analyze the IR and get the element properties
             # The request and reponse logics are analyzed seperately
             req = FlowGraph().analyze(ir.req, verbose)
             resp = FlowGraph().analyze(ir.resp, verbose)
-            
+
             # Update request properties
             ret[0].block = ret[0].block or req.block
             ret[0].copy = ret[0].copy or req.copy
             ret[0].drop = ret[0].drop or req.drop
             ret[0].read = ret[0].read + req.read
             ret[0].write = ret[0].write + req.write
-            ret[0].check() # XZ: what does check do?
+            ret[0].check()  # XZ: what does check do?
 
             # Update response properties
             ret[1].block = ret[1].block or resp.block
@@ -147,16 +149,16 @@ def compile_element_property(element_names: List[str], verbose: bool = False) ->
             ret[1].check()
 
             stateful = stateful or len(ir.definition.internal) > 0
-            
+
     ret[0].check()
     ret[1].check()
-    
+
     # Determine if the operation should be recorded based on the element name
-    # TODO(xz): this is a temporary hack. 
+    # TODO(xz): this is a temporary hack.
     record = len(element_names) == 1 and (
         element_names[0] == "logging" or element_names[0] == "metrics"
     )
-    
+
     return {
         "stateful": stateful,
         "request": {

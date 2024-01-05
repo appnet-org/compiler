@@ -156,7 +156,9 @@ def gen_template(
     os.system(f"rustfmt --edition 2018  {engine_path}")
     os.system(f"rustfmt --edition 2018  {proto_path}")
 
-    LOG.info(f"Backend code for {template_name} generated. You can find the source code at {output_dir}")
+    LOG.info(
+        f"Backend code for {template_name} generated. You can find the source code at {output_dir}"
+    )
 
 
 def finalize(name: str, ctx: RustContext, output_dir: str, placement: str):

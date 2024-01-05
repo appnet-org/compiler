@@ -57,7 +57,7 @@ export PYTHONPATH=$PYTHONPATH:$(pwd):$(dirname $(pwd))
 # The code will be in the `./generated/` directory
 python element_compiler_test.py -e acl -b envoy -p c -v
 
-# The element compiler can 
+# The element compiler can
 ```
 
 - `-v` for verbose

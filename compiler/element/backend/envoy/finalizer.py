@@ -46,7 +46,9 @@ def gen_template(_placement, output_dir, snippet, lib_name):
 
     os.system(f"rustfmt --edition 2018  {output_dir}/src/lib.rs")
 
-    LOG.info(f"Backend code for {lib_name} generated. You can find the source code at {output_dir}")
+    LOG.info(
+        f"Backend code for {lib_name} generated. You can find the source code at {output_dir}"
+    )
 
 
 def finalize(name: str, ctx: WasmContext, output_dir: str, placement: str):
