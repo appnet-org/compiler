@@ -123,7 +123,7 @@ class WasmContext:
 class WasmGenerator(Visitor):
     def __init__(self, placement: str) -> None:
         self.placement = placement
-        if placement != "Client" and placement != "Server":
+        if placement != "client" and placement != "server":
             raise Exception("placement should be sender or receiver")
 
     def visitNode(self, node: Node, ctx: WasmContext):
@@ -139,7 +139,8 @@ class WasmGenerator(Visitor):
         node.resp.accept(self, ctx)
 
     def visitInternal(self, node: Internal, ctx: WasmContext) -> None:
-        for i, t in node.internal:
+        # TODO(xz): Add logic to handle decorators
+        for (i, t, cons, comb, per) in node.internal:
             name = i.name
             wasm_type = t.accept(self, ctx)
             ctx.declare(name, wasm_type, False, True)

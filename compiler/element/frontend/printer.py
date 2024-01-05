@@ -18,8 +18,14 @@ class Printer(Visitor):
 
     def visitInternal(self, node: Internal, ctx):
         ret = "Internal:\n"
-        for (i, t) in node.internal:
-            ret += f"{i.accept(self, ctx)}: {t.accept(self, ctx)}\n"
+        for (i, t, cons, comb, per) in node.internal:
+            i_val = i.accept(self, ctx)
+            t_val = t.accept(self, ctx)
+            cons_val = cons.accept(self, ctx)
+            comb_val = comb.accept(self, ctx)
+            per_val = per.accept(self, ctx)
+
+            ret += f"{i_val}: {t_val} {cons_val} {comb_val} {per_val}\n"
         return ret + "\n"
 
     def visitProcedure(self, node: Procedure, ctx):
@@ -61,6 +67,15 @@ class Printer(Visitor):
         )
 
     def visitIdentifier(self, node: Identifier, ctx):
+        return node.name
+
+    def visitConsistencyDecorator(self, node: ConsistencyDecorator, ctx):
+        return node.name
+    
+    def visitCombinerDecorator(self, node: CombinerDecorator, ctx):
+        return node.name
+    
+    def visitPersistenceDecorator(self, node: PersistenceDecorator, ctx):
         return node.name
 
     def visitType(self, node: Type, ctx):

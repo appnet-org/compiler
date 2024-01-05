@@ -1,6 +1,7 @@
 from lark import Transformer
 
 from compiler.element.node import *
+from compiler.element.frontend.util import *
 
 
 class IRTransformer(Transformer):
@@ -14,8 +15,46 @@ class IRTransformer(Transformer):
     def definition(self, d) -> Internal:
         return Internal(d)
 
-    def declaration(self, d) -> Tuple[Identifier, Type]:
-        return (d[0], d[1])
+    def declaration(self, d) -> Tuple[Identifier, Type, ConsistencyDecorator, CombinerDecorator, PersistenceDecorator]:
+        """
+        Processes a list to create a declaration tuple consisting of an Identifier, Type, and optional decorators.
+
+        Parameters:
+        d : list
+            A list containing an Identifier, Type, and optional decorator instances.
+
+        Returns:
+        Tuple[Identifier, Type, ConsistencyDecorator, CombinerDecorator, PersistenceDecorator]
+            A tuple containing the Identifier, Type, and instances of the optional decorators.
+        """
+        result = [d[-2], d[-1]]
+        
+        # Define the list of decorator types
+        decorators = [ConsistencyDecorator, CombinerDecorator, PersistenceDecorator]
+
+        # Iterate over decorators and update result accordingly
+        for i, decorator in enumerate(decorators):
+            decorator_idx = find_type_index(d, decorator)
+            if decorator_idx != -1:
+                result.append(decorator(d[decorator_idx].name))
+            else:
+                result.append(decorator("None"))
+                
+
+        return tuple(result)
+
+
+    def consistency_decorator(self, d) -> ConsistencyDecorator:
+        d = d[0]
+        return ConsistencyDecorator(d)
+    
+    def combiner_decorator(self, d) -> CombinerDecorator:
+        d = d[0]
+        return CombinerDecorator(d)
+    
+    def persistence_decorator(self, d) -> PersistenceDecorator:
+        d = d[0]
+        return PersistenceDecorator(d)
 
     def identifier(self, i) -> Identifier:
         i = i[0]

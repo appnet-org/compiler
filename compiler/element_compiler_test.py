@@ -37,12 +37,12 @@ if __name__ == "__main__":
     backend = args.backend
     verbose = args.verbose
     deploy = args.deploy
-    placement = args.placement.lower()
+    placement = args.placement
     LOG.info(f"Elements: {elements}, Backend: {backend}")
     if placement == "c":
-        placement = "Client"
+        placement = "client"
     elif placement == "s":
-        placement = "Server"
+        placement = "server"
     else:
         raise Exception("invalid Placement, c/s expected")
 
