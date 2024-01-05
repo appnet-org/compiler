@@ -71,10 +71,10 @@ class Printer(Visitor):
 
     def visitConsistencyDecorator(self, node: ConsistencyDecorator, ctx):
         return node.name
-    
+
     def visitCombinerDecorator(self, node: CombinerDecorator, ctx):
         return node.name
-    
+
     def visitPersistenceDecorator(self, node: PersistenceDecorator, ctx):
         return node.name
 
