@@ -1,11 +1,9 @@
 """
 Module that defines the base type of visitor.
 """
-
-
 from __future__ import annotations
 
-from typing import Callable, List, Protocol, Sequence, TypeVar
+from typing import Callable
 
 from compiler.element.node import *
 

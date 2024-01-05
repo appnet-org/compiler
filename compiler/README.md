@@ -51,18 +51,22 @@ Follow these steps if you want to interact with the element compiler directly.
 
 The element compiler convert ADN program to an IR. From IR, we can infer the element property (used by graph compiler). The element compiler also generates backend code for each element.
 
-
-```
+```bash
 cd compiler
 export PYTHONPATH=$PYTHONPATH:$(pwd):$(dirname $(pwd))
-python element_compiler_test.py -e acl -v True -b envoy -p c
+# The code will be in the `./generated/` directory
+python element_compiler_test.py -e acl -b envoy -p c -v
+
+# The element compiler can
 ```
 
-- `v` for verbose, which is `false` by default
-- `e` for element_name, refer to ./examples/element for more element names
-- `b` for backend_name, which is either `mrpc` or `envoy`
-- `p` for placement, which is either `c` client or `s` server
+- `-v` for verbose
+- `-e` for element_name, refer to ./examples/element for more element names
+- `-b` for backend_name, which is either `mrpc` or `envoy`
+- `-p` for placement, which is either `c` client or `s` server
 
+Note:
+- The grammar is defined (in BNF format) [**here**](./element/frontend/adn.lark).
 
 ## Supported Backends
 
@@ -70,7 +74,6 @@ python element_compiler_test.py -e acl -v True -b envoy -p c
 - [**Envoy**](https://www.envoyproxy.io/) (via [**Proxy WASM**](https://github.com/proxy-wasm/proxy-wasm-rust-sdk))
 - [**gRPC**](https://github.com/grpc/grpc-go) (via [**Interceptors**](https://github.com/grpc-ecosystem/go-grpc-middleware))
     - In progress
-
 
 <!-- ## Deployment
 

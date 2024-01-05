@@ -1,13 +1,7 @@
-import argparse
 import os
-import pathlib
-import re
-import sys
-from pprint import pprint
 from typing import Dict, List
 
 from compiler import root_base_dir
-from compiler.config import COMPILER_ROOT
 from compiler.element.backend.envoy.finalizer import finalize as WasmFinalize
 from compiler.element.backend.envoy.wasmgen import WasmContext, WasmGenerator
 from compiler.element.backend.mrpc.finalizer import finalize as RustFinalize
@@ -19,16 +13,33 @@ from compiler.element.props.flow import FlowGraph, Property
 
 
 def gen_code(
-    engine_name: List[str],
+    element_names: List[str],
     output_name: str,
     output_dir: str,
     backend_name: str,
     placement: str,
     verbose: bool = False,
 ) -> str:
+    """
+    Generates backend code.
+
+    Args:
+        element_names (List[str]): List of element names to generate code for.
+        output_name (str): The name of the output file.
+        output_dir (str): The directory where the output will be stored.
+        backend_name (str): The name of the backend to be used (supports 'mrpc' or 'envoy').
+        placement (str): The placement for the code generation.
+        verbose (bool, optional): If True, provides detailed logging. Defaults to False.
+
+    Raises:
+        AssertionError: If the backend_name is not 'mrpc' or 'envoy'.
+    """
+
+    # Currently, we only support mRPC and Envoy (Proxy WASM) as the backends
     assert backend_name == "mrpc" or backend_name == "envoy"
     compiler = IRCompiler()
 
+    # Choose the appropriate generator and context based on the backend
     if backend_name == "mrpc":
         generator = RustGenerator(placement)
         finalize = RustFinalize
@@ -40,19 +51,24 @@ def gen_code(
 
     printer = Printer()
 
+    # Compile and print IRs for each element
     irs = []
-    for name in engine_name:
-        LOG.info(f"Parsing {name}")
-        with open(os.path.join(root_base_dir, f"examples/element/{name}.adn")) as f:
+    for element_name in element_names:
+        LOG.info(f"(CodeGen) Parsing {element_name}")
+        # TODO(xz): add the path to the configuration instead of hard-coded here.
+        with open(
+            os.path.join(root_base_dir, f"examples/element/{element_name}.adn")
+        ) as f:
             spec = f.read()
             ir = compiler.compile(spec)
-            p = ir.accept(printer, None)
             if verbose:
+                p = ir.accept(printer, None)
                 print(p)
             irs.append(ir)
 
-    if len(engine_name) > 1:
-        LOG.info("Consolidating IRs")
+    # Consolidate IRs if multiple engines are specified
+    if len(element_names) > 1:
+        LOG.info(f"Consolidating IRs for {element_names}")
         consolidated = consolidate(irs)
         p = consolidated.accept(printer, None)
         if verbose:
@@ -67,32 +83,64 @@ def gen_code(
     finalize(output_name, ctx, output_dir, placement)
 
 
-def compile_element_property(engine_names: List[str], verbose: bool = False) -> Dict:
+def compile_element_property(element_names: List[str], verbose: bool = False) -> Dict:
+    """
+    Compiles and analyzes properties of elements defined using ADN syntax.
+
+    Each .adn file contains the specification of an element's behavior. The function
+    uses an IRCompiler to compile these specifications into an intermediate representation (IR),
+    and then analyzes the properties of the request and response flows using FlowGraph.
+
+    The function aggregates properties (like read, write, block, copy, drop operations) for
+    both request and response flows across all the provided element specifications. It also
+    determines if the overall behavior is stateful based on the internal definitions in the IR.
+
+    If 'verbose' is true, it prints the compiled intermediate representation for each element.
+
+    Args:
+        element_names (List[str]): List of element names for which to compile and analyze properties.
+        verbose (bool): Flag to enable verbose logging of the compilation process.
+
+    Returns:
+        Dict: A dictionary containing the stateful flag, and the aggregated properties for
+              both request and response processing.
+    """
     compiler = IRCompiler()
     printer = Printer()
 
+    # Initialize a tuple of Property objects to hold request and response properties
+    LOG.info("Analyzing element properties")
     ret = (Property(), Property())
     stateful = False
-    for engine_name in engine_names:
+
+    for element_name in element_names:
+        LOG.info(f"(Property Analyzer) Parsing {element_name}")
+        # TODO(xz): add the path to the configuration instead of hard-coded here.
         with open(
-            os.path.join(root_base_dir, f"examples/element/{engine_name}.adn")
+            os.path.join(root_base_dir, f"examples/element/{element_name}.adn")
         ) as f:
+            # Read the specification from file and generate the intermediate representation
             spec = f.read()
             ir = compiler.compile(spec)
-            p = ir.accept(printer, None)
+
             if verbose:
+                p = ir.accept(printer, None)
                 print(p)
 
+            # Analyze the IR and get the element properties
+            # The request and reponse logics are analyzed seperately
             req = FlowGraph().analyze(ir.req, verbose)
             resp = FlowGraph().analyze(ir.resp, verbose)
 
+            # Update request properties
             ret[0].block = ret[0].block or req.block
             ret[0].copy = ret[0].copy or req.copy
             ret[0].drop = ret[0].drop or req.drop
             ret[0].read = ret[0].read + req.read
             ret[0].write = ret[0].write + req.write
-            ret[0].check()
+            ret[0].check()  # XZ: what does check do?
 
+            # Update response properties
             ret[1].block = ret[1].block or resp.block
             ret[1].copy = ret[1].copy or resp.copy
             ret[1].drop = ret[1].drop or resp.drop
@@ -101,11 +149,16 @@ def compile_element_property(engine_names: List[str], verbose: bool = False) -> 
             ret[1].check()
 
             stateful = stateful or len(ir.definition.internal) > 0
+
     ret[0].check()
     ret[1].check()
-    record = len(engine_names) == 1 and (
-        engine_names[0] == "logging" or engine_names[0] == "metrics"
+
+    # Determine if the operation should be recorded based on the element name
+    # TODO(xz): this is a temporary hack.
+    record = len(element_names) == 1 and (
+        element_names[0] == "logging" or element_names[0] == "metrics"
     )
+
     return {
         "stateful": stateful,
         "request": {

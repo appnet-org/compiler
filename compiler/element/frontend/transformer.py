@@ -107,9 +107,9 @@ class IRTransformer(Transformer):
         return MethodCall(m[0], m[1][0], m[1][1])
 
     def func(self, f) -> FuncCall:
-        # todo! check function name is valid
-        # todo! change send to Send primitive
-        # ! maybe we should have a global function list first
+        # TODO: check function name is valid
+        # TODO: change send to Send primitive
+        # TODO: maybe we should have a global function list first
         assert len(f) == 2
         assert isinstance(f[0], Identifier)
         if f[0].name == "send":

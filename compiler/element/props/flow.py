@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, TypeVar
+from typing import Dict, List, Optional, Tuple
 
 from compiler.element.node import *
 from compiler.element.node import Expr, Identifier, MethodCall
@@ -139,6 +139,7 @@ class FlowGraph:
         return ret[1]
 
     def analyze(self, proc: Procedure, verbose: bool = False) -> Property:
+        # Paths represent all possible code path of this element
         self.build_graph(proc)
         paths = self.extract_path()
         rpc_name = f"rpc_{proc.name}"
@@ -152,6 +153,7 @@ class FlowGraph:
 
         ret = Property()
 
+        # Visit every possible code path and take a union of the operation
         for path in paths:
             report += "\nFor path: \n     "
             report += "->".join([v.annotation for v in path if v != self.vertices[-1]])
