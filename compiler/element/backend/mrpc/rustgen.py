@@ -56,6 +56,11 @@ def proto_gen_set(rpc: str, placement: str, args: List[str]) -> str:
         return f"hello_HelloRequest_{arg1}_modify({rpc}_mut, {args[1]}.as_bytes())"
 
 
+def proto_gen_bytesize(rpc: str, placement: str, args: List[str]) -> str:
+    assert len(args) == 0
+    return f"mem::size_of_val({rpc}_mut) as f32"
+
+
 class RustContext:
     def __init__(self) -> None:
         self.internal_states: List[RustVariable] = []
@@ -366,6 +371,8 @@ class RustGenerator(Visitor):
                         ret = proto_gen_get(var.name, self.placement, args)
                     case MethodType.SET:
                         ret = proto_gen_set(var.name, self.placement, args)
+                    case MethodType.BYTE_SIZE:
+                        ret = proto_gen_bytesize(var.name, self.placement, args)
                     case MethodType.DELETE:
                         raise Exception("delete is not supported in RPC")
                     case _:

@@ -164,29 +164,11 @@ def gen_template(
 def finalize(
     name: str, ctx: RustContext, output_dir: str, placement: str, proto_path: str
 ):
-    name = name
-    if name == "logging":
-        template_name = "logging"
-        template_name_toml = "logging"
-        template_name_first_cap = "Logging"
-        template_name_all_cap = "LOGGING"
-    elif name == "acl":
-        template_name = "acl"
-        template_name_toml = "acl"
-        template_name_first_cap = "Acl"
-        template_name_all_cap = "ACL"
-    elif name == "fault":
-        template_name = "fault"
-        template_name_toml = "fault"
-        template_name_first_cap = "Fault"
-        template_name_all_cap = "FAULT"
-    else:
-        name = name.split("_")
-        template_name = "_".join(name)
-        template_name_toml = "-".join(name)
-        cap = [i[0].upper() + i[1:] for i in name]
-        template_name_first_cap = "".join(cap)
-        template_name_all_cap = "_".join(name).upper()
+    template_name = name
+    template_name_toml = name
+    template_name_first_cap = name
+    template_name_all_cap = name
+
 
     info = retrieve_info(ctx)
     gen_template(
