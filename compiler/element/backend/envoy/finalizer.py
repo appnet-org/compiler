@@ -26,7 +26,7 @@ def retrieve(ctx: WasmContext, name: str) -> Dict:
     }
 
 
-def gen_template(_placement, output_dir, snippet, lib_name):
+def gen_template(_placement, output_dir, snippet, lib_name, proto_path):
     os.system(f"rm -rf {output_dir}")
     os.system(f"mkdir -p {output_dir}")
     os.system(f"mkdir -p {output_dir}/src")
@@ -39,7 +39,15 @@ def gen_template(_placement, output_dir, snippet, lib_name):
         f.write(build_sh.format(**snippet))
 
     template_path = os.path.join(COMPILER_ROOT, "element/backend/envoy/templates")
-    os.system(f"cp {template_path}/build.rs {output_dir}")
+    
+    # Add the proto file to the generated code
+    with open(f"{template_path}/build.rs", 'r') as file:
+        build_file = file.read()
+    build_file = build_file.replace("PROTO_FILENAME", proto_path)
+    with open(f"{output_dir}/build.rs ", 'w') as file:
+        file.write(build_file)
+    
+    # TODO(XZ): copy the real proto files.
     os.system(f"cp {template_path}/ping.proto {output_dir}")
     os.system(f"cp {template_path}/pong.proto {output_dir}")
     os.system(f"cp {template_path}/rust-toolchain.toml {output_dir}")
@@ -51,6 +59,6 @@ def gen_template(_placement, output_dir, snippet, lib_name):
     )
 
 
-def finalize(name: str, ctx: WasmContext, output_dir: str, placement: str):
+def finalize(name: str, ctx: WasmContext, output_dir: str, placement: str, proto_path: str):
     snippet = retrieve(ctx, name)
-    gen_template(placement, output_dir, snippet, name)
+    gen_template(placement, output_dir, snippet, name, proto_path)

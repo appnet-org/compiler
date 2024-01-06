@@ -13,7 +13,7 @@ FUNC_INIT = "init"
 
 
 class WasmContext:
-    def __init__(self) -> None:
+    def __init__(self, proto=None, method_name=None) -> None:
         self.internal_states: List[WasmVariable] = []
         self.inners: List[WasmVariable] = []
         self.name2var: Dict[str, WasmVariable] = {}
@@ -24,6 +24,8 @@ class WasmContext:
         self.resp_hdr_code: List[str] = []
         self.req_body_code: List[str] = []
         self.resp_body_code: List[str] = []
+        self.proto: str = proto
+        self.method_name: str = method_name
 
     def declare(self, name: str, rtype: WasmType, temp: bool, atomic: bool) -> None:
         if name in self.name2var:
@@ -150,13 +152,13 @@ class WasmGenerator(Visitor):
         match node.name:
             case "init":
                 ctx.current_func = FUNC_INIT
-                proto_name = "init"  # unused, make python happy
+                message_type = "init"  # unused, make python happy
             case "req":
                 ctx.current_func = FUNC_REQ_BODY
-                proto_name = "Request"
+                message_type = "Request"
             case "resp":
                 ctx.current_func = FUNC_RESP_BODY
-                proto_name = "Response"
+                message_type = "Response"
             case _:
                 raise Exception("unknown function")
         ctx.clear_temps()
@@ -174,7 +176,7 @@ class WasmGenerator(Visitor):
         prefix = f"""
         if let Some(body) = self.get_http_{name}_body(0, body_size) {{
 
-            match ping::PingEcho{proto_name}::decode(&body[5..]) {{
+            match {ctx.proto}::{ctx.method_name}{message_type}::decode(&body[5..]) {{
                 Ok(mut rpc_{name}) => {{
         """
         suffix = f"""

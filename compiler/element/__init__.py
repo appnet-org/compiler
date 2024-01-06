@@ -18,6 +18,8 @@ def gen_code(
     output_dir: str,
     backend_name: str,
     placement: str,
+    proto_path: str,
+    method_name: str,
     verbose: bool = False,
 ) -> str:
     """
@@ -43,11 +45,13 @@ def gen_code(
     if backend_name == "mrpc":
         generator = RustGenerator(placement)
         finalize = RustFinalize
+        # TODO(XZ): Add configurable proto for mRPC codegen
         ctx = RustContext()
     elif backend_name == "envoy":
         generator = WasmGenerator(placement)
         finalize = WasmFinalize
-        ctx = WasmContext()
+        # TODO(XZ): We assume there will be only one method being used in an element. 
+        ctx = WasmContext(proto=proto_path.replace(".proto", ""), method_name=method_name)
 
     printer = Printer()
 
@@ -79,8 +83,8 @@ def gen_code(
 
     LOG.info(f"Generating {backend_name} code")
     consolidated.accept(generator, ctx)
-
-    finalize(output_name, ctx, output_dir, placement)
+    
+    finalize(output_name, ctx, output_dir, placement, proto_path)
 
 
 def compile_element_property(element_names: List[str], verbose: bool = False) -> Dict:
