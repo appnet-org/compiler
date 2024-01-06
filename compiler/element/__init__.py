@@ -50,8 +50,10 @@ def gen_code(
     elif backend_name == "envoy":
         generator = WasmGenerator(placement)
         finalize = WasmFinalize
-        # TODO(XZ): We assume there will be only one method being used in an element. 
-        ctx = WasmContext(proto=proto_path.replace(".proto", ""), method_name=method_name)
+        # TODO(XZ): We assume there will be only one method being used in an element.
+        ctx = WasmContext(
+            proto=proto_path.replace(".proto", ""), method_name=method_name
+        )
 
     printer = Printer()
 
@@ -83,7 +85,7 @@ def gen_code(
 
     LOG.info(f"Generating {backend_name} code")
     consolidated.accept(generator, ctx)
-    
+
     finalize(output_name, ctx, output_dir, placement, proto_path)
 
 

@@ -29,11 +29,19 @@ if __name__ == "__main__":
         default="c",
     )
     parser.add_argument(
-        "-r", "--proto", type=str, help="Filename of the Protobuf definition", required=True
+        "-r",
+        "--proto",
+        type=str,
+        help="Filename of the Protobuf definition",
+        required=True,
     )
-    
+
     parser.add_argument(
-        "-m", "--method_name", type=str, help="Method Name (must be defined in proto)", required=True
+        "-m",
+        "--method_name",
+        type=str,
+        help="Method Name (must be defined in proto)",
+        required=True,
     )
     parser.add_argument("-b", "--backend", help="Backend Code Target", required=True)
     init_logging(True)

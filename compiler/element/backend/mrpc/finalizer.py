@@ -161,7 +161,9 @@ def gen_template(
     )
 
 
-def finalize(name: str, ctx: RustContext, output_dir: str, placement: str, proto_path: str):
+def finalize(
+    name: str, ctx: RustContext, output_dir: str, placement: str, proto_path: str
+):
     name = name
     if name == "logging":
         template_name = "logging"
