@@ -33,7 +33,18 @@ class Program(Node):
 
 
 class Internal(Node):
-    def __init__(self, internal: List[Tuple[Identifier, Type]]):
+    def __init__(
+        self,
+        internal: List[
+            Tuple[
+                Identifier,
+                Type,
+                ConsistencyDecorator,
+                CombinerDecorator,
+                PersistenceDecorator,
+            ]
+        ],
+    ):
         self.internal = internal
 
 
@@ -76,6 +87,21 @@ class Expr(Node):
 
 
 class Identifier(Node):
+    def __init__(self, name: str):
+        self.name = name
+
+
+class ConsistencyDecorator(Node):
+    def __init__(self, name: str):
+        self.name = name
+
+
+class CombinerDecorator(Node):
+    def __init__(self, name: str):
+        self.name = name
+
+
+class PersistenceDecorator(Node):
     def __init__(self, name: str):
         self.name = name
 

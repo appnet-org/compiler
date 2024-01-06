@@ -18,6 +18,8 @@ def gen_code(
     output_dir: str,
     backend_name: str,
     placement: str,
+    proto_path: str,
+    method_name: str,
     verbose: bool = False,
 ) -> str:
     """
@@ -43,11 +45,15 @@ def gen_code(
     if backend_name == "mrpc":
         generator = RustGenerator(placement)
         finalize = RustFinalize
+        # TODO(XZ): Add configurable proto for mRPC codegen
         ctx = RustContext()
     elif backend_name == "envoy":
         generator = WasmGenerator(placement)
         finalize = WasmFinalize
-        ctx = WasmContext()
+        # TODO(XZ): We assume there will be only one method being used in an element.
+        ctx = WasmContext(
+            proto=proto_path.replace(".proto", ""), method_name=method_name
+        )
 
     printer = Printer()
 
@@ -80,7 +86,7 @@ def gen_code(
     LOG.info(f"Generating {backend_name} code")
     consolidated.accept(generator, ctx)
 
-    finalize(output_name, ctx, output_dir, placement)
+    finalize(output_name, ctx, output_dir, placement, proto_path)
 
 
 def compile_element_property(element_names: List[str], verbose: bool = False) -> Dict:
@@ -111,7 +117,12 @@ def compile_element_property(element_names: List[str], verbose: bool = False) ->
     # Initialize a tuple of Property objects to hold request and response properties
     LOG.info("Analyzing element properties")
     ret = (Property(), Property())
+
+    # Default properties
     stateful = False
+    consistency = None
+    combiner = "LWW"
+    persistence = "ephemeral"
 
     for element_name in element_names:
         LOG.info(f"(Property Analyzer) Parsing {element_name}")
@@ -150,6 +161,11 @@ def compile_element_property(element_names: List[str], verbose: bool = False) ->
 
             stateful = stateful or len(ir.definition.internal) > 0
 
+            # TODO(XZ): might want want to check for individual state variable. (incl. conflict requirements)
+            consistency = ir.definition.internal[0][2].name
+            combiner = ir.definition.internal[0][3].name
+            persistence = ir.definition.internal[0][4].name
+
     ret[0].check()
     ret[1].check()
 
@@ -160,7 +176,12 @@ def compile_element_property(element_names: List[str], verbose: bool = False) ->
     )
 
     return {
-        "stateful": stateful,
+        "state": {
+            "stateful": stateful,
+            "consistency": consistency,
+            "combiner": combiner,
+            "persistence": persistence,
+        },
         "request": {
             "record" if record else "read": ret[0].read,
             "write": ret[0].write,

@@ -161,7 +161,9 @@ def gen_template(
     )
 
 
-def finalize(name: str, ctx: RustContext, output_dir: str, placement: str):
+def finalize(
+    name: str, ctx: RustContext, output_dir: str, placement: str, proto_path: str
+):
     template_name = name
     template_name_toml = name
     template_name_first_cap = name

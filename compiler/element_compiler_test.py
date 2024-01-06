@@ -28,6 +28,21 @@ if __name__ == "__main__":
         required=True,
         default="c",
     )
+    parser.add_argument(
+        "-r",
+        "--proto",
+        type=str,
+        help="Filename of the Protobuf definition",
+        required=True,
+    )
+
+    parser.add_argument(
+        "-m",
+        "--method_name",
+        type=str,
+        help="Method Name (must be defined in proto)",
+        required=True,
+    )
     parser.add_argument("-b", "--backend", help="Backend Code Target", required=True)
     init_logging(True)
 
@@ -37,7 +52,9 @@ if __name__ == "__main__":
     backend = args.backend
     verbose = args.verbose
     deploy = args.deploy
-    placement = args.placement.lower()
+    placement = args.placement
+    proto_path = args.proto
+    method_name = args.method_name
     LOG.info(f"Elements: {elements}, Backend: {backend}")
     if placement == "c":
         placement = "client"
@@ -61,6 +78,8 @@ if __name__ == "__main__":
         str(COMPILER_ROOT) + "/generated/" + str(backend),
         backend,
         placement,
+        proto_path,
+        method_name,
         verbose,
     )
     end = datetime.datetime.now()

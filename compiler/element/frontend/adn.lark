@@ -2,7 +2,11 @@ start: definition procedure procedure procedure
 
 definition: "internal" "{" declaration* "}"
 
-declaration: identifier ":" type_
+declaration: (consistency_decorator | combiner_decorator | persistence_decorator)* identifier ":" type_
+
+consistency_decorator: "@consistency" "(" CNAME ")"
+combiner_decorator: "@combiner" "(" CNAME ")"
+persistence_decorator: "@persistence" "(" CNAME ")"
 
 identifier: CNAME
 

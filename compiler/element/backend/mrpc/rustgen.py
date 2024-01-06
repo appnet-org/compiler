@@ -183,7 +183,7 @@ class RustGenerator(Visitor):
         node.resp.accept(self, ctx)
 
     def visitInternal(self, node: Internal, ctx: RustContext) -> None:
-        for (i, t) in node.internal:
+        for (i, t, cons, comb, per) in node.internal:
             name = i.name
             rust_type = t.accept(self, ctx)
             ctx.declare(name, rust_type, False)
