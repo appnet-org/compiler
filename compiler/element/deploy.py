@@ -1,6 +1,5 @@
 import os
 import subprocess
-import sys
 from typing import List
 
 import tomli
@@ -156,8 +155,3 @@ def install(engine_name: List[str], phoenix_dir: str):
         LOG.error("Error on upgrading mRPC Plugin")
 
     LOG.info("Deployed to mRPC!")
-
-
-# print("Cleaning up...")
-# os.chdir("..")
-# os.system("cp ./Cargo.toml ./phoenix/experimental/mrpc/Cargo.toml")

@@ -1,5 +1,7 @@
 # Ovewview
 
+(Xiangfeng: This doc is outdated. I will update this soon.)
+
 ADN uses a SQL-like language to describe the network functions. Currently, we only discuss the logic within a single network function. Further more, we only consider NF that operates on a single RPC message without batching.
 
 # Core Concepts
