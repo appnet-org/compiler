@@ -169,7 +169,6 @@ def finalize(
     template_name_first_cap = name
     template_name_all_cap = name
 
-
     info = retrieve_info(ctx)
     gen_template(
         placement,
