@@ -40,9 +40,9 @@ if __name__ == "__main__":
     placement = args.placement.lower()
     LOG.info(f"Elements: {elements}, Backend: {backend}")
     if placement == "c":
-        placement = "Client"
+        placement = "client"
     elif placement == "s":
-        placement = "Server"
+        placement = "server"
     else:
         raise Exception("invalid Placement, c/s expected")
 
@@ -54,8 +54,7 @@ if __name__ == "__main__":
     LOG.info(f"Property Analysis took: {(end-start).microseconds/1000}ms")
 
     # Generate real element code
-    start = datetime.datetime.now()
-    output_name = "Gen" + "".join(elements).title() + placement
+    output_name = "gen" + "".join(elements) + placement.lower()
     ret = gen_code(
         elements,
         output_name,
