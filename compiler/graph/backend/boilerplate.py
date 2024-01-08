@@ -70,4 +70,23 @@ spec:
                 local:
                   filename: {filename}
               allow_precompiled: false
+  - applyTo: CLUSTER
+    match:
+        context: SIDECAR_OUTBOUND
+    patch:
+      operation: ADD
+      value:
+        name: "webdis-service"
+        connect_timeout: 5s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: webdis-service
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: webdis-service
+                        port_value: 7379
 """
