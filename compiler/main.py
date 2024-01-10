@@ -37,6 +37,7 @@ def compile_impl(
         gen_dir = os.path.join(gen_dir, f"{gen_name}_{placement}_{backend}")
     else:
         gen_dir = os.path.join(gen_dir, f"{gen_name}_{backend}")
+    proto = os.path.join(compiler_base_dir, "../examples/proto", proto)
     os.system(f"mkdir -p {gen_dir}")
     gen_code(engine_name, gen_name, gen_dir, backend, placement, proto, method)
 
