@@ -357,7 +357,7 @@ class WasmGenerator(Visitor):
             """
             match_wrapper_suffix = """
                         },
-                        _ => {},
+                        _ => {{log::warn!("Only GET results will be parsed!")}},
                     }
                 },
                 Err(_) => log::warn!("Response body: [Invalid JSON data]"),
