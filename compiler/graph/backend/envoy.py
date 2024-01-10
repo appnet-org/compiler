@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from copy import deepcopy
 from typing import Dict
 
 import yaml
@@ -76,6 +77,22 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str):
             (e, gir.server) for e in gir.elements["req_server"]
         ]
         for (element, sname) in elist:
+            if (
+                element.prop["state"]["stateful"] == True
+                and element.prop["state"]["consistency"] == "strong"
+            ):
+                # Add webdis config
+                webdis_service_copy, webdis_deploy_copy = deepcopy(
+                    webdis_service
+                ), deepcopy(webdis_deploy)
+                webdis_service_copy["metadata"][
+                    "name"
+                ] = f"webdis-service-{element.lib_name}"
+                webdis_deploy_copy["metadata"][
+                    "name"
+                ] = f"webdis-test-{element.lib_name}"
+                yml_list.append(webdis_service_copy)
+                yml_list.append(webdis_deploy_copy)
             deploy_count[sname] += 1
             copy_remote_host(
                 service_pos_dict[app][sname], f"/tmp/{element.lib_name}.wasm", "/tmp/"
