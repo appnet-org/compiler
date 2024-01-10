@@ -76,17 +76,17 @@ spec:
     patch:
       operation: ADD
       value:
-        name: "webdis-service"
+        name: "webdis-service-{ename}"
         connect_timeout: 5s
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN
         load_assignment:
-          cluster_name: webdis-service
+          cluster_name: webdis-service-{ename}
           endpoints:
             - lb_endpoints:
                 - endpoint:
                     address:
                       socket_address:
-                        address: webdis-service
+                        address: webdis-service-{ename}
                         port_value: 7379
 """
