@@ -175,10 +175,17 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "--replica",
+        type=str,
+        help="#replica for each service",
+        default="1",
+    )
     parser.add_argument("--debug", help="Print debug info", action="store_true")
     args = parser.parse_args()
     init_logging(args.debug)
 
+    os.environ["SERVICE_REPLICA"] = args.replica
     if args.dry_run:
         os.environ["DRY_RUN"] = "1"
 
