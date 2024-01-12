@@ -26,7 +26,10 @@ element_pool = [
     "metrics",
     "admissioncontrol",
     "compression",
-    "encryption",
+    "encrypt-decrypt",
+]
+pair_pool = [
+    "encrypt-decrypt",
 ]
 # TODO: update the configuration dict. Add script to generate random configurations.
 element_configs = {
@@ -47,9 +50,10 @@ element_configs = {
 }
 
 
-def set_element_pool(pool):
-    global element_pool
-    element_pool = pool
+def set_element_pool(epool, ppool):
+    global element_pool, pair_pool
+    element_pool = epool
+    pair_pool = ppool
 
 
 class Element:
@@ -68,12 +72,26 @@ class Element:
 
     def to_dict(self):
         """Convert the Element instance to a dictionary for YAML formatting."""
-        element_dict = {"name": self.name, "method": self.method, "proto": self.proto}
-        if self.position != "none":
-            element_dict["position"] = self.position
-        if self.config:
-            element_dict["config"] = self.config.split(", ")
-        return element_dict
+        if self.position == "CS":
+            n1, n2 = self.name.split("-")
+            element_dict = {
+                "name1": n1,
+                "name2": n2,
+                "method": self.method,
+                "proto": self.proto,
+            }
+            return element_dict
+        else:
+            element_dict = {
+                "name": self.name,
+                "method": self.method,
+                "proto": self.proto,
+            }
+            if self.position != "none":
+                element_dict["position"] = self.position
+            if self.config:
+                element_dict["config"] = self.config.split(", ")
+            return element_dict
 
     def __repr__(self):
         return f"Element(Name={self.name}, Position={self.position}, Configurations={self.config})"
@@ -82,18 +100,27 @@ class Element:
 def select_random_elements(client: str, server: str, number: int):
     """Selects a random number of elements with random positions."""
     # TODO(xz): also generate random configurations. They can be static for now.
-    selected, positions = [], ["C", "S", "C/S"]  # C: client, S: server, C/S: don't care
-    for name in random.sample(element_pool, number):
+    selected, pairs, positions = (
+        [],
+        [],
+        ["C", "S", "C/S"],
+    )  # C: client, S: server, C/S: don't care
+    while number > 0:
+        name = random.choice(element_pool)
+        number -= 2 if name in pair_pool else 1
         e = Element(
             name,
-            position=random.choice(positions),
+            position=random.choice(positions) if name not in pair_pool else "CS",
             proto=os.path.join(
                 proto_base_dir, "ping.proto"
             ),  # TODO: This should be configurable
             method="PingEcho",
             # config=element_configs[name],
         )
-        selected.append(e)
+        if name in pair_pool:
+            pairs.append(e)
+        else:
+            selected.append(e)
 
     # Sort elements by position (client->client/server->server)
     def sort_key(element: Element):
@@ -107,6 +134,7 @@ def select_random_elements(client: str, server: str, number: int):
         "edge": {
             f"{client}->{server}": [element.to_dict() for element in sorted_elements]
         },
+        "link": {f"{client}->{server}": [element.to_dict() for element in pairs]},
     }
 
     # Export to YAML format

@@ -13,7 +13,7 @@ from experiments import EXP_DIR, ROOT_DIR
 from experiments.utils import *
 
 # Some elements
-envoy_element_pool = {
+envoy_element_pool = [
     "cache",
     "fault",
     "ratelimit",
@@ -23,10 +23,14 @@ envoy_element_pool = {
     "acl",
     "metrics",
     "admissioncontrol",
-    # "encrypt",
+    "encryptping-decryptping",
     "bandwidthlimit",
     "circuitbreaker",
-}
+]
+
+envoy_pair_pool = [
+    "encryptping-decryptping",
+]
 
 app_structure = {
     "envoy": {
@@ -97,7 +101,8 @@ if __name__ == "__main__":
 
     # Some housekeeping
     element_pool = globals()[f"{args.backend}_element_pool"]
-    set_element_pool(element_pool)
+    pair_pool = globals()[f"{args.backend}_pair_pool"]
+    set_element_pool(element_pool, pair_pool)
 
     os.system(f"rm {gen_dir} -rf")
     os.makedirs(gen_dir)
@@ -114,6 +119,7 @@ if __name__ == "__main__":
             args.num,
             os.path.join(gen_dir, "randomly_generated_spec.yml"),
         )
+        continue
 
         ncpu = int(execute_local(["nproc"]))
         results = {"pre-optimize": {}, "post-optimize": {}}

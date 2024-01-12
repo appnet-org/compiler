@@ -1,4 +1,5 @@
 from copy import deepcopy
+from pprint import pprint
 from typing import List, Tuple
 
 from compiler.graph.ir.element import AbsElement
@@ -29,11 +30,14 @@ def gen_dependency(chain: List[AbsElement], path: str):
         if wfields == "*":
             wfields = list(fields)
         for f in rfields:
-            dep["read"][(element.deploy_name, f)] = deepcopy(writer_table[f])
+            dep["read"][(element.lib_name, f)] = deepcopy(writer_table[f])
         for f in rec_fields:
-            dep["record"][(element.deploy_name, f)] = deepcopy(writer_table[f])
+            dep["record"][(element.lib_name, f)] = deepcopy(writer_table[f])
         for f in wfields:
-            writer_table[f].append(element.deploy_name)
+            if element.partner in writer_table[f]:
+                writer_table[f].remove(element.partner)
+            else:
+                writer_table[f].append(element.lib_name)
     for f in fields:
         dep["read"][("OUTPUT", f)] = deepcopy(writer_table[f])
     return dep
@@ -139,8 +143,6 @@ def chain_optimize(
     Returns:
         client chain and server chain
     """
-    for element in chain:
-        element.set_property_source(pseudo_property)
     # Step 1: Reorder + Migration
     chain = reorder(chain, path)
 

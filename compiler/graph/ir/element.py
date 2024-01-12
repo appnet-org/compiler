@@ -18,7 +18,12 @@ def fetch_global_id() -> str:
 
 
 class AbsElement:
-    def __init__(self, info: Union[Dict[str, Any], str]):
+    def __init__(self, info: Union[Dict[str, Any], str], partner: str = ""):
+        """
+        Args:
+            info(dict): basic element information, including name, config, proto, method, etc.
+            partner(str): the name of its partner, used for optimization
+        """
         if info == "NETWORK":
             self.name = info
             self.position = "N"
@@ -29,6 +34,7 @@ class AbsElement:
             self.position = info["position"] if "position" in info else "C/S"
             self.proto = info["proto"]
             self.method = info["method"]
+            self.partner = partner
 
     @property
     def desc(self) -> str:
