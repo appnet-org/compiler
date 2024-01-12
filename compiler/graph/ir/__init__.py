@@ -54,9 +54,9 @@ class GraphIR:
         # - balanced #element on c/s sides
         c_id, s_id = -1, len(chain)
         for i, element in enumerate(chain):
-            if element["position"] == "C":
+            if "position" in element and element["position"] == "C":
                 c_id = max(c_id, i)
-            elif element["position"] == "S":
+            elif "position" in element and element["position"] == "S":
                 s_id = min(s_id, i)
         assert c_id <= s_id, "invalid client/server position requirements"
         c_pt, s_pt = 0, len(chain) - 1
@@ -80,17 +80,25 @@ class GraphIR:
         # add element pairs to c/s sides
         for pdict in pair:
             edict1 = {
-                "name": "-".join([pdict["name1"], pdict["name2"]]),
-                "config": pdict["config"],
+                "name": pdict["name1"],
+                "config": pdict["config1"] if "config1" in pdict else [],
                 "position": "C",
+                "proto": pdict["proto"],
+                "method": pdict["method"],
             }
             edict2 = {
-                "name": "-".join([pdict["name2"], pdict["name1"]]),
-                "config": pdict["config"],
+                "name": pdict["name2"],
+                "config": pdict["config2"] if "config2" in pdict else [],
                 "position": "S",
+                "proto": pdict["proto"],
+                "method": pdict["method"],
             }
-            self.elements["req_client"].append(AbsElement(edict1))
-            self.elements["req_server"].insert(0, AbsElement(edict2))
+            self.elements["req_client"].append(
+                AbsElement(edict1, partner=pdict["name2"])
+            )
+            self.elements["req_server"].insert(
+                0, AbsElement(edict2, partner=pdict["name1"])
+            )
             edict1["position"], edict2["position"] = (
                 edict2["position"],
                 edict1["position"],
