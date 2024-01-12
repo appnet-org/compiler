@@ -11,14 +11,8 @@ git clone https://github.com/kristoff-starling/phoenix --recursive -b multi ~/ph
 ## Usage
 
 ```bash
-python3 ~/adn-compiler/compiler/main.py --spec path_to_spec --backend BACKEND [--verbose] [--pseudo_property] [--pseudo_impl] [--dry_run]
-
-# An example
-python3 ~/adn-compiler/compiler/main.py --verbose --pseudo_impl --spec ~/adn-compiler/examples/graph_spec/demo.yml --backend mrpc --dry_run
-```
-
-```bash
-❯ python3 ~/adn-compiler-dev/compiler/main.py --help
+# Run the graph compiler on demo.yml to generate element code and deployment scripts for mRPC.
+python3 ~/adn-compiler/compiler/main.py --spec ~/adn-compiler/examples/graph/dummy.yml --backend envoy -v
 
 usage: main.py [-h] -s SPEC_PATH [-v][--pseudo_property] [--pseudo_impl] -b {mrpc,envoy}
                [--mrpc_dir MRPC_DIR] [--dry_run] [--no_optimize] [--debug]
@@ -41,8 +35,8 @@ options:
 ```
 
 The compiler will automatically install elements on all the nodes and
-* generate `attach_all.sh` and `detach_all.sh` in `graph/gen` if the backend is mrpc.
-* directly attach elements if the backend is envoy. Use `kubectl delete envoyfilter --all` to detach them.
+* Generate `attach_all.sh` and `detach_all.sh` in `graph/gen` if the backend is mrpc.
+* Generate manifest files if the backend is Envoy. Use `kubectl apply -f <manifest-files>` to run the application
 
 
 ## Element Compiler Usage
