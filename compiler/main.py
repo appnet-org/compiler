@@ -162,10 +162,12 @@ def main(args):
 
     # Step 2: Generate element properties via element compiler and optimize the graph IR.
     GRAPH_LOG.info("Generating element properties and optimizing the graph IR...")
-    if not args.no_optimize:
-        for gir in graphirs.values():
-            # Each gir represests an edge in the application (a pair of communicating services)
-            # pseudo_property is set to True when we want to use hand-coded properties instead of auto-generated ones
+    for gir in graphirs.values():
+        # Each gir represests an edge in the application (a pair of communicating services)
+        # pseudo_property is set to True when we want to use hand-coded properties instead of auto-generated ones
+        for element in gir.elements["req_client"] + gir.elements["req_server"]:
+            element.set_property_source(args.pseudo_property)
+        if not args.no_optimize:
             gir.optimize(args.pseudo_property)
 
     # Step 3: Generate backend code for the elements and deployment scripts.
