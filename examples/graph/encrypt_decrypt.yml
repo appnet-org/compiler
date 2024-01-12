@@ -1,0 +1,22 @@
+app_name: "ping_pong_bench"
+
+app_manifest: "ping-pong-app.yaml"
+
+app_structure:
+    - "frontend->ping"
+
+edge:
+    frontend->ping:
+    -   name: "mutationping" 
+        proto: "ping.proto"
+        method: "PingEcho"
+    -   name: "aclping"
+        proto: "ping.proto"
+        method: "PingEcho"
+
+link:
+    frontend->ping:
+    -   name1: "encryptping"
+        name2: "decryptping"
+        proto: "ping.proto"
+        method: "PingEcho"
