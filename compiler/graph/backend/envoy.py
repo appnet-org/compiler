@@ -63,8 +63,13 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
         ]
     )
     GRAPH_BACKEND_LOG.info("Generating the istio manifest file for the application...")
-    with open(os.path.join(BACKEND_CONFIG_DIR, app_manifest_file), "r") as f:
+    with open(app_manifest_file, "r") as f:
         yml_list_plain = list(yaml.safe_load_all(f))
+    for file in yml_list_plain:
+        if file["kind"] == "Deployment":
+            file["spec"]["template"]["metadata"].update(
+                {"annotations": {"sidecar.istio.io/inject": "false"}}
+            )
     service_to_hostname = extract_service_pos(yml_list_plain)
 
     with open(os.path.join(local_gen_dir, app + "_istio.yml"), "r") as f:
