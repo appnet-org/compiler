@@ -15,17 +15,17 @@ from experiments.utils import *
 
 # Some elements
 envoy_element_pool = [
-    # "cache",
-    # "fault",
-    # "ratelimit",
-    # "lbsticky",
-    # "logging",
-    # "mutation",
-    # "acl",
-    # "metrics",
-    # "admissioncontrol",
+    "cache",
+    "fault",
+    "ratelimit",
+    "lbsticky",
+    "logging",
+    "mutation",
+    "acl",
+    "metrics",
+    "admissioncontrol",
     # "encryptping-decryptping",
-    # "bandwidthlimit",
+    "bandwidthlimit",
     "circuitbreaker",
 ]
 
