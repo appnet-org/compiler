@@ -360,6 +360,13 @@ WasmGlobalFunctions = {
         False,
         "pub fn gen_min_f64(a: f64, b: f64) -> f64 { a.min(b) }",
     ),
+    "max_f32": WasmFunctionType(
+        "gen_max_f32",
+        [WasmBasicType("f32"), WasmBasicType("f32")],
+        WasmBasicType("f32"),
+        False,
+        "pub fn gen_max_f32(a: f32, b: f32) -> f32 { a.max(b) }",
+    ),
     "encrypt": WasmFunctionType(
         "gen_encrypt",
         [WasmType("&str"), WasmType("&str")],

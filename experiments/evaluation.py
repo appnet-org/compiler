@@ -18,11 +18,11 @@ envoy_element_pool = [
     # "cache",
     # "fault",
     # "ratelimit",
-    "lbsticky",
-    "logging",
-    "mutation",
+    # "lbsticky",
+    # "logging",
+    # "mutation",
     # "acl",
-    "metrics",
+    # "metrics",
     # "admissioncontrol",
     # "encryptping-decryptping",
     # "bandwidthlimit",
@@ -139,6 +139,7 @@ def run_trial(curr_trial_num) -> List[Element]:
 
         # Deploy the application and elements. Wait until they are in running state...
         kapply(os.path.join(graph_base_dir, "generated"))
+        ksync()
         EVAL_LOG.info(f"[{mode}] Application deployed...")
         time.sleep(10)
 
@@ -148,6 +149,7 @@ def run_trial(curr_trial_num) -> List[Element]:
         else:
             EVAL_LOG.info(f"[{mode}] Application is unhealthy. Restarting the trial...")
             return selected_elements
+        break
 
         # Run wrk to get the service time
         EVAL_LOG.info(
@@ -159,15 +161,16 @@ def run_trial(curr_trial_num) -> List[Element]:
 
         # Run wrk2 to get the tail latency
         EVAL_LOG.info(
-            f"[{mode}] Running tail latency tests for {args.latency_duration}s and request rate {args.targer_rate}..."
+            f"[{mode}] Running tail latency tests for {args.latency_duration}s and request rate {args.target_rate*0.4} req/sec..."
         )
         results[mode]["tail latency(us)"] = run_wrk2_and_get_tail_latency(
-            args.latency_duration
+            args.latency_duration,
+            args.target_rate * 0.4,
         )
 
         # Run wrk2 to get the CPU usage
         EVAL_LOG.info(
-            f"[{mode}] Running cpu usage tests for {args.cpu_duration}s and request rate {args.targer_rate}..."
+            f"[{mode}] Running cpu usage tests for {args.cpu_duration}s and request rate {args.target_rate} req/sec..."
         )
         results[mode]["CPU usage(VCores)"] = run_wrk2_and_get_cpu(
             # ["h2", "h3"],
@@ -178,16 +181,16 @@ def run_trial(curr_trial_num) -> List[Element]:
             target_rate=args.target_rate,
         )
 
-        # Clean up
-        kdestroy()
+        # Clean up the k8s deployments
+    #     kdestroy()
 
-    print(results)
+    # print(results)
 
-    EVAL_LOG.info("Dumping report...")
-    with open(os.path.join(report_dir, f"report_{curr_trial_num}.yml"), "w") as f:
-        f.write(spec)
-        f.write("---\n")
-        f.write(yaml.dump(results, default_flow_style=False, indent=4))
+    # EVAL_LOG.info("Dumping report...")
+    # with open(os.path.join(report_dir, f"report_{curr_trial_num}.yml"), "w") as f:
+    #     f.write(spec)
+    #     f.write("---\n")
+    #     f.write(yaml.dump(results, default_flow_style=False, indent=4))
 
     return None
 
@@ -208,6 +211,9 @@ if __name__ == "__main__":
     os.makedirs(report_parent_dir, exist_ok=True)
     os.makedirs(report_dir)
 
+    EVAL_LOG.info(f"Pre-compiling all {len(element_pool)} elements...")
+    pre_compiler_all_elements(element_pool)
+
     completed_trials = 0
     total_trials = 0
     failed_configurations = []
@@ -225,7 +231,7 @@ if __name__ == "__main__":
         start_time = time.time()
         # Run a trial. If failed, it will return the failed configuration. Otherwise, none.
         total_time += time.time() - start_time
-        result = run_trial(completed_trials, args.trials)
+        result = run_trial(completed_trials)
         if not result:
             completed_trials += 1
         else:

@@ -1,6 +1,3 @@
-// Reference: https://sre.google/sre-book/handling-overload/
-// Modulo the sliding window
-
 internal {
 	// Agression. Increasing the multiplier will make throttling less aggressive
 	multiplier: float
@@ -9,18 +6,17 @@ internal {
 }
 
 fn init(multiplier) {
-	multiplier := 0.5;
+	multiplier := 0.95;
 	success := 0.0;
 	total := 0.0;
 }
 
 fn req(rpc_req) {
-	total := total + 1.0;
-
-	prob := (total - (multiplier * success)) / (total + 1.0);
+	prob := 1.0 - max(0, (total - (multiplier * success)) / (total + 1.0));
 
 	match(randomf(0,1) < prob) {
 		true => {
+			total := total + 1.0;
 			send(rpc_req, NET);
 		}
 		false => {

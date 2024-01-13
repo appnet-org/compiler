@@ -275,7 +275,7 @@ def run_wrk2_and_get_cpu(
     cores_per_node=64,
     mpstat_duration=30,
     wrk2_duration=60,
-    target_rate=2000,
+    target_rate=10000,
 ):
     cmd = [
         os.path.join(EXP_DIR, "wrk/wrk2"),
@@ -304,6 +304,7 @@ def run_wrk2_and_get_cpu(
     else:
         # Parse the output
         output = stdout_data.decode()
+        print(output)
 
         req_sec_pattern = r"Requests/sec:\s+(\d+\.?\d*)"
 
@@ -325,7 +326,7 @@ def run_wrk2_and_get_cpu(
 
 def run_wrk2_and_get_tail_latency(
     wrk2_duration=20,
-    target_rate=1000,
+    target_rate=4000,
 ):
     cmd = [
         os.path.join(EXP_DIR, "wrk/wrk2"),
@@ -333,7 +334,7 @@ def run_wrk2_and_get_tail_latency(
         "-c 100",
         "http://10.96.88.88:8080/ping-echo",
         "-d DURATION".replace("DURATION", str(wrk2_duration)),
-        "-R " + str(target_rate),
+        "-R " + str(int(target_rate)),
         "-L ",
     ]
     proc = subprocess.Popen(
@@ -350,7 +351,7 @@ def run_wrk2_and_get_tail_latency(
     # Check if there was an error
     if proc.returncode != 0:
         print("Error executing wrk2 command:")
-        print(stderr_data.decode())
+        print(stdout_data.decode(), stderr_data.decode())
     else:
         # Parse the output
         output = stdout_data.decode()
@@ -402,6 +403,11 @@ def run_wrk2_and_get_tail_latency(
             "avg": float(avg_latency),
             "rps": float(req_sec),
         }
+
+
+def pre_compiler_all_elements(element_pool):
+    # TODO
+    pass
 
 
 if __name__ == "__main__":
