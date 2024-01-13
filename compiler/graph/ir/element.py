@@ -46,7 +46,7 @@ class AbsElement:
 
     @property
     def lib_name(self) -> str:
-        return "".join(self.name)
+        return "".join(self.name)[:24]
 
     @property
     def configs(self) -> str:
@@ -157,4 +157,9 @@ class AbsElement:
             if len(self.position) < len(other.position)
             else other.position
         )
-        # TODO: fuse properties
+        # Fuse properties
+        # Consolidation is the last step of optimization. Therefore, only state
+        # propertieds needs to be merged.
+        self.prop["state"]["stateful"] |= other.prop["state"]["stateful"]
+        if other.prop["state"]["consistency"] == "strong":
+            self.prop["state"]["consistency"] = "strong"

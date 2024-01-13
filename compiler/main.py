@@ -94,7 +94,7 @@ def compile_impl(
     proto: str,
     method: str,
 ):
-    gen_name = "".join(engine_name)
+    gen_name = "".join(engine_name)[:24]
     if backend == "mrpc":
         gen_dir = os.path.join(gen_dir, f"{gen_name}_{placement}_{backend}")
     else:
