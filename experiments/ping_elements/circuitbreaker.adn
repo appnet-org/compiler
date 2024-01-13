@@ -4,7 +4,7 @@ internal {
     drop_count: int
 }
 fn init(max_concurrent_req) {
-	max_concurrent_req := 10;
+	max_concurrent_req := 10000;
     pending_req := 0;
     drop_count := 0;
 }

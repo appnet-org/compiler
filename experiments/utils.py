@@ -3,6 +3,7 @@ import random
 import re
 import statistics
 import subprocess
+import time
 from pathlib import Path
 
 import yaml
@@ -26,7 +27,7 @@ element_pool = [
     "metrics",
     "admissioncontrol",
     "compression",
-    "encrypt-decrypt",
+    # "encrypt-decrypt",
 ]
 pair_pool = [
     "encrypt-decrypt",
@@ -105,8 +106,13 @@ def select_random_elements(client: str, server: str, number: int):
         [],
         ["C", "S", "C/S"],
     )  # C: client, S: server, C/S: don't care
+
+    local_element_pool = element_pool.copy()
     while number > 0:
-        name = random.choice(element_pool)
+        # Select a random element without replacement
+        name = random.choice(local_element_pool)
+        local_element_pool.remove(name)
+
         number -= 2 if name in pair_pool else 1
         e = Element(
             name,
@@ -139,7 +145,38 @@ def select_random_elements(client: str, server: str, number: int):
 
     # Export to YAML format
     yaml_str = yaml.dump(yaml_data, default_flow_style=False, indent=4)
-    return yaml_str
+    return sorted_elements, yaml_str
+
+
+def test_application(num_requests=10, timeout_duration=1):
+    responses = []
+    url = "http://10.96.88.88:8080/ping-echo?body=test"
+
+    for _ in range(num_requests):
+        try:
+            # Construct the specific curl command
+            curl_command = ["curl", "-s", url]
+
+            # Execute the curl command with a timeout
+            result = subprocess.run(
+                curl_command, capture_output=True, text=True, timeout=timeout_duration
+            )
+
+            # Decode the response to a string
+            response = result.stdout
+            responses.append(response)
+        except subprocess.TimeoutExpired:
+            EVAL_LOG.error("Curl Request timed out! Application is unhealthy")
+            return False
+        except subprocess.CalledProcessError as e:
+            # Handle other errors in the subprocess
+            EVAL_LOG.error(f"Curl Request got an error {e}! Application is unhealthy")
+            return False
+
+        # Wait for 0.5 second before the next request
+        time.sleep(0.2)
+
+    return True
 
 
 # Function to convert to microseconds
@@ -153,7 +190,7 @@ def convert_to_us(value, unit):
 
 
 def run_wrk_and_get_latency(duration=20):
-    # # TODO: Add script
+    # TODO: Add script
     cmd = [
         os.path.join(EXP_DIR, "wrk/wrk"),
         "-t 1",
@@ -317,6 +354,7 @@ def run_wrk2_and_get_tail_latency(
     else:
         # Parse the output
         output = stdout_data.decode()
+        print(output)
 
         # Regular expressions to find the results
         latency_50_pattern = r"50.000%\s+(\d+\.?\d*)(us|ms|s)"
