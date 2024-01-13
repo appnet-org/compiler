@@ -539,6 +539,8 @@ class WasmGenerator(Visitor):
                     return WasmGlobalFunctions["current_time"]
                 case "min":
                     return WasmGlobalFunctions["min_f64"]
+                case "max":
+                    return WasmGlobalFunctions["max_f32"]
                 case "time_diff":
                     return WasmGlobalFunctions["time_diff"]
                 case "time_diff_ref":

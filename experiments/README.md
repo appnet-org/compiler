@@ -3,8 +3,8 @@
 ## Random Selection
 
 ```bash
-# Example
-python3 evaluation.py --backend envoy
+# Run the evaluation script on Envoy for 10 iterations
+python3 evaluation.py --backend envoy --trials 10
 ```
 
 ```bash

@@ -7,9 +7,9 @@ internal {
 
 fn init() {
 	last := current_time();
-	limit := 4000.0;
-	token := 4000.0;
-	per_sec := 3000.0;
+	limit := 30000.0;
+	token := 30000.0;
+	per_sec := 30000.0;
 }
 
 fn req(rpc_req) {

@@ -99,7 +99,7 @@ def gen_code(
     LOG.info(f"Generating {backend_name} code")
     # TODO: Extend access analysis to all backends
     if backend_name == "envoy":
-        assert isinstance(ctx, WasmContext), "inconsistent context type"
+        assert isinstance(ctx, WasmContext), "Inconsistent context type"
         # Do a pass to analyze the IR and generate the access operation
         consolidated.accept(AccessAnalyzer(placement), ctx)
 

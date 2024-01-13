@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -23,7 +24,7 @@ envoy_element_pool = [
     "acl",
     "metrics",
     "admissioncontrol",
-    "encryptping-decryptping",
+    # "encryptping-decryptping",
     "bandwidthlimit",
     "circuitbreaker",
 ]
@@ -69,7 +70,7 @@ def parse_args():
     parser.add_argument("-n", "--num", type=int, help="element chain length", default=3)
     parser.add_argument("--debug", help="Print backend debug info", action="store_true")
     parser.add_argument(
-        "--trials", help="number of trails to run", type=int, default=10
+        "-t", "--trials", help="number of trails to run", type=int, default=10
     )
     parser.add_argument(
         "--latency_duration", help="wrk duration for latency test", type=int, default=60
@@ -78,19 +79,120 @@ def parse_args():
         "--cpu_duration", help="wrk2 duration for cpu usage test", type=int, default=60
     )
     parser.add_argument(
-        "--target_rate", help="wrk2 request rate", type=int, default=2000
+        "--target_rate", help="wrk2 request rate", type=int, default=10000
     )
     return parser.parse_args()
 
 
-def gen_user_spec(backend: str, num: int, path: str) -> str:
+def generate_user_spec(backend: str, num: int, path: str) -> str:
     assert path.endswith(".yml"), "wrong user spec format"
-    spec = yml_header[backend] + select_random_elements(
+    selected_elements, selected_yml_str = select_random_elements(
         app_structure[backend]["client"], app_structure[backend]["server"], num
     )
+    spec = yml_header[backend] + selected_yml_str
     with open(path, "w") as f:
         f.write(spec)
-    return spec
+    return selected_elements, spec
+
+
+def run_trial(curr_trial_num) -> List[Element]:
+    # Step 1: Generate a random user specification based on the backend and number of elements
+    EVAL_LOG.info(
+        f"Randomly generate user specification, backend = {args.backend}, number of element to generate = {args.num}..."
+    )
+    selected_elements, spec = generate_user_spec(
+        args.backend,
+        args.num,
+        os.path.join(gen_dir, "randomly_generated_spec.yml"),
+    )
+    EVAL_LOG.info(f"Selected Elements and their config: {selected_elements}")
+
+    ncpu = int(execute_local(["nproc"]))
+    results = {"pre-optimize": {}, "post-optimize": {}}
+
+    # Step 2: Collect latency and CPU result for pre- and post- optimization
+    for mode in ["pre-optimize", "post-optimize"]:
+
+        # Step 2.1: Compile the elements
+        compile_cmd = [
+            "python3.10",
+            os.path.join(ROOT_DIR, "compiler/main.py"),
+            "--spec",
+            os.path.join(EXP_DIR, "generated/randomly_generated_spec.yml"),
+            "--backend",
+            args.backend,
+            "--replica",
+            "10",
+        ]
+
+        if mode == "pre-optimize":
+            compile_cmd.append("--no_optimize")
+
+        EVAL_LOG.info(f"[{mode}] Compiling spec...")
+        execute_local(compile_cmd)
+
+        EVAL_LOG.info(
+            f"[{mode}] Backend code and deployment script generated. Deploying the application..."
+        )
+        # Clean up the k8s deployments
+        kdestroy()
+
+        # Deploy the application and elements. Wait until they are in running state...
+        kapply(os.path.join(graph_base_dir, "generated"))
+        ksync()
+        EVAL_LOG.info(f"[{mode}] Application deployed...")
+        time.sleep(10)
+
+        # Perform some basic testing to see if the application is healthy
+        if test_application():
+            EVAL_LOG.info(f"[{mode}] Application is healthy...")
+        else:
+            EVAL_LOG.info(f"[{mode}] Application is unhealthy. Restarting the trial...")
+            return selected_elements
+        break
+
+        # Run wrk to get the service time
+        EVAL_LOG.info(
+            f"[{mode}] Running latency (service time) tests for {args.latency_duration}s..."
+        )
+        results[mode]["service time(us)"] = run_wrk_and_get_latency(
+            args.latency_duration
+        )
+
+        # Run wrk2 to get the tail latency
+        EVAL_LOG.info(
+            f"[{mode}] Running tail latency tests for {args.latency_duration}s and request rate {args.target_rate*0.4} req/sec..."
+        )
+        results[mode]["tail latency(us)"] = run_wrk2_and_get_tail_latency(
+            args.latency_duration,
+            args.target_rate * 0.4,
+        )
+
+        # Run wrk2 to get the CPU usage
+        EVAL_LOG.info(
+            f"[{mode}] Running cpu usage tests for {args.cpu_duration}s and request rate {args.target_rate} req/sec..."
+        )
+        results[mode]["CPU usage(VCores)"] = run_wrk2_and_get_cpu(
+            # ["h2", "h3"],
+            ["h2"],
+            cores_per_node=ncpu,
+            mpstat_duration=args.cpu_duration // 2,
+            wrk2_duration=args.cpu_duration,
+            target_rate=args.target_rate,
+        )
+
+        # Clean up the k8s deployments
+    #     kdestroy()
+
+    # print(results)
+
+    # EVAL_LOG.info("Dumping report...")
+    # with open(os.path.join(report_dir, f"report_{curr_trial_num}.yml"), "w") as f:
+    #     f.write(spec)
+    #     f.write("---\n")
+    #     f.write(yaml.dump(results, default_flow_style=False, indent=4))
+
+    return None
 
 
 if __name__ == "__main__":
@@ -109,84 +211,33 @@ if __name__ == "__main__":
     os.makedirs(report_parent_dir, exist_ok=True)
     os.makedirs(report_dir)
 
-    for i in range(args.trials):
-        # Step 1: Generate a random user specification based on the backend and number of elements
+    EVAL_LOG.info(f"Pre-compiling all {len(element_pool)} elements...")
+    pre_compiler_all_elements(element_pool)
+
+    completed_trials = 0
+    total_trials = 0
+    failed_configurations = []
+    total_time = 0
+
+    while completed_trials < args.trials:
+        average_time_per_trial = (
+            total_time / completed_trials if completed_trials > 0 else 0
+        )
         EVAL_LOG.info(
-            f"Randomly generate user specification, backend = {args.backend}, number of element to generate = {args.num}, trail # {i}"
+            f"Running trial # {completed_trials}/{args.trials}. Average time per-trial is {average_time_per_trial:.2f} seconds..."
         )
-        spec = gen_user_spec(
-            args.backend,
-            args.num,
-            os.path.join(gen_dir, "randomly_generated_spec.yml"),
-        )
-        continue
 
-        ncpu = int(execute_local(["nproc"]))
-        results = {"pre-optimize": {}, "post-optimize": {}}
+        total_trials += 1
+        start_time = time.time()
+        # Run a trial. If failed, it will return the failed configuration. Otherwise, none.
+        total_time += time.time() - start_time
+        result = run_trial(completed_trials)
+        if not result:
+            completed_trials += 1
+        else:
+            failed_configurations.append(result)
 
-        # Step 2: Collect latency and CPU result for pre- and post- optimization
-        for mode in ["pre-optimize", "post-optimize"]:
-
-            # Step 2.1: Compile the elements
-            compile_cmd = [
-                "python3.10",
-                os.path.join(ROOT_DIR, "compiler/main.py"),
-                "--spec",
-                os.path.join(EXP_DIR, "generated/randomly_generated_spec.yml"),
-                "--backend",
-                args.backend,
-            ]
-
-            if mode == "pre-optimize":
-                compile_cmd.append("--no_optimize")
-
-            EVAL_LOG.info(f"Compiling spec, mode = {mode} ...")
-            # Step 2.2: Deploy the application and attach the elements
-            execute_local(compile_cmd)
-
-            EVAL_LOG.info(
-                f"Backend code and deployment script generated. Deploying the application..."
-            )
-            # Clean up the k8s deployments
-            kdestroy()
-
-            # Deploy the application and elements. Wait until they are in running state...
-            kapply(os.path.join(graph_base_dir, "generated"))
-            EVAL_LOG.info(f"Application deployed...")
-
-            #     break
-            # break
-
-            # Step 2.4: Run wrk to get the service time
-            EVAL_LOG.info(
-                f"Running latency (service time) tests for {args.latency_duration}s..."
-            )
-            results[mode]["service time(us)"] = run_wrk_and_get_latency(
-                args.latency_duration
-            )
-
-            # Step 2.5: Run wrk2 to get the tail latency
-            EVAL_LOG.info(f"Running tail latency tests for {args.latency_duration}s...")
-            results[mode]["tail latency(us)"] = run_wrk2_and_get_tail_latency(
-                args.latency_duration
-            )
-
-            # Step 2.6: Run wrk2 to get the CPU usage
-            EVAL_LOG.info(f"Running cpu usage tests for {args.cpu_duration}s...")
-            results[mode]["CPU usage(VCores)"] = run_wrk2_and_get_cpu(
-                # ["h2", "h3"],
-                ["h2"],
-                cores_per_node=ncpu,
-                mpstat_duration=args.cpu_duration // 2,
-                wrk2_duration=args.cpu_duration,
-                target_rate=args.target_rate,
-            )
-
-            # Clean up
-            kdestroy()
-
-        EVAL_LOG.info("Dumping report...")
-        with open(os.path.join(report_dir, f"report_{i}.yml"), "w") as f:
-            f.write(spec)
-            f.write("---\n")
-            f.write(yaml.dump(results, default_flow_style=False, indent=4))
+    EVAL_LOG.info(
+        f"Experiment completed. Total trials = {total_trials}, successful trials = {completed_trials}"
+    )
+    EVAL_LOG.info(f"Failed configurations: {failed_configurations}")
