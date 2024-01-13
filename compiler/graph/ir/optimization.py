@@ -146,11 +146,17 @@ def chain_optimize(
     # Step 1: Reorder + Migration
     chain = reorder(chain, path)
 
-    # TODO: Step 2: consolidation
-
     # split the chain into client + server
     network_pos = 0
     while network_pos < len(chain) and chain[network_pos].position != "N":
         network_pos += 1
+    client_chain, server_chain = chain[:network_pos], chain[network_pos + 1 :]
 
-    return chain[:network_pos], chain[network_pos + 1 :]
+    # Step 2: consolidation
+    for i in range(1, len(client_chain)):
+        client_chain[0].fuse(client_chain[i])
+    for i in range(1, len(server_chain)):
+        server_chain[0].fuse(server_chain[i])
+    client_chain, server_chain = client_chain[:1], server_chain[:1]
+
+    return client_chain, server_chain
