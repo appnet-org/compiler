@@ -128,6 +128,24 @@ def reorder(chain: List[AbsElement], path: str) -> List[AbsElement]:
     return chain
 
 
+def gather(chain: List[AbsElement]) -> List[AbsElement]:
+    has_client, has_server, np = False, False, 0
+    for i, element in enumerate(chain):
+        if element.position == "C":
+            has_client = True
+        elif element.position == "S":
+            has_server = True
+        elif element.position == "N":
+            np = i
+    if not has_server:
+        # migrate all to client side
+        return chain[:np] + chain[np + 1 :] + [chain[np]]
+    if not has_client:
+        # migrate all to server side
+        return [chain[np]] + chain[:np] + chain[np + 1 :]
+    return chain
+
+
 def chain_optimize(
     chain: List[AbsElement],
     path: str,
@@ -146,13 +164,16 @@ def chain_optimize(
     # Step 1: Reorder + Migration
     chain = reorder(chain, path)
 
+    # Step 2: Further migration - opportunity to turn off sidecars
+    chain = gather(chain)
+
     # split the chain into client + server
     network_pos = 0
     while network_pos < len(chain) and chain[network_pos].position != "N":
         network_pos += 1
     client_chain, server_chain = chain[:network_pos], chain[network_pos + 1 :]
 
-    # Step 2: consolidation
+    # Step 3: consolidation
     for i in range(1, len(client_chain)):
         client_chain[0].fuse(client_chain[i])
     for i in range(1, len(server_chain)):
