@@ -89,4 +89,5 @@ spec:
                       socket_address:
                         address: webdis-service-{ename}
                         port_value: 7379
+---
 """
