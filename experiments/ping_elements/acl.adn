@@ -5,7 +5,7 @@ internal
 
 fn init() {
 	acl.set('Apple', 'Yes');
-	acl.set('Banana', 'No');
+	acl.set('test', 'No');
 }
 
 fn req(rpc_req) {
