@@ -147,11 +147,12 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
             )
 
     # if a service has no elment attached, turn off its sidecar
-    for sname in services:
-        if element_deploy_count[sname] == 0:
-            target_yml = find_target_yml(locals()["yml_list_istio"], sname)
-            target_yml.clear()
-            target_yml.update(find_target_yml(locals()["yml_list_plain"], sname))
+    if os.getenv("ADN_NO_OPTIMIZE") != "1":
+        for sname in services:
+            if element_deploy_count[sname] == 0:
+                target_yml = find_target_yml(locals()["yml_list_istio"], sname)
+                target_yml.clear()
+                target_yml.update(find_target_yml(locals()["yml_list_plain"], sname))
 
     # Adjust replica count
     replica = os.getenv("SERVICE_REPLICA")
@@ -168,6 +169,7 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
     execute_local(["rm", os.path.join(local_gen_dir, app + "_istio.yml")])
 
     # Generate script to attach elements.
+    attach_all_yml = ""
     for gir in girs.values():
         elist = [(e, gir.client, "client") for e in gir.elements["req_client"]] + [
             (e, gir.server, "server") for e in gir.elements["req_server"]
@@ -185,11 +187,10 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
                 "vmid": f"vm.sentinel.{e.lib_name}-{placement}",
                 "filename": f"/etc/{e.lib_name}.wasm",
             }
-            attach_path = os.path.join(
-                local_gen_dir, f"{e.lib_name}-{placement}-{sname}.yml"
-            )
-            with open(attach_path, "w") as f:
-                f.write(attach_yml.format(**contents))
+            attach_all_yml += attach_yml.format(**contents)
+    attach_file_path = os.path.join(local_gen_dir, f"attach_all_elements.yml")
+    with open(attach_file_path, "w") as f:
+        f.write(attach_all_yml)
 
     GRAPH_BACKEND_LOG.info(
         "Element compilation and manifest generation complete. The generated files are in the 'generated' directory."

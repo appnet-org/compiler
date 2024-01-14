@@ -10,8 +10,7 @@ fn init() {
 }
 
 fn req(rpc_req) {
-    res := acl.get(rpc_req.get('body'));
-	match (res) {
+    match (acl.get(rpc_req.get('body'))) {
 		Some(permission) => {
 			match (permission) {
 				'Yes' => {
@@ -25,7 +24,7 @@ fn req(rpc_req) {
 			};
 		}
 		None => {
-			send(err('acl'), APP);
+			send(rpc_req, NET);
 		}
 	}; 
 }

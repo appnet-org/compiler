@@ -10,10 +10,9 @@ fn init() {
 
 
 fn req(rpc_req) {
-    res := cache.get(rpc_req.get('body'));
-	match (res) {
-		Some(name) => {
-            match (name) {
+	match (cache.get(rpc_req.get('body'))) {
+		Some(cachename) => {
+            match (cachename) {
                 'cached' => {
                     send(err('200'), APP);
                 }

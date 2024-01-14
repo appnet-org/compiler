@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
+import yaml
 from rich.columns import Columns
 from rich.console import Console
 
@@ -181,6 +182,15 @@ def main(args):
         # Step 3.2: Generate deployment scripts
         scriptgen(graphirs, args.backend, app_name, app_manifest_file)
 
+    # Dump graphir summary (in yaml)
+    gen_dir = os.path.join(graph_base_dir, "generated")
+    graphir_summary = {"graphir": []}
+    for gir in graphirs.values():
+        graphir_summary["graphir"].append(str(gir))
+    with open(os.path.join(gen_dir, "gir_summary.yml"), "w") as f:
+        f.write(yaml.dump(graphir_summary, default_flow_style=False, indent=4))
+
+    # graphir rich display in terminal
     if args.verbose:
         print_gir_summary(graphirs)
 
@@ -192,5 +202,7 @@ if __name__ == "__main__":
     os.environ["SERVICE_REPLICA"] = args.replica
     if args.dry_run:
         os.environ["DRY_RUN"] = "1"
+    if args.no_optimize:
+        os.environ["ADN_NO_OPTIMIZE"] = "1"
 
     main(args)

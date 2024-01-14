@@ -30,7 +30,7 @@ def consolidate(irs: List[Program]) -> Program:
             new_prog.resp, (deepcopy(right.resp), deepcopy(left.resp))
         )
 
-        irs.append(new_prog)
+        irs.insert(0, new_prog)
     return irs[0]
 
 
