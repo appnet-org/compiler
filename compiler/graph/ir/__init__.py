@@ -111,7 +111,7 @@ class GraphIR:
         return f"{self.client}->{self.server}"
 
     def __str__(self):
-        s = f"{self.client}->{self.server} request GraphIR:\n"
+        s = f"{self.client}->{self.server} request GraphIR: "
         s += " -> ".join(map(str, self.elements["req_client"]))
         s += " (network) "
         s += " -> ".join(map(str, self.elements["req_server"]))
