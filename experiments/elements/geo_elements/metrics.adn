@@ -1,6 +1,6 @@
 internal
 {
-	record: Map<string, Instant>
+	record: Map<uint, Instant>
   latency: Vec<float>
 }
 
@@ -8,13 +8,12 @@ fn init() {
 }
 
 fn req(rpc_req) {
-	record.set(rpc_req.get('body'), current_time());
+	record.set(rpc_id(), current_time());
 	send(rpc_req, NET);
 }
 
 fn resp(rpc_resp) {
-  rpc_body := rpc_resp.get('body');
-  match(record.get(rpc_body)) {
+  match(record.get(rpc_id())) {
     Some(t) => {
       lat := time_diff(current_time(), t);
       latency.set(latency.size(), lat);

@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import Dict, List, Optional, Set
 
 from compiler.element.backend.envoy import *
@@ -8,7 +9,14 @@ from compiler.element.visitor import Visitor
 
 
 class WasmContext:
-    def __init__(self, proto=None, method_name=None, element_name: str = "") -> None:
+    def __init__(
+        self,
+        proto=None,
+        method_name=None,
+        request_message_name=None,
+        response_message_name=None,
+        element_name: str = "",
+    ) -> None:
         self.internal_state_names: Set[str] = [
             "rpc_req",
             "rpc_resp",
@@ -38,10 +46,13 @@ class WasmContext:
         self.external_call_response_code: List[
             str
         ] = []  # Code for handling external call responses (state sync)
+        self.wasm_self_functions: List[WasmVariable] = []
         self.decode: bool = True  # Flag to determine whether to decode the RPC
         self.proto: str = proto  # Protobuf used
         self.method_name: str = method_name  # Name of the RPC method
         self.element_name: str = element_name  # Name of the generated element
+        self.request_message_name: str = request_message_name
+        self.response_message_name: str = response_message_name
 
         # Maps to store the state (incl. RPC) operations on request/response headers and bodies
         self.access_ops: Dict[str, Dict[str, MethodType]] = {
@@ -275,10 +286,15 @@ class WasmGenerator(Visitor):
         original_procedure = ctx.current_procedure
 
         # Boilerplate code for decoding the RPC message
+        message_name = (
+            ctx.request_message_name
+            if procedure_type == "Request"
+            else ctx.response_message_name
+        )
         prefix_decode_rpc = f"""
         if let Some(body) = self.get_http_{name}_body(0, body_size) {{
 
-            match {ctx.proto}::{ctx.method_name}{procedure_type}::decode(&body[5..]) {{
+            match {ctx.proto}::{message_name}::decode(&body[5..]) {{
                 Ok(mut rpc_{name}) => {{
         """
         suffix_decode_rpc = f"""
@@ -573,6 +589,8 @@ class WasmGenerator(Visitor):
                     return WasmBasicType("f64")
                 case "int":
                     return WasmBasicType("i32")
+                case "uint":
+                    return WasmBasicType("u32")
                 case "string":
                     return WasmBasicType("String")
                 case "Instant":
@@ -628,6 +646,8 @@ class WasmGenerator(Visitor):
                     return WasmGlobalFunctions["encrypt"]
                 case "decrypt":
                     return WasmGlobalFunctions["decrypt"]
+                case "rpc_id":
+                    return WasmGlobalFunctions["rpc_id"]
                 case _:
                     LOG.error(f"unknown global function: {fname} in func_mapping")
                     raise Exception("unknown global function:", fname)
@@ -763,10 +783,31 @@ def proto_gen_set(rpc: str, args: List[str], ctx: WasmContext) -> str:
     if k.startswith("meta"):
         raise NotImplementedError
     #! fix that use name match
+    replacements = {
+        "RpcMethod": ctx.method_name,
+        "VarName": k,
+        "Proto": ctx.proto,
+        "RequestMessageName": ctx.request_message_name,
+        "ResponseMessageName": ctx.response_message_name,
+    }
     if rpc == "rpc_request":
-        return f"self.PingEcho_request_modify_{k}(&mut {rpc}, {v})"
+        ctx.wasm_self_functions.append(
+            deepcopy(
+                WasmSelfFunctionTemplates["request_modify"].definition.format(
+                    **replacements
+                )
+            )
+        )
+        return f"self.{ctx.method_name}_request_modify_{k}(&mut {rpc}, {v})"
     elif rpc == "rpc_response":
-        return f"self.PingEcho_response_modify_{k}(&mut {rpc}, {v})"
+        ctx.wasm_self_functions.append(
+            deepcopy(
+                WasmSelfFunctionTemplates["response_modify"].definition.format(
+                    **replacements
+                )
+            )
+        )
+        return f"self.{ctx.method_name}_response_modify_{k}(&mut {rpc}, {v})"
 
 
 def proto_gen_size(rpc: str, args: List[str]) -> str:

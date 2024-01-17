@@ -198,6 +198,10 @@ class WasmFunctionType(WasmType):
         return self.definition
 
     def gen_call(self, args: Optional[List[str]] = []) -> str:
+        # TODO: temp hack
+        if self.name == "rpc_id":
+            return "self.context_id"
+
         if self.use_self:
             args = ["self"] + args
         return f"{self.name}({', '.join(args)})"
@@ -289,6 +293,13 @@ class WasmVariable:
 
 
 WasmGlobalFunctions = {
+    "rpc_id": WasmFunctionType(
+        "rpc_id",
+        [],
+        WasmBasicType("u32"),
+        False,
+        "",
+    ),
     "encrypt": WasmFunctionType(
         "gen_encrypt",
         [WasmType("&str"), WasmType("&str")],
@@ -389,16 +400,16 @@ WasmGlobalFunctions = {
 }
 
 
-WasmSelfFunctions = {
+WasmSelfFunctionTemplates = {
     "request_modify": WasmFunctionType(
-        "PingEcho_request_modify_body",
+        "request_modify",
         [WasmBasicType("&str")],
         WasmBasicType("()"),
         False,
         """
-            pub fn PingEcho_request_modify_body(&mut self, req: &mut ping::PingEchoRequest, value: String) -> () {
+            pub fn {RpcMethod}_request_modify_{VarName}(&mut self, req: &mut {Proto}::{RequestMessageName}, value: String) -> () {{
                 let mut new_body = Vec::new();
-                req.body = value.to_string();
+                req.{VarName} = value.to_string();
                 req.encode(&mut new_body).expect("Failed to encode");
                 let new_body_length = new_body.len() as u32;
                 let mut grpc_header = Vec::new();
@@ -406,18 +417,18 @@ WasmSelfFunctions = {
                 grpc_header.extend_from_slice(&new_body_length.to_be_bytes());
                 grpc_header.append(&mut new_body);
                 self.set_http_request_body(0, grpc_header.len(), &grpc_header);
-            }
+            }}
         """,
     ),
     "response_modify": WasmFunctionType(
-        "PingEcho_response_modify_body",
+        "response_modify",
         [WasmBasicType("&str")],
         WasmBasicType("()"),
         False,
         """
-            pub fn PingEcho_response_modify_body(&mut self, req: &mut ping::PingEchoResponse, value: String) -> () {
+            pub fn {RpcMethod}_response_modify_{VarName}(&mut self, req: &mut {Proto}::{ResponseMessageName}Response, value: String) -> () {
                 let mut new_body = Vec::new();
-                req.body = value.to_string();
+                req.{VarName} = value.to_string();
                 req.encode(&mut new_body).expect("Failed to encode");
                 let new_body_length = new_body.len() as u32;
                 let mut grpc_header = Vec::new();

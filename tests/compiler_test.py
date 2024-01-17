@@ -9,7 +9,7 @@ import logging
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
 
-from tests import TEST_DIR, ROOT_DIR
+from tests import *
 
 logger = logging.getLogger()
 logger.level = logging.DEBUG
@@ -22,9 +22,6 @@ stream_handler.setFormatter(
 logger.addHandler(stream_handler)
 TEST_LOG = logging.getLogger("COMPILER TEST")
 
-# from experiments.utils import *
-# from experiments.evaluation import gen_user_spec
-
 element_pool = [
     "cache",
     "fault",
@@ -35,18 +32,43 @@ element_pool = [
     "acl",
     "metrics",
     "admissioncontrol",
-    # "encryptping-decryptping",
     "bandwidthlimit",
     "circuitbreaker",
+    # "encryptping-decryptping",
 ]
 
-proto_file = "../examples/proto/ping.proto"
-method_name = "PingEcho"
+apps = {
+    "ping": {
+        "proto_file": os.path.join(proto_base_dir, "ping.proto"),   
+        "method_name": "PingEcho",
+    },
+    "reservation": {
+        "proto_file": os.path.join(proto_base_dir, "reservation.proto"),   
+        "method_name": "CheckAvailability",
+    },
+    "search": {
+        "proto_file": os.path.join(proto_base_dir, "search.proto"),   
+        "method_name": "Nearby",
+    },
+    "rate": {
+        "proto_file": os.path.join(proto_base_dir, "rate.proto"),   
+        "method_name": "GetRates",
+    },
+    "profile": {
+        "proto_file": os.path.join(proto_base_dir, "profile.proto"),   
+        "method_name": "GetProfiles",
+    },
+    # "geo": {
+    #     "proto_file": os.path.join(proto_base_dir, "geo.proto"),   
+    #     "method_name": "Nearby",
+    # },
+}
+
 backend = "envoy"
 
 
 class CompilerTestCase(unittest.TestCase):
-    def generate_element_code(self, ename: str, p: str):
+    def generate_element_code(self, ename: str, p: str, proto_file: str, method_name: str):
         command = [
             "python3.10", os.path.join(ROOT_DIR, "compiler/element_compiler_test.py"),
             "--element", ename,
@@ -68,14 +90,15 @@ class CompilerTestCase(unittest.TestCase):
         return result
 
     # Dynamically create a test method for each element
-    def create_test_method(element):
+    def create_test_method(app, element, proto_file, method_name):
         def test_method(self):
+            os.environ['ELEMENT_SPEC_BASE_DIR'] = os.path.join(ROOT_DIR, f"experiments/elements/{app}_elements")
             position_pool = ["client"] if backend == "envoy" else ["client", "server"]
             for position in position_pool:
-                TEST_LOG.info(f"Testing element: {element} at position: {position}")
+                TEST_LOG.info(f"Testing {app} element: {element} at position: {position}")
                 
                 # Generate element code
-                result = self.generate_element_code(element, position)
+                result = self.generate_element_code(element, position, proto_file, method_name)
                 self.assertEqual(result.returncode, 0)
                 self.assertIn('Code Generation took:', result.stderr)
                 
@@ -88,10 +111,11 @@ class CompilerTestCase(unittest.TestCase):
     
 
 # Dynamically add test methods to CompilerTestCase
-for element in element_pool:
-    test_method_name = f"test_{element}_element_compilation"
-    test_method = CompilerTestCase.create_test_method(element)
-    setattr(CompilerTestCase, test_method_name, test_method)
+for app in apps.keys():
+    for element in element_pool:
+        test_method_name = f"test_{app}_{element}_element_compilation"
+        test_method = CompilerTestCase.create_test_method(app, element, apps[app]["proto_file"], apps[app]["method_name"])
+        setattr(CompilerTestCase, test_method_name, test_method)
 
 if __name__ == "__main__":
     unittest.main()
