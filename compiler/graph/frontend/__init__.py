@@ -28,25 +28,35 @@ class GraphParser:
         with open(spec_path, "r") as f:
             spec_dict = yaml.safe_load(f)
 
-        for edge in spec_dict["app_structure"]:
-            client, server = edge.split("->")
-            client, server = client.strip(), server.strip()
-            self.services.add(client)
-            self.services.add(server)
-            self.app_edges.append((client, server))
+        # TODO: temporarily disable ingress & egress spec tpye
+        # for edge in spec_dict["app_structure"]:
+        #     client, server = edge.split("->")
+        #     client, server = client.strip(), server.strip()
+        #     self.services.add(client)
+        #     self.services.add(server)
+        #     self.app_edges.append((client, server))
+
+        if "edge" in spec_dict:
+            for edge in spec_dict["edge"].keys():
+                client, server = edge.split("->")
+                self.app_edges.append((client, server))
+        if "link" in spec_dict:
+            for edge in spec_dict["link"].keys():
+                client, server = edge.split("->")
+                self.app_edges.append((client, server))
 
         graphir: Dict[str, GraphIR] = dict()
         for client, server in self.app_edges:
             chain, pair, eid = [], [], f"{client}->{server}"
             # client's egress
-            if "egress" in spec_dict and client in spec_dict["egress"]:
-                chain.extend(spec_dict["egress"][client])
+            # if "egress" in spec_dict and client in spec_dict["egress"]:
+            #     chain.extend(spec_dict["egress"][client])
             # client->server edge
             if "edge" in spec_dict and f"{client}->{server}" in spec_dict["edge"]:
                 chain.extend(spec_dict["edge"][eid])
             # server's ingress
-            if "ingress" in spec_dict and server in spec_dict["ingress"]:
-                chain.extend(spec_dict["ingress"][server])
+            # if "ingress" in spec_dict and server in spec_dict["ingress"]:
+            #     chain.extend(spec_dict["ingress"][server])
             # client->server link
             if "link" in spec_dict and f"{client}->{server}" in spec_dict["link"]:
                 pair.extend(spec_dict["link"][eid])

@@ -1,4 +1,5 @@
 from copy import deepcopy
+from itertools import permutations
 from pprint import pprint
 from typing import List, Tuple
 
@@ -43,15 +44,21 @@ def gen_dependency(chain: List[AbsElement], path: str):
     return dep
 
 
-def equivalent(chain: List[AbsElement], new_chain: List[AbsElement], path: str) -> bool:
-    server_element = False
-    for element in new_chain:
+def position_valid(chain: List[AbsElement]) -> bool:
+    server_side = False
+    for element in chain:
         if element.position == "N":
-            server_element = True
-        if element.position == "S" and not server_element:
+            server_side = True
+        if element.position == "S" and not server_side:
             return False
-        if element.position == "C" and server_element:
+        if element.position == "C" and server_side:
             return False
+    return True
+
+
+def equivalent(chain: List[AbsElement], new_chain: List[AbsElement], path: str) -> bool:
+    if not position_valid(new_chain):
+        return False
     dep, new_dep = gen_dependency(chain, path), gen_dependency(new_chain, path)
     return dep["read"] == new_dep["read"]
     # return dep == new_dep
@@ -171,6 +178,23 @@ def gather(chain: List[AbsElement]) -> List[AbsElement]:
     return chain
 
 
+def split_and_consolidate(
+    chain: List[AbsElement],
+) -> Tuple[List[AbsElement], List[AbsElement]]:
+    network_pos = 0
+    while network_pos < len(chain) and chain[network_pos].position != "N":
+        network_pos += 1
+    client_chain, server_chain = chain[:network_pos], chain[network_pos + 1 :]
+
+    for i in range(1, len(client_chain)):
+        client_chain[0].fuse(client_chain[i])
+    for i in range(1, len(server_chain)):
+        server_chain[0].fuse(server_chain[i])
+    client_chain, server_chain = client_chain[:1], server_chain[:1]
+
+    return client_chain, server_chain
+
+
 def chain_optimize(
     chain: List[AbsElement],
     path: str,
@@ -192,17 +216,62 @@ def chain_optimize(
     # and turning off sidecars
     chain = gather(chain)
 
-    # split the chain into client + server
-    network_pos = 0
-    while network_pos < len(chain) and chain[network_pos].position != "N":
-        network_pos += 1
+    return split_and_consolidate(chain)
+
+
+def cost(chain: List[AbsElement], path: str) -> float:
+    # Parameters
+    # TODO: different parameters for different backends
+    e = 1.0
+    n = 1.0
+    d = 0.1
+    s = 5.0
+    r = 5.0
+
+    cost = 0
+
+    workload = 1.0
+    for element in chain:
+        cost += workload * (n if element.position == "N" else e)
+        if element.has_prop(path, "drop", "block"):
+            workload *= 1 - d
+
+    network_pos = -1
+    for i in range(len(chain)):
+        if chain[i].position == "N":
+            network_pos = i
+    assert network_pos != -1, "network element not found"
     client_chain, server_chain = chain[:network_pos], chain[network_pos + 1 :]
 
-    # Step 3: consolidation
-    for i in range(1, len(client_chain)):
-        client_chain[0].fuse(client_chain[i])
-    for i in range(1, len(server_chain)):
-        server_chain[0].fuse(server_chain[i])
-    client_chain, server_chain = client_chain[:1], server_chain[:1]
+    for element in client_chain:
+        if (
+            element.prop["state"]["consistency"] == "strong"
+            and element.prop["state"]["state_dependence"] != "client_replica"
+        ):
+            cost += s
+            break
+    for element in server_chain:
+        if (
+            element.prop["state"]["consistency"] == "strong"
+            and element.prop["state"]["state_dependence"] != "server_replica"
+        ):
+            cost += s
+            break
 
-    return client_chain, server_chain
+    if len(client_chain) > 0:
+        cost += r
+    if len(server_chain) > 0:
+        cost += r
+
+    return cost
+
+
+def cost_chain_optimize(chain: List[AbsElement], path: str):
+    min_cost = cost(chain, path)
+    for new_chain in permutations(chain):
+        if position_valid(new_chain) and equivalent(chain, new_chain, path):
+            new_cost = cost(new_chain, path)
+            if new_cost < min_cost:
+                chain = new_chain
+                min_cost = new_cost
+    return split_and_consolidate(chain)

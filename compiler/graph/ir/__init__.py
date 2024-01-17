@@ -7,7 +7,7 @@ from rich import box
 from rich.panel import Panel
 
 from compiler.graph.ir.element import AbsElement
-from compiler.graph.ir.optimization import chain_optimize
+from compiler.graph.ir.optimization import chain_optimize, cost_chain_optimize
 
 
 def make_service_rich(name: str) -> Panel:
@@ -137,9 +137,10 @@ class GraphIR:
         panel_list.append(make_service_rich(self.server))
         return panel_list
 
-    def optimize(self):
+    def optimize(self, algorithm: str):
         """Run optimization algorithm on the graphir."""
-        self.elements["req_client"], self.elements["req_server"] = chain_optimize(
+        optimize_func = cost_chain_optimize if algorithm == "cost" else chain_optimize
+        self.elements["req_client"], self.elements["req_server"] = optimize_func(
             self.elements["req_client"]
             + [AbsElement("NETWORK")]
             + self.elements["req_server"],

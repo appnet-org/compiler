@@ -82,6 +82,7 @@ def parse_args():
         help="#replica for each service",
         default="1",
     )
+    parser.add_argument("--opt_algorithm", type=str, default="cost")
     parser.add_argument("--debug", help="Print debug info", action="store_true")
 
     return parser.parse_args()
@@ -169,7 +170,7 @@ def main(args):
         for element in gir.elements["req_client"] + gir.elements["req_server"]:
             element.set_property_source(args.pseudo_property)
         if not args.no_optimize:
-            gir.optimize()
+            gir.optimize(args.opt_algorithm)
 
     # Step 3: Generate backend code for the elements and deployment scripts.
     if not args.dry_run:
