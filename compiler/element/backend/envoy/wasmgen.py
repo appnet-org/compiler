@@ -839,6 +839,13 @@ def proto_get_arg_type(arg: str, ctx: WasmContext) -> str:
         return ctx.message_field_types["request"][arg]
     elif ctx.current_procedure == FUNC_RESP_BODY:
         return ctx.message_field_types["response"][arg]
+    elif ctx.current_procedure == FUNC_EXTERNAL_RESPONSE:
+        # TODO: We should distinguish between request and response external requests.
+        return (
+            ctx.message_field_types["request"][arg]
+            if arg in ctx.message_field_types["request"]
+            else ctx.message_field_types["response"][arg]
+        )
     else:
         raise Exception("unknown procedure")
 
