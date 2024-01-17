@@ -58,10 +58,10 @@ apps = {
         "proto_file": os.path.join(proto_base_dir, "profile.proto"),   
         "method_name": "GetProfiles",
     },
-    # "geo": {
-    #     "proto_file": os.path.join(proto_base_dir, "geo.proto"),   
-    #     "method_name": "Nearby",
-    # },
+    "geo": {
+        "proto_file": os.path.join(proto_base_dir, "geo.proto"),   
+        "method_name": "Nearby",
+    },
 }
 
 backend = "envoy"

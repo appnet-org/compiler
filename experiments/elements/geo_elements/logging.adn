@@ -1,6 +1,6 @@
 internal
 {
-	record_req: Vec<float>
+	record_req: Vec<string>
 }
 
 fn init() {

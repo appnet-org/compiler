@@ -15,6 +15,7 @@ class WasmContext:
         method_name=None,
         request_message_name=None,
         response_message_name=None,
+        message_field_types=None,
         element_name: str = "",
     ) -> None:
         self.internal_state_names: Set[str] = [
@@ -53,6 +54,7 @@ class WasmContext:
         self.element_name: str = element_name  # Name of the generated element
         self.request_message_name: str = request_message_name
         self.response_message_name: str = response_message_name
+        self.message_field_types: Dict[str, Dict[str, str]] = message_field_types
 
         # Maps to store the state (incl. RPC) operations on request/response headers and bodies
         self.access_ops: Dict[str, Dict[str, MethodType]] = {
@@ -304,7 +306,6 @@ class WasmGenerator(Visitor):
         }}
 
         """
-
         if ctx.strong_state_count > 0 and ctx.current_procedure == FUNC_REQ_BODY:
             ctx.push_code(
                 f"let mut rpc_hashmap_inner = {ctx.rpc_hashmap}.write().unwrap();"
@@ -769,23 +770,34 @@ class WasmGenerator(Visitor):
 def proto_gen_get(rpc: str, args: List[str], ctx: WasmContext) -> str:
     assert len(args) == 1
     arg = args[0].strip('"')
-    if arg.startswith("meta"):
+
+    if arg.startswith("meta"):  # RPC Metadata
         ctx.gen_meta_get(arg)
         return f"self.{arg}"
     else:
-        return f"{rpc}.{arg}.clone()"
+        # Extract the field type
+        arg_type = proto_get_arg_type(arg, ctx)
+
+        # TODO: temp hack, but this should work in most cases
+        return (
+            f"{rpc}.{arg}.clone()"
+            if arg_type == "String"
+            else f"{rpc}.{arg}.clone().to_string()"
+        )
 
 
 def proto_gen_set(rpc: str, args: List[str], ctx: WasmContext) -> str:
     assert len(args) == 2
     k = args[0].strip('"')
-    v = args[1] + ".to_string()"
+    k_type = proto_get_arg_type(k, ctx)
+    v = args[1] + ".to_string()" if k_type == "string" else args[1]
     if k.startswith("meta"):
         raise NotImplementedError
     #! fix that use name match
     replacements = {
         "RpcMethod": ctx.method_name,
         "VarName": k,
+        "VarType": proto_type_mapping(k_type),
         "Proto": ctx.proto,
         "RequestMessageName": ctx.request_message_name,
         "ResponseMessageName": ctx.response_message_name,
@@ -820,3 +832,28 @@ def proto_gen_bytesize(rpc: str, args: List[str]) -> str:
     # TODO: fix - should return usize.
     # Also, this does not seem to return the actual length of the RPC but the pointer size.
     return f"mem::size_of_val(&{rpc}) as f64"
+
+
+def proto_get_arg_type(arg: str, ctx: WasmContext) -> str:
+    if ctx.current_procedure == FUNC_REQ_BODY:
+        return ctx.message_field_types["request"][arg]
+    elif ctx.current_procedure == FUNC_RESP_BODY:
+        return ctx.message_field_types["response"][arg]
+    else:
+        raise Exception("unknown procedure")
+
+
+def proto_type_mapping(proto_type: str) -> str:
+    """Maps the type in the protobuf to the type in wasm"""
+    if proto_type == "string":
+        return "String"
+    elif proto_type == "int":
+        return "i32"
+    elif proto_type == "uint":
+        return "u32"
+    elif proto_type == "float":
+        return "f32"
+    elif proto_type == "bool":
+        return "bool"
+    else:
+        raise Exception("unknown type")
