@@ -151,7 +151,6 @@ def run_trial(curr_trial_num) -> List[Element]:
 
         # Specify the equivalence level (no, weak, strong, ignore)
         compile_cmd.extend(["--opt_level", mode.split("_")[-1]])
-        print(" ".join(compile_cmd))
 
         EVAL_LOG.info(f"[{mode}] Compiling spec...")
         execute_local(compile_cmd)
