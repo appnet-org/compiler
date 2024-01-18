@@ -46,7 +46,7 @@ class WasmContext:
         self.external_call_response_code: List[
             str
         ] = []  # Code for handling external call responses (state sync)
-        self.wasm_self_functions: List[WasmVariable] = []
+        self.wasm_self_functions: List[str] = []
         self.decode: bool = True  # Flag to determine whether to decode the RPC
         self.proto: str = proto  # Protobuf used
         self.method_name: str = method_name  # Name of the RPC method
@@ -791,22 +791,34 @@ def proto_gen_set(rpc: str, args: List[str], ctx: WasmContext) -> str:
         "ResponseMessageName": ctx.response_message_name,
     }
     if rpc == "rpc_request":
-        ctx.wasm_self_functions.append(
-            deepcopy(
-                WasmSelfFunctionTemplates["request_modify"].definition.format(
-                    **replacements
+        # TODO: more rigorous check based on type instead of contents
+        # wasm_self_functions: List[str] -> List[WasmVariable]
+        has_request_modify = any(
+            "request_modify" in code for code in ctx.wasm_self_functions
+        )
+
+        if not has_request_modify:
+            ctx.wasm_self_functions.append(
+                deepcopy(
+                    WasmSelfFunctionTemplates["request_modify"].definition.format(
+                        **replacements
+                    )
                 )
             )
-        )
         return f"self.{ctx.method_name}_request_modify_{k}(&mut {rpc}, {v})"
     elif rpc == "rpc_response":
-        ctx.wasm_self_functions.append(
-            deepcopy(
-                WasmSelfFunctionTemplates["response_modify"].definition.format(
-                    **replacements
+        has_response_modify = any(
+            "response_modify" in code for code in ctx.wasm_self_functions
+        )
+
+        if not has_response_modify:
+            ctx.wasm_self_functions.append(
+                deepcopy(
+                    WasmSelfFunctionTemplates["response_modify"].definition.format(
+                        **replacements
+                    )
                 )
             )
-        )
         return f"self.{ctx.method_name}_response_modify_{k}(&mut {rpc}, {v})"
 
 
