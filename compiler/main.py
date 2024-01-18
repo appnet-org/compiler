@@ -71,6 +71,17 @@ def parse_args():
         action="store_true",
     )
     parser.add_argument(
+        "--opt_level",
+        help="optimization level",
+        type=str,
+        choices=["no", "ignore", "weak", "strong"],
+        default="weak",
+        # no: no optimization
+        # ignore: aggresive, ignore equivalence requirements
+        # weak: allow differences in drop rate, records, etc.
+        # strong: strict equivalence
+    )
+    parser.add_argument(
         "--no_optimize",
         help="If added, no optimization will be applied to GraphIR",
         action="store_true",
@@ -169,8 +180,8 @@ def main(args):
         # pseudo_property is set to True when we want to use hand-coded properties instead of auto-generated ones
         for element in gir.elements["req_client"] + gir.elements["req_server"]:
             element.set_property_source(args.pseudo_property)
-        if not args.no_optimize:
-            gir.optimize(args.opt_algorithm)
+        if args.opt_level != "no":
+            gir.optimize(args.opt_level, args.opt_algorithm)
 
     # Step 3: Generate backend code for the elements and deployment scripts.
     if not args.dry_run:
@@ -204,7 +215,7 @@ if __name__ == "__main__":
     os.environ["SERVICE_REPLICA"] = args.replica
     if args.dry_run:
         os.environ["DRY_RUN"] = "1"
-    if args.no_optimize:
+    if args.opt_level == "no":
         os.environ["ADN_NO_OPTIMIZE"] = "1"
 
     main(args)

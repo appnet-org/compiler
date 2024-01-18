@@ -137,7 +137,7 @@ class GraphIR:
         panel_list.append(make_service_rich(self.server))
         return panel_list
 
-    def optimize(self, algorithm: str):
+    def optimize(self, opt_level: str, algorithm: str):
         """Run optimization algorithm on the graphir."""
         optimize_func = cost_chain_optimize if algorithm == "cost" else chain_optimize
         self.elements["req_client"], self.elements["req_server"] = optimize_func(
@@ -145,6 +145,7 @@ class GraphIR:
             + [AbsElement("NETWORK")]
             + self.elements["req_server"],
             "request",
+            opt_level,
         )
         # TODO: currently, we don't consider optimization for the response chain,
         # so the response chain is copied from request chain.
