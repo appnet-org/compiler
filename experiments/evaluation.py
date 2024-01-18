@@ -132,9 +132,9 @@ def run_trial(curr_trial_num) -> List[Element]:
     for mode in results.keys():
 
         spec_path = (
-            "generated/randomly_generated_spec_strong.yml"
-            if "data_strong" in mode
-            else "generated/randomly_generated_spec_weak.yml"
+            "generated/randomly_generated_spec_weak.yml"
+            if "data_weak" in mode
+            else "generated/randomly_generated_spec_strong.yml"
         )
 
         # Compile the elements
@@ -151,7 +151,6 @@ def run_trial(curr_trial_num) -> List[Element]:
 
         # Specify the equivalence level (no, weak, strong, ignore)
         compile_cmd.extend(["--opt_level", mode.split("_")[-1]])
-        print(" ".join(compile_cmd))
 
         EVAL_LOG.info(f"[{mode}] Compiling spec...")
         execute_local(compile_cmd)
