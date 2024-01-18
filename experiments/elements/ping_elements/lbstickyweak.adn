@@ -1,5 +1,4 @@
 internal {
-	@consistency(strong) @combiner(sum) @persistence(true)
     lb_tab: Map<string, int>
 }
 
