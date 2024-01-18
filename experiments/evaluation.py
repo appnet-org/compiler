@@ -19,13 +19,13 @@ node_pool = ["h2"]
 
 # Some elements
 envoy_element_pool = [
-    "cache",
+    "cachestrong",
     "fault",
     "ratelimit",
-    "lbsticky",
+    "lbstickystrong",
     "logging",
     "mutation",
-    "acl",
+    "aclstrong",
     "metrics",
     "admissioncontrol",
     # "encryptping-decryptping",
@@ -89,15 +89,22 @@ def parse_args():
     return parser.parse_args()
 
 
-def generate_user_spec(backend: str, num: int, path: str) -> str:
+def generate_user_spec(backend: str, num: int, path: str):
     assert path.endswith(".yml"), "wrong user spec format"
-    selected_elements, selected_yml_str = select_random_elements(
+    (
+        selected_elements,
+        selected_yml_str_strong,
+        selected_yml_str_weak,
+    ) = select_random_elements(
         app_structure[backend]["client"], app_structure[backend]["server"], num
     )
-    spec = yml_header[backend] + selected_yml_str
-    with open(path, "w") as f:
-        f.write(spec)
-    return selected_elements, spec
+    spec_strong = yml_header[backend] + selected_yml_str_strong
+    spec_weak = yml_header[backend] + selected_yml_str_weak
+    with open(path.replace(".yml", "_strong.yml"), "w") as f:
+        f.write(spec_strong)
+    with open(path.replace(".yml", "_weak.yml"), "w") as f:
+        f.write(spec_weak)
+    return selected_elements, spec_strong
 
 
 def run_trial(curr_trial_num) -> List[Element]:
@@ -105,7 +112,7 @@ def run_trial(curr_trial_num) -> List[Element]:
     EVAL_LOG.info(
         f"Randomly generate user specification, backend = {args.backend}, number of element to generate = {args.num}..."
     )
-    selected_elements, spec = generate_user_spec(
+    selected_elements, spec_data_strong = generate_user_spec(
         args.backend,
         args.num,
         os.path.join(gen_dir, "randomly_generated_spec.yml"),
@@ -113,25 +120,38 @@ def run_trial(curr_trial_num) -> List[Element]:
     EVAL_LOG.info(f"Selected Elements and their config: {selected_elements}")
 
     ncpu = int(execute_local(["nproc"]))
-    results = {"pre-optimize": {}, "post-optimize": {}}
+    results = {
+        "opt_no": {},
+        "opt_data_strong_transport_strong": {},
+        "opt_data_strong_transport_weak": {},
+        "opt_data_weak_transport_strong": {},
+        "opt_data_weak_transport_ignore": {},
+    }
 
     # Step 2: Collect latency and CPU result for pre- and post- optimization
-    for mode in ["pre-optimize", "post-optimize"]:
+    for mode in results.keys():
+
+        spec_path = (
+            "generated/randomly_generated_spec_strong.yml"
+            if "data_strong" in mode
+            else "generated/randomly_generated_spec_weak.yml"
+        )
 
         # Compile the elements
         compile_cmd = [
             "python3.10",
             os.path.join(ROOT_DIR, "compiler/main.py"),
             "--spec",
-            os.path.join(EXP_DIR, "generated/randomly_generated_spec.yml"),
+            os.path.join(EXP_DIR, spec_path),
             "--backend",
             args.backend,
             "--replica",
             "10",
         ]
 
-        if mode == "pre-optimize":
-            compile_cmd.append("--no_optimize")
+        # Specify the equivalence level (no, weak, strong, ignore)
+        compile_cmd.extend(["--opt_level", mode.split("_")[-1]])
+        print(" ".join(compile_cmd))
 
         EVAL_LOG.info(f"[{mode}] Compiling spec...")
         execute_local(compile_cmd)
@@ -140,6 +160,8 @@ def run_trial(curr_trial_num) -> List[Element]:
         with open(os.path.join(graph_base_dir, "generated/gir_summary"), "r") as f:
             yml_list_plain = list(yaml.safe_load_all(f))
         results[mode]["graphir"] = yml_list_plain[0]["graphir"][0]
+
+        EVAL_LOG.info(f"[{mode}] Printing final GraphIR: {results[mode]['graphir']}")
 
         EVAL_LOG.info(
             f"[{mode}] Backend code and deployment script generated. Deploying the application..."
@@ -216,7 +238,7 @@ def run_trial(curr_trial_num) -> List[Element]:
 
     EVAL_LOG.info("Dumping report...")
     with open(os.path.join(report_dir, f"report_{curr_trial_num}.yml"), "w") as f:
-        f.write(spec)
+        f.write(spec_data_strong)
         f.write("---\n")
         f.write(yaml.dump(results, default_flow_style=False, indent=4))
 
