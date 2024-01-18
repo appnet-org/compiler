@@ -1,5 +1,5 @@
 import re
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 
 def find_type_index(list, target_type) -> int:
@@ -41,3 +41,46 @@ def extract_proto_message_names(
             return request_message_name, response_message_name
 
     return None, None
+
+
+def camel_to_snake(name: str) -> str:
+    # Insert an underscore before each uppercase letter and convert to lowercase
+    return "".join(["_" + i.lower() if i.isupper() else i for i in name]).lstrip("_")
+
+
+def extract_message_field_types(
+    proto_file: str, request_message_name: str, response_message_name: str
+) -> Dict[str, Dict[str, str]]:
+    with open(proto_file, "r") as file:
+        proto_content = file.read()
+
+    # Regular expressions to match message blocks and field lines within message blocks
+    message_block_pattern = re.compile(r"message\s+(\w+)\s+\{([\s\S]*?)\}")
+    field_pattern = re.compile(r"\s+(\w+)\s+(\w+)\s+=\s+\d+;")
+
+    field_mapping = {
+        "request": {},
+        "response": {},
+    }
+
+    # Find all message blocks
+    message_blocks = message_block_pattern.findall(proto_content)
+
+    # Process each message block
+    for message, fields_block in message_blocks:
+        if message == request_message_name:
+            # Find all fields in the message block
+            fields = field_pattern.findall(fields_block)
+
+            # Process each field
+            for field_type, field_name in fields:
+                field_mapping["request"][camel_to_snake(field_name)] = field_type
+        elif message == response_message_name:
+            # Find all fields in the message block
+            fields = field_pattern.findall(fields_block)
+
+            # Process each field
+            for field_type, field_name in fields:
+                field_mapping["response"][camel_to_snake(field_name)] = field_type
+
+    return field_mapping

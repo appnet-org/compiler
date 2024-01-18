@@ -409,7 +409,7 @@ WasmSelfFunctionTemplates = {
         """
             pub fn {RpcMethod}_request_modify_{VarName}(&mut self, req: &mut {Proto}::{RequestMessageName}, value: String) -> () {{
                 let mut new_body = Vec::new();
-                req.{VarName} = value.to_string();
+                req.{VarName} = value.parse().unwrap();
                 req.encode(&mut new_body).expect("Failed to encode");
                 let new_body_length = new_body.len() as u32;
                 let mut grpc_header = Vec::new();
@@ -426,9 +426,9 @@ WasmSelfFunctionTemplates = {
         WasmBasicType("()"),
         False,
         """
-            pub fn {RpcMethod}_response_modify_{VarName}(&mut self, req: &mut {Proto}::{ResponseMessageName}Response, value: String) -> () {
+            pub fn {RpcMethod}_response_modify_{VarName}(&mut self, req: &mut {Proto}::{ResponseMessageName}Response, value: {VarType}) -> () {
                 let mut new_body = Vec::new();
-                req.{VarName} = value.to_string();
+                req.{VarName} = value;
                 req.encode(&mut new_body).expect("Failed to encode");
                 let new_body_length = new_body.len() as u32;
                 let mut grpc_header = Vec::new();
