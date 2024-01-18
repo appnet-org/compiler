@@ -15,22 +15,8 @@ from compiler.graph.logger import EVAL_LOG
 
 EXP_DIR = Path(__file__).parent
 
-element_pool = [
-    "fault",
-    "cache",
-    "ratelimit",
-    "loadbalance",
-    "logging",
-    "mutation",
-    "accesscontrol",
-    "metrics",
-    "admissioncontrol",
-    "compression",
-    # "encrypt-decrypt",
-]
-pair_pool = [
-    "encrypt-decrypt",
-]
+element_pool = []
+pair_pool = []
 # TODO: update the configuration dict. Add script to generate random configurations.
 element_configs = {
     "fault": None,
@@ -147,8 +133,9 @@ def select_random_elements(client: str, server: str, number: int):
     }
 
     # Export to YAML format
-    yaml_str = yaml.dump(yaml_data, default_flow_style=False, indent=4)
-    return sorted_elements + [p for p in pairs], yaml_str
+    yaml_str_strong = yaml.dump(yaml_data, default_flow_style=False, indent=4)
+    yaml_str_weak = yaml_str_strong.replace("strong", "weak")
+    return sorted_elements + [p for p in pairs], yaml_str_strong, yaml_str_weak
 
 
 def test_application(num_requests=10, timeout_duration=1):

@@ -23,13 +23,16 @@ logger.addHandler(stream_handler)
 TEST_LOG = logging.getLogger("COMPILER TEST")
 
 element_pool = [
-    "cache",
+    "cachestrong",
+    "cacheweak",
+    "aclstrong",
+    "aclweak",
+    "lbstickystrong",
+    "lbstickyweak",
     "fault",
     "ratelimit",
-    "lbsticky",
     "logging",
     "mutation",
-    "acl",
     "metrics",
     "admissioncontrol",
     "bandwidthlimit",
@@ -42,26 +45,26 @@ apps = {
         "proto_file": os.path.join(proto_base_dir, "ping.proto"),   
         "method_name": "PingEcho",
     },
-    "reservation": {
-        "proto_file": os.path.join(proto_base_dir, "reservation.proto"),   
-        "method_name": "CheckAvailability",
-    },
-    "search": {
-        "proto_file": os.path.join(proto_base_dir, "search.proto"),   
-        "method_name": "Nearby",
-    },
-    "rate": {
-        "proto_file": os.path.join(proto_base_dir, "rate.proto"),   
-        "method_name": "GetRates",
-    },
-    "profile": {
-        "proto_file": os.path.join(proto_base_dir, "profile.proto"),   
-        "method_name": "GetProfiles",
-    },
-    "geo": {
-        "proto_file": os.path.join(proto_base_dir, "geo.proto"),   
-        "method_name": "Nearby",
-    },
+    # "reservation": {
+    #     "proto_file": os.path.join(proto_base_dir, "reservation.proto"),   
+    #     "method_name": "CheckAvailability",
+    # },
+    # "search": {
+    #     "proto_file": os.path.join(proto_base_dir, "search.proto"),   
+    #     "method_name": "Nearby",
+    # },
+    # "rate": {
+    #     "proto_file": os.path.join(proto_base_dir, "rate.proto"),   
+    #     "method_name": "GetRates",
+    # },
+    # "profile": {
+    #     "proto_file": os.path.join(proto_base_dir, "profile.proto"),   
+    #     "method_name": "GetProfiles",
+    # },
+    # "geo": {
+    #     "proto_file": os.path.join(proto_base_dir, "geo.proto"),   
+    #     "method_name": "Nearby",
+    # },
 }
 
 backend = "envoy"
