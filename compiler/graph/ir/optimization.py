@@ -6,6 +6,18 @@ from typing import List, Tuple
 from compiler.graph.ir.element import AbsElement
 
 
+def init_dependency(chain: List[AbsElement], path: str):
+    for element in chain:
+        if element.has_prop(path, "record"):
+            element.add_prop(path, "record", ["droptrace", "blocktrace", "copytrace"])
+        if element.has_prop(path, "drop"):
+            element.add_prop(path, "write", "droptrace")
+        if element.has_prop(path, "block"):
+            element.add_prop(path, "write", "blocktrace")
+        if element.has_prop(path, "copy"):
+            element.add_prop(path, "write", "copytrace")
+
+
 def gen_dependency(chain: List[AbsElement], path: str):
     fields = {"droptrace", "blocktrace", "copytrace"}
     for element in chain:
@@ -56,11 +68,20 @@ def position_valid(chain: List[AbsElement]) -> bool:
     return True
 
 
-def equivalent(chain: List[AbsElement], new_chain: List[AbsElement], path: str) -> bool:
+def equivalent(
+    chain: List[AbsElement], new_chain: List[AbsElement], path: str, opt_level: str
+) -> bool:
     if not position_valid(new_chain):
         return False
+    if opt_level == "ignore":
+        return True
     dep, new_dep = gen_dependency(chain, path), gen_dependency(new_chain, path)
-    return dep["read"] == new_dep["read"]
+    if opt_level == "weak":
+        return dep["read"] == new_dep["read"]
+    elif opt_level == "strong":
+        return dep == new_dep
+    else:
+        raise ValueError(f"Unexpected optimization level {opt_level}")
     # return dep == new_dep
 
 
@@ -68,17 +89,9 @@ class OptimizedLabel(Exception):
     pass
 
 
-def reorder(chain: List[AbsElement], path: str) -> List[AbsElement]:
+def reorder(chain: List[AbsElement], path: str, opt_level: str) -> List[AbsElement]:
     # preparation: add some properties for analysis
-    for element in chain:
-        if element.has_prop(path, "record"):
-            element.add_prop(path, "record", ["droptrace", "blocktrace", "copytrace"])
-        if element.has_prop(path, "drop"):
-            element.add_prop(path, "write", "droptrace")
-        if element.has_prop(path, "block"):
-            element.add_prop(path, "write", "blocktrace")
-        if element.has_prop(path, "copy"):
-            element.add_prop(path, "write", "copytrace")
+    init_dependency(chain, path)
     # reorder
     optimized = True
     while optimized:
@@ -100,7 +113,7 @@ def reorder(chain: List[AbsElement], path: str) -> List[AbsElement]:
                         break
                     # strategy 1: move drop element at the front of non-drop ones
                     new_chain = chain[:i] + [chain[j]] + chain[i:j] + chain[j + 1 :]
-                    if equivalent(chain, new_chain, path):
+                    if equivalent(chain, new_chain, path, opt_level):
                         chain = new_chain
                         optimized = True
                         raise OptimizedLabel()
@@ -108,7 +121,7 @@ def reorder(chain: List[AbsElement], path: str) -> List[AbsElement]:
                     new_chain = (
                         chain[:i] + chain[i + 1 : j + 1] + [chain[i]] + chain[j + 1 :]
                     )
-                    if equivalent(chain, new_chain, path):
+                    if equivalent(chain, new_chain, path, opt_level):
                         chain = new_chain
                         optimized = True
                         raise OptimizedLabel()
@@ -120,13 +133,13 @@ def reorder(chain: List[AbsElement], path: str) -> List[AbsElement]:
                     new_chain = (
                         chain[:i] + chain[i + 1 : j + 1] + [chain[i]] + chain[j + 1 :]
                     )
-                    if equivalent(chain, new_chain, path):
+                    if equivalent(chain, new_chain, path, opt_level):
                         chain = new_chain
                         optimized = True
                         raise OptimizedLabel()
                     # strategy 2: move non-copy element at the front of copy ones
                     new_chain = chain[:i] + [chain[j]] + chain[i:j] + chain[j + 1 :]
-                    if equivalent(chain, new_chain, path):
+                    if equivalent(chain, new_chain, path, opt_level):
                         chain = new_chain
                         optimized = True
                         raise OptimizedLabel()
@@ -198,6 +211,7 @@ def split_and_consolidate(
 def chain_optimize(
     chain: List[AbsElement],
     path: str,
+    opt_level: str,
 ) -> Tuple[List[AbsElement], List[AbsElement]]:
     """Optimize an element chain
 
@@ -210,7 +224,7 @@ def chain_optimize(
         client chain and server chain
     """
     # Step 1: Reorder + Migration
-    chain = reorder(chain, path)
+    chain = reorder(chain, path, opt_level)
 
     # Step 2: Further migration - more opportunities for state consolidation
     # and turning off sidecars
@@ -266,10 +280,11 @@ def cost(chain: List[AbsElement], path: str) -> float:
     return cost
 
 
-def cost_chain_optimize(chain: List[AbsElement], path: str):
+def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str):
     min_cost = cost(chain, path)
+    init_dependency(chain, path)
     for new_chain in permutations(chain):
-        if position_valid(new_chain) and equivalent(chain, new_chain, path):
+        if position_valid(new_chain) and equivalent(chain, new_chain, path, opt_level):
             new_cost = cost(new_chain, path)
             if new_cost < min_cost:
                 chain = new_chain
