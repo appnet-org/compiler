@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import os
 from copy import deepcopy
-from typing import Dict
+from pprint import pprint
+from typing import Dict, List, Tuple
 
 import yaml
 
@@ -14,7 +16,12 @@ from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_BACKEND_LOG
 
 
-def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
+def scriptgen_envoy(
+    girs: Dict[str, GraphIR],
+    app: str,
+    app_manifest_file: str,
+    app_edges: List[Tuple[str, str]],
+):
     global local_gen_dir
     local_gen_dir = os.path.join(graph_base_dir, "generated")
     os.makedirs(local_gen_dir, exist_ok=True)
@@ -64,11 +71,11 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
     GRAPH_BACKEND_LOG.info("Generating the istio manifest file for the application...")
     with open(app_manifest_file, "r") as f:
         yml_list_plain = list(yaml.safe_load_all(f))
-    for file in yml_list_plain:
-        if file["kind"] == "Deployment":
-            file["spec"]["template"]["metadata"].update(
-                {"annotations": {"sidecar.istio.io/inject": "false"}}
-            )
+    # for file in yml_list_plain:
+    #     if file["kind"] == "Deployment":
+    #         file["spec"]["template"]["metadata"].update(
+    #             {"annotations": {"sidecar.istio.io/inject": "false"}}
+    #         )
     service_to_hostname = extract_service_pos(yml_list_plain)
     service_to_port_number = extract_service_port(yml_list_plain)
 
@@ -84,7 +91,18 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
             services.append(yml["metadata"]["name"])
 
     # element_deploy_count counts the number of elements attached to each service.
-    element_deploy_count = {sname: 0 for sname in services}
+    # structure example:
+    # element_deploy_count[service1][(service2, "C")] = c
+    #    service1 (c elements) -> service2
+    element_deploy_count = {}
+
+    for client, server in app_edges:
+        if client not in element_deploy_count:
+            element_deploy_count[client] = {}
+        if server not in element_deploy_count:
+            element_deploy_count[server] = {}
+        element_deploy_count[client][f"{server}_C"] = 0
+        element_deploy_count[server][f"{client}_S"] = 0
 
     # Attach elements to the sidecar pods using volumes
     for gir in girs.values():
@@ -92,6 +110,12 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
             (e, gir.server) for e in gir.elements["req_server"]
         ]
         for (element, sname) in elist:
+            # increment element count on client/server services
+            if sname == gir.client:
+                element_deploy_count[sname][f"{gir.server}_C"] += 1
+            else:
+                element_deploy_count[sname][f"{gir.client}_S"] += 1
+
             # If the element is stateful and requires strong consistency, deploy a webdis instance
             if (
                 # hasattr(element, "_prop") and
@@ -118,9 +142,6 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
                 )
                 yml_list_istio.append(webdis_service_copy)
                 yml_list_istio.append(webdis_deploy_copy)
-
-            # Increment the element deploy count
-            element_deploy_count[sname] += 1
 
             # Copy the wasm binary to the remote host
             copy_remote_host(
@@ -149,13 +170,28 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
                 }
             )
 
+    bypass_info_dict = {
+        "element_deploy_count": element_deploy_count,
+        "service_to_hostname": service_to_hostname,
+        "service_to_port_number": service_to_port_number,
+    }
+    # pprint(bypass_info_dict)
+    # bypass_info_dump_path = os.path.join(local_gen_dir, "bypass_info.json")
+    # with open(bypass_info_dump_path, "w") as f:
+    #     json.dump(bypass_info_dict, f, indent = 4)
+
+    # if s1 -> s2 has no element on client/server side, bypass sidecar
+    bypass_script_dump_path = os.path.join(local_gen_dir, "bypass.py")
+    with open(bypass_script_dump_path, "w") as f:
+        f.write(bypass_script.format(bypass_info_dict=str(bypass_info_dict)))
+
     # if a service has no elment attached, turn off its sidecar
-    if os.getenv("ADN_NO_OPTIMIZE") != "1":
-        for sname in services:
-            if element_deploy_count[sname] == 0:
-                target_yml = find_target_yml(locals()["yml_list_istio"], sname)
-                target_yml.clear()
-                target_yml.update(find_target_yml(locals()["yml_list_plain"], sname))
+    # if os.getenv("ADN_NO_OPTIMIZE") != "1":
+    #     for sname in services:
+    #         if element_deploy_count[sname] == 0:
+    #             target_yml = find_target_yml(locals()["yml_list_istio"], sname)
+    #             target_yml.clear()
+    #             target_yml.update(find_target_yml(locals()["yml_list_plain"], sname))
 
     # Adjust replica count
     replica = os.getenv("SERVICE_REPLICA")
