@@ -1,5 +1,5 @@
 internal {
-    lb_tab: Map<string, int>
+    lb_tab: Map<string, string>
 }
 
 fn init() {

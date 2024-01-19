@@ -1,5 +1,10 @@
 import argparse
 import datetime
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent.absolute()))
+sys.path.append(str(Path(__file__).parent.absolute()))
 
 from compiler.config import COMPILER_ROOT
 from compiler.element import compile_element_property, gen_code

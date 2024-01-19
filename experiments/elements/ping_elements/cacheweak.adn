@@ -28,7 +28,6 @@ fn req(rpc_req) {
 
 fn resp(rpc_resp) {
     key := rpc_resp.get('body');
-	value := 'cached';
-	cache.set(key, value);
+	cache.set(key, 'cached');
 	send(rpc_resp, APP);
 }

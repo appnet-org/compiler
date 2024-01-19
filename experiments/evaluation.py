@@ -125,6 +125,7 @@ def run_trial(curr_trial_num) -> List[Element]:
         "opt_data_strong_transport_strong": {},
         "opt_data_strong_transport_weak": {},
         "opt_data_weak_transport_strong": {},
+        "opt_data_weak_transport_weak": {},
         "opt_data_weak_transport_ignore": {},
     }
 
