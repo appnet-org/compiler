@@ -205,7 +205,7 @@ def ksync():
     wait_until_running()
 
 
-def kapply(file_or_dir: str):
+def kapply_and_sync(file_or_dir: str):
     """Apply changes in file to knodes.
 
     Args:
@@ -259,7 +259,7 @@ def bypass_sidecar(hostname: str, service_name: str, port: str, direction: str):
     """Set up iptables rules for each container on a remote server"""
     pids = get_container_pids(hostname, service_name)
     for pid in pids:
-        print(f"Setting up {direction} iptables on server {hostname} with PID {pid}")
+        # print(f"Setting up {direction} iptables on server {hostname} with PID {pid}")
         if direction == "S":
             # inbound traffic
             run_remote_command(
@@ -270,7 +270,7 @@ def bypass_sidecar(hostname: str, service_name: str, port: str, direction: str):
             # outbound traffic
             run_remote_command(
                 hostname,
-                f"sudo nsenter -t {pid} -n iptables -t nat -I OUTPUT 1 -p tcp --dport {port} -j ACCEPT",
+                f"sudo nsenter -t {pid} -n iptables -t nat -I OUTPUT 1 -p tcp --dport {port} -j RETURN",
             )
         else:
             raise ValueError
