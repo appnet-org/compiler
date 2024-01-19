@@ -1,6 +1,7 @@
 """
 Utility functions for executing commands in remote hosts/containers.
 """
+import json
 import os
 import subprocess
 import time
@@ -217,3 +218,96 @@ def kapply(file_or_dir: str):
 def kdestroy():
     """Destroy all deployments"""
     execute_local(["kubectl", "delete", "envoyfilters,all,pvc,pv", "--all"])
+
+
+def run_remote_command(server: str, command: str):
+    """Run a command on a remote server via SSH"""
+    ssh_command = f"ssh {server} '{command}'"
+    result = subprocess.run(ssh_command, shell=True, text=True, capture_output=True)
+    if result.returncode != 0:
+        raise Exception(f"Command failed on {server}: {ssh_command}\n{result.stderr}")
+    return result.stdout
+
+
+def get_container_pids(server: str, service_name: str):
+    """Get PIDs of sidecar proxies for a given microservice on a remote server"""
+    containers_output = run_remote_command(
+        server,
+        "sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock ps",
+    )
+
+    # Adjust the following logic based on your container identification method
+    sidecar_containers = []
+    for line in containers_output.splitlines()[1:]:
+        if service_name in line and "istio-proxy" in line:
+            container_id = line.split()[0]
+            sidecar_containers.append(container_id)
+
+    pids = []
+    for container_id in sidecar_containers:
+        inspect_output = run_remote_command(
+            server,
+            f"sudo crictl --runtime-endpoint unix:///run/containerd/containerd.sock inspect {container_id}",
+        )
+        pid = json.loads(inspect_output)["info"]["pid"]
+        pids.append(pid)
+
+    return pids
+
+
+def bypass_sidecar(hostname: str, service_name: str, port: str, direction: str):
+    """Set up iptables rules for each container on a remote server"""
+    pids = get_container_pids(hostname, service_name)
+    for pid in pids:
+        print(f"Setting up {direction} iptables on server {hostname} with PID {pid}")
+        if direction == "S":
+            # inbound traffic
+            run_remote_command(
+                hostname,
+                f"sudo nsenter -t {pid} -n iptables -t nat -I PREROUTING 1 -p tcp --dport {port} -j ACCEPT",
+            )
+        elif direction == "C":
+            # outbound traffic
+            run_remote_command(
+                hostname,
+                f"sudo nsenter -t {pid} -n iptables -t nat -I OUTPUT 1 -p tcp --dport {port} -j ACCEPT",
+            )
+        else:
+            raise ValueError
+
+
+# Example usage
+# if __name__ == "__main__":
+#     try:
+#         remote_servers = ["h2"]  # List of remote servers
+#         for server in remote_servers:
+#             setup_iptables(server, "ping", 8081, "inbound")
+#             setup_iptables(server, "frontend", 8081, "outbound")
+#             setup_iptables(server, "frontend", 8080, "inbound")
+#     except Exception as e:
+#         print(f"Error: {e}")
+
+bypass_script = """
+import os
+import json
+import sys
+
+sys.path.append(os.path.join(os.getenv("HOME"), "adn-compiler"))
+from compiler.graph.backend.utils import bypass_sidecar
+
+bypass_info_dict = {bypass_info_dict}
+
+element_deploy_count = bypass_info_dict["element_deploy_count"]
+service_to_hostname = bypass_info_dict["service_to_hostname"]
+service_to_port_number = bypass_info_dict["service_to_port_number"]
+
+for current_service, count_dict in element_deploy_count.items():
+    for other_service_placement in count_dict.keys():
+        other_service, placement = "_".join(other_service_placement.split("_")[:-1]), other_service_placement.split("_")[-1]
+        count = count_dict[other_service_placement]
+        if count == 0:
+            # no element, need to bypass sidecar
+            host = service_to_hostname[current_service]
+            port = service_to_port_number[other_service] if placement == "C" else service_to_port_number[current_service]
+            bypass_sidecar(host, current_service, port, placement)
+"""

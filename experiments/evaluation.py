@@ -175,6 +175,19 @@ def run_trial(curr_trial_num) -> List[Element]:
         EVAL_LOG.info(f"[{mode}] Application deployed...")
         time.sleep(10)
 
+        # bypass sidecars when possible
+        EVAL_LOG.info(
+            f"[{mode}] Configuring iptable rules to bypass sidecars when possible..."
+        )
+        execute_local(
+            [
+                "python3.10",
+                os.path.join(graph_base_dir, "generated/bypass.py"),
+            ]
+        )
+
+        # break
+
         # Perform some basic testing to see if the application is healthy
         if test_application():
             EVAL_LOG.info(f"[{mode}] Application is healthy...")
@@ -182,7 +195,7 @@ def run_trial(curr_trial_num) -> List[Element]:
             EVAL_LOG.warning(
                 f"[{mode}] Application is unhealthy. Restarting the trial..."
             )
-            return selected_elements, "Application Healh Check Failed"
+            return selected_elements, "Application Health Check Failed"
 
         # Run wrk to get the service time
         EVAL_LOG.info(
