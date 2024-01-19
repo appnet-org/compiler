@@ -183,7 +183,10 @@ def scriptgen_envoy(
     # if s1 -> s2 has no element on client/server side, bypass sidecar
     bypass_script_dump_path = os.path.join(local_gen_dir, "bypass.py")
     with open(bypass_script_dump_path, "w") as f:
-        f.write(bypass_script.format(bypass_info_dict=str(bypass_info_dict)))
+        if os.getenv("ADN_NO_OPTIMIZE") != "1":
+            f.write(bypass_script.format(bypass_info_dict=str(bypass_info_dict)))
+        else:
+            f.write("pass")
 
     # if a service has no elment attached, turn off its sidecar
     # if os.getenv("ADN_NO_OPTIMIZE") != "1":
