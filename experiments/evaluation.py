@@ -86,6 +86,7 @@ def parse_args():
     parser.add_argument(
         "--target_rate", help="wrk2 request rate", type=int, default=10000
     )
+    parser.add_argument("--app", type=str, choices=["ping-pong", "hotel"])
     return parser.parse_args()
 
 
@@ -185,6 +186,9 @@ def run_trial(curr_trial_num) -> List[Element]:
                 os.path.join(graph_base_dir, "generated/bypass.py"),
             ]
         )
+        if args.app == "ping-pong":
+            for node in node_pool:
+                bypass_sidecar(node, "frontend", "8080", "S")
 
         # break
 
