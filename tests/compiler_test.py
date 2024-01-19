@@ -37,7 +37,7 @@ element_pool = [
     "admissioncontrol",
     "bandwidthlimit",
     "circuitbreaker",
-    "encryptping-decryptping",
+    # "encryptping-decryptping",
 ]
 
 apps = {
