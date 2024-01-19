@@ -113,6 +113,9 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
                 webdis_deploy_copy["metadata"][
                     "name"
                 ] = f"webdis-test-{element.lib_name}"
+                webdis_deploy_copy["spec"]["template"]["spec"].update(
+                    {"nodeName": service_to_hostname[sname]}
+                )
                 yml_list_istio.append(webdis_service_copy)
                 yml_list_istio.append(webdis_deploy_copy)
 
