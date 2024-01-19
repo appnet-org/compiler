@@ -71,7 +71,6 @@ def scriptgen_envoy(girs: Dict[str, GraphIR], app: str, app_manifest_file: str):
             )
     service_to_hostname = extract_service_pos(yml_list_plain)
     service_to_port_number = extract_service_port(yml_list_plain)
-    print(service_to_port_number)
 
     with open(os.path.join(local_gen_dir, app + "_istio.yml"), "r") as f:
         yml_list_istio = list(yaml.safe_load_all(f))
