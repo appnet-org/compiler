@@ -43,6 +43,7 @@ spec:
       labels:
         io.kompose.service: user
     spec:
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./user
@@ -99,12 +100,11 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        # sidecar.istio.io/statsInclusionPrefixes: cluster.outbound,cluster_manager,listener_manager,http_mixer_filter,tcp_mixer_filter,server,cluster.xds-grp,listener,connection_manager
-        # sidecar.istio.io/statsInclusionRegexps: http.*
       creationTimestamp: null
       labels:
         io.kompose.service: search
     spec:
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./search
@@ -166,6 +166,7 @@ spec:
       labels:
         io.kompose.service: reservation
     spec:
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./reservation
@@ -227,6 +228,7 @@ spec:
       labels:
         io.kompose.service: recommendation
     spec:
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./recommendation
@@ -288,6 +290,7 @@ spec:
       labels:
         io.kompose.service: rate
     spec:
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./rate
@@ -349,6 +352,7 @@ spec:
       labels:
         io.kompose.service: profile
     spec:
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./profile
@@ -406,12 +410,11 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        # sidecar.istio.io/statsInclusionPrefixes: cluster.outbound,cluster_manager,listener_manager,http_mixer_filter,tcp_mixer_filter,server,cluster.xds-grp,listener,connection_manager
-        # sidecar.istio.io/statsInclusionRegexps: http.*
       creationTimestamp: null
       labels:
         io.kompose.service: geo
     spec:
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./geo
@@ -470,12 +473,11 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        # sidecar.istio.io/statsInclusionPrefixes: cluster.outbound,cluster_manager,listener_manager,http_mixer_filter,tcp_mixer_filter,server,cluster.xds-grp,listener,connection_manager
-        # sidecar.istio.io/statsInclusionRegexps: http.*
       creationTimestamp: null
       labels:
         io.kompose.service: frontend
     spec:
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./frontend

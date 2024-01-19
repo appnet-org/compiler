@@ -12,3 +12,11 @@ spec:
   hostPath:
     path: /data/volumes/reservation-pv   # Where all the hard drives are mounted
     type: DirectoryOrCreate
+  nodeAffinity:     
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - h2.hotel.meshbench-pg0.clemson.cloudlab.us
