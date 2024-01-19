@@ -24,6 +24,7 @@ spec:
       labels:
         io.kompose.service: jaeger
     spec:
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - image: jaegertracing/all-in-one:latest
           name: hotel-reserv-jaeger
