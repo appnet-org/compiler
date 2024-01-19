@@ -23,7 +23,7 @@ spec:
       labels:
         app: frontend
     spec:
-      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
+      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
       containers:
       - name: frontend
         image: xzhu0027/ping_pong_app
@@ -57,7 +57,7 @@ spec:
       labels:
         app: ping
     spec:
-      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
+      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
       containers:
       - name: ping
         image: xzhu0027/ping_pong_app
@@ -91,7 +91,7 @@ spec:
       labels:
         app: pong
     spec:
-      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
+      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
       containers:
       - name: pong
         image: xzhu0027/ping_pong_app
