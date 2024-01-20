@@ -264,28 +264,16 @@ def bypass_sidecar(hostname: str, service_name: str, port: str, direction: str):
             # inbound traffic
             run_remote_command(
                 hostname,
-                f"sudo nsenter -t {pid} -n iptables -t nat -I PREROUTING 1 -p tcp --dport {port} -j ACCEPT",
+                f"sudo nsenter -t {pid} -n iptables -t nat -I PREROUTING 1 -p tcp --dport {port} -j ACCEPT -w",
             )
         elif direction == "C":
             # outbound traffic
             run_remote_command(
                 hostname,
-                f"sudo nsenter -t {pid} -n iptables -t nat -I OUTPUT 1 -p tcp --dport {port} -j RETURN",
+                f"sudo nsenter -t {pid} -n iptables -t nat -I OUTPUT 1 -p tcp --dport {port} -j RETURN -w",
             )
         else:
             raise ValueError
-
-
-# Example usage
-# if __name__ == "__main__":
-#     try:
-#         remote_servers = ["h2"]  # List of remote servers
-#         for server in remote_servers:
-#             setup_iptables(server, "ping", 8081, "inbound")
-#             setup_iptables(server, "frontend", 8081, "outbound")
-#             setup_iptables(server, "frontend", 8080, "inbound")
-#     except Exception as e:
-#         print(f"Error: {e}")
 
 bypass_script = """
 import os
@@ -311,3 +299,15 @@ for current_service, count_dict in element_deploy_count.items():
             port = service_to_port_number[other_service] if placement == "C" else service_to_port_number[current_service]
             bypass_sidecar(host, current_service, port, placement)
 """
+
+
+# if __name__ == "__main__":
+# Example usage
+#     try:
+#         remote_servers = ["h2"]  # List of remote servers
+#         for server in remote_servers:
+#             setup_iptables(server, "ping", 8081, "inbound")
+#             setup_iptables(server, "frontend", 8081, "outbound")
+#             setup_iptables(server, "frontend", 8080, "inbound")
+#     except Exception as e:
+#         print(f"Error: {e}")
