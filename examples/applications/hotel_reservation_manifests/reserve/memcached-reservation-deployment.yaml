@@ -24,7 +24,7 @@ spec:
       labels:
         io.kompose.service: memcached-reserve
     spec:
-      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
+      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us
       containers:
         - env:
             - name: MEMCACHED_CACHE_SIZE

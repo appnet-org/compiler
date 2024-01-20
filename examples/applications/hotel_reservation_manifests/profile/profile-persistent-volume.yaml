@@ -19,4 +19,4 @@ spec:
             - key: kubernetes.io/hostname
               operator: In
               values:
-                - h2.hotel.meshbench-pg0.clemson.cloudlab.us
+                - h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us

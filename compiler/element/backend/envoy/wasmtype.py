@@ -142,11 +142,11 @@ class WasmSyncMapType(WasmType):
         self, args: List[str], vname: str, ename: str, current_procedure: str
     ) -> str:
         assert len(args) == 2
-        return_stmt = (
-            ""
-            if current_procedure in [FUNC_INIT, FUNC_EXTERNAL_RESPONSE]
-            else "return Action::Pause;"
-        )
+        # return_stmt = (
+        #     ""
+        #     if current_procedure in [FUNC_INIT, FUNC_EXTERNAL_RESPONSE]
+        #     else "return Action::Pause;"
+        # )
         return (
             f"""self.dispatch_http_call(
                         "webdis-service-{ename}", // or your service name
@@ -162,7 +162,7 @@ class WasmSyncMapType(WasmType):
                     )
                     .unwrap();
                     """
-            + return_stmt
+            # + return_stmt
         )
 
 

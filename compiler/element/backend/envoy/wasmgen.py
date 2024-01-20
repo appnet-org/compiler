@@ -321,7 +321,7 @@ class WasmGenerator(Visitor):
                 res_init_code += f"let mut {sname}_read: Option<String> = None;\n"
                 res_get_code += f"""{sname}_read = match(mget[{i}]) {{
                                         serde_json::Value::Null => None,
-                                        _ => Some(mget[{i}].to_string())
+                                        _ => Some(mget[{i}].as_str().unwrap().to_string())
                                     }};
                                 """
             ctx.push_code(
@@ -364,7 +364,8 @@ class WasmGenerator(Visitor):
                             {res_get_code}
                         }}
                         _ => {{
-                            log::warn!("Only GET results will be parsed!")
+                            log::warn!("Only GET results will be parsed!");
+                            return;
                         }}
                     }},
                     Err(_) => log::warn!("Response body: [Invalid JSON data]"),

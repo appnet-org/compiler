@@ -8,13 +8,19 @@ edge:
         name: cachestrong
         position: C
         proto: /users/starling/adn-compiler/examples/proto/ping.proto
+    -   method: PingEcho
+        name: lbstickystrong
+        position: C
+        proto: /users/starling/adn-compiler/examples/proto/ping.proto
     # -   method: PingEcho
-    #     name: aclweak
+    #     name: mutation
     #     position: C
     #     proto: /users/starling/adn-compiler/examples/proto/ping.proto
+    -   method: PingEcho
+        name: circuitbreaker
+        position: C/S
+        proto: /users/starling/adn-compiler/examples/proto/ping.proto
     # -   method: PingEcho
-    #     name: admissioncontrol
+    #     name: fault
     #     position: S
     #     proto: /users/starling/adn-compiler/examples/proto/ping.proto
-link:
-    frontend->ping: []
