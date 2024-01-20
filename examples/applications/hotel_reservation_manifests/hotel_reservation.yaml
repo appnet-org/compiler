@@ -43,7 +43,7 @@ spec:
       labels:
         io.kompose.service: user
     spec:
-      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./user
@@ -104,7 +104,7 @@ spec:
       labels:
         io.kompose.service: search
     spec:
-      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./search
@@ -166,7 +166,7 @@ spec:
       labels:
         io.kompose.service: reservation
     spec:
-      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./reservation
@@ -228,7 +228,7 @@ spec:
       labels:
         io.kompose.service: recommendation
     spec:
-      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./recommendation
@@ -290,7 +290,7 @@ spec:
       labels:
         io.kompose.service: rate
     spec:
-      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./rate
@@ -352,7 +352,7 @@ spec:
       labels:
         io.kompose.service: profile
     spec:
-      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./profile
@@ -414,7 +414,7 @@ spec:
       labels:
         io.kompose.service: geo
     spec:
-      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./geo
@@ -477,7 +477,7 @@ spec:
       labels:
         io.kompose.service: frontend
     spec:
-      nodeName: h2.xzhu-185581.meshbench-pg0.clemson.cloudlab.us
+      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
         - command:
             - ./frontend
