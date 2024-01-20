@@ -1,9 +1,9 @@
 import os
 import random
 import re
+import statistics
 import subprocess
 import time
-import statistics
 from pathlib import Path
 
 import yaml
@@ -262,7 +262,9 @@ def get_virtual_cores(node_names, core_count, duration):
         for line in lines:
             if "all" in line and "Average" not in line:
                 usage_data = line.split()
-                cpu_usage = 100.00 - float(usage_data[-1])  # Idle percentage subtracted from 100
+                cpu_usage = 100.00 - float(
+                    usage_data[-1]
+                )  # Idle percentage subtracted from 100
                 cpu_usages.append(cpu_usage)
 
         if cpu_usages:
@@ -270,10 +272,10 @@ def get_virtual_cores(node_names, core_count, duration):
             median_cpu_usage = statistics.median(cpu_usages)
             average_cpu_usages.append(average_cpu_usage)
             median_cpu_usages.append(median_cpu_usage)
-            
+
     average_total = round(sum(average_cpu_usages) * core_count / 100, 2)
     median_total = round(sum(median_cpu_usages) * core_count / 100, 2)
-    
+
     return average_total, median_total
 
 
@@ -302,7 +304,9 @@ def run_wrk2_and_get_cpu(
         stderr=subprocess.PIPE,
     )
 
-    average_vcores, median_vcores = get_virtual_cores(node_names, cores_per_node, mpstat_duration)
+    average_vcores, median_vcores = get_virtual_cores(
+        node_names, cores_per_node, mpstat_duration
+    )
 
     stdout_data, stderr_data = proc.communicate()
 

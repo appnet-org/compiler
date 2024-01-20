@@ -275,6 +275,7 @@ def bypass_sidecar(hostname: str, service_name: str, port: str, direction: str):
         else:
             raise ValueError
 
+
 bypass_script = """
 import os
 import json
