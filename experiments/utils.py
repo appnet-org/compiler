@@ -302,7 +302,7 @@ def run_wrk2_and_get_cpu(
         stderr=subprocess.PIPE,
     )
 
-    average_vcores, median_vcores = get_virtual_cores(node_names, cores_per_node, mpstat_duration), 2
+    average_vcores, median_vcores = get_virtual_cores(node_names, cores_per_node, mpstat_duration)
 
     stdout_data, stderr_data = proc.communicate()
 
