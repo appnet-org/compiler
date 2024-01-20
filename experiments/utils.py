@@ -1,6 +1,7 @@
 import os
 import random
 import re
+import statistics
 import subprocess
 import time
 from pathlib import Path
@@ -250,16 +251,32 @@ def run_wrk_and_get_latency(lua_script_path, duration=20):
 
 
 def get_virtual_cores(node_names, core_count, duration):
-    total_util = []
+    average_cpu_usages = []
+    median_cpu_usages = []
     for node_name in node_names:
         cmd = ["ssh", node_name, "mpstat", "1", str(duration)]
         result = subprocess.run(cmd, stdout=subprocess.PIPE)
-        result_average = result.stdout.decode("utf-8").split("\n")[-2].split()
-        per_node_util = 100.00 - float(result_average[-1])
-        total_util.append(per_node_util)
+        lines = result.stdout.decode("utf-8").split("\n")
+        # Parse CPU usage for each interval and calculate average and median
+        cpu_usages = []
+        for line in lines:
+            if "all" in line and "Average" not in line:
+                usage_data = line.split()
+                cpu_usage = 100.00 - float(
+                    usage_data[-1]
+                )  # Idle percentage subtracted from 100
+                cpu_usages.append(cpu_usage)
 
-    virtual_cores = sum(total_util) * core_count / 100
-    return virtual_cores
+        if cpu_usages:
+            average_cpu_usage = sum(cpu_usages) / len(cpu_usages)
+            median_cpu_usage = statistics.median(cpu_usages)
+            average_cpu_usages.append(average_cpu_usage)
+            median_cpu_usages.append(median_cpu_usage)
+
+    average_total = round(sum(average_cpu_usages) * core_count / 100, 2)
+    median_total = round(sum(median_cpu_usages) * core_count / 100, 2)
+
+    return average_total, median_total
 
 
 def run_wrk2_and_get_cpu(
@@ -287,7 +304,9 @@ def run_wrk2_and_get_cpu(
         stderr=subprocess.PIPE,
     )
 
-    vcores = round(get_virtual_cores(node_names, cores_per_node, mpstat_duration), 2)
+    average_vcores, median_vcores = get_virtual_cores(
+        node_names, cores_per_node, mpstat_duration
+    )
 
     stdout_data, stderr_data = proc.communicate()
 
@@ -316,7 +335,8 @@ def run_wrk2_and_get_cpu(
             )
             # return None
     return {
-        "vcores": float(vcores),
+        "average vcores": float(average_vcores),
+        "median vcores": float(median_vcores),
         "recorded rps": float(req_sec),
     }
 

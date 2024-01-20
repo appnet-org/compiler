@@ -171,8 +171,7 @@ def run_trial(curr_trial_num) -> List[Element]:
         kdestroy()
 
         # Deploy the application and elements. Wait until they are in running state...
-        kapply(os.path.join(graph_base_dir, "generated"))
-        ksync()
+        kapply_and_sync(os.path.join(graph_base_dir, "generated"))
         EVAL_LOG.info(f"[{mode}] Application deployed...")
         time.sleep(10)
 
@@ -294,6 +293,9 @@ if __name__ == "__main__":
     total_trials = 0
     failed_configurations = []
     total_time = 0
+
+    # Disable mtls for istio
+    kapply_and_sync(os.path.join(ROOT_DIR, "utils"))
 
     while completed_trials < args.trials:
         average_time_per_trial = (
