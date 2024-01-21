@@ -133,9 +133,9 @@ def run_trial(curr_trial_num) -> List[Element]:
     for mode in results.keys():
 
         spec_path = (
-            "generated/randomly_generated_spec_weak.yml"
+            "generated_ping/randomly_generated_spec_weak.yml"
             if "data_weak" in mode
-            else "generated/randomly_generated_spec_strong.yml"
+            else "generated_ping/randomly_generated_spec_strong.yml"
         )
 
         # Compile the elements
