@@ -4,8 +4,8 @@ metadata:
   name: rate-pvc
 spec:
   accessModes:
-    - ReadWriteOnce
-  storageClassName: rate-storage
+  - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
+  storageClassName: rate-storage

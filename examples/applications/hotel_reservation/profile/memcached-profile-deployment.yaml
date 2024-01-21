@@ -19,26 +19,26 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: "false"
+        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: memcached-profile
     spec:
-      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
-        - env:
-            - name: MEMCACHED_CACHE_SIZE
-              value: "128"
-            - name: MEMCACHED_THREADS
-              value: "2"
-          image: memcached
-          name: hotel-reserv-profile-mmc
-          ports:
-            - containerPort: 11211
-          resources:
-            requests:
-              cpu: 100m
-            limits:
-              cpu: 1000m
+      - env:
+        - name: MEMCACHED_CACHE_SIZE
+          value: '128'
+        - name: MEMCACHED_THREADS
+          value: '2'
+        image: memcached
+        name: hotel-reserv-profile-mmc
+        ports:
+        - containerPort: 11211
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+      nodeName: h5.hotelbench.meshbench-pg0.clemson.cloudlab.us
       restartPolicy: Always
 status: {}

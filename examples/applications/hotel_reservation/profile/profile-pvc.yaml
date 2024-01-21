@@ -4,8 +4,8 @@ metadata:
   name: profile-pvc
 spec:
   accessModes:
-    - ReadWriteOnce
-  storageClassName: profile-storage
+  - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
+  storageClassName: profile-storage

@@ -10,9 +10,9 @@ metadata:
   name: mongodb-user
 spec:
   ports:
-    - name: "mongodb-user"
-      port: 27017
-      targetPort: 27017
+  - name: mongodb-user
+    port: 27017
+    targetPort: 27017
   selector:
     io.kompose.service: mongodb-user
 status:

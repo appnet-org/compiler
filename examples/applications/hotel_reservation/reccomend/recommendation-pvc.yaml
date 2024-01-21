@@ -4,8 +4,8 @@ metadata:
   name: recommendation-pvc
 spec:
   accessModes:
-    - ReadWriteOnce
-  storageClassName: recommendation-storage
+  - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
+  storageClassName: recommendation-storage

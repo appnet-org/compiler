@@ -4,8 +4,8 @@ metadata:
   name: reservation-pvc
 spec:
   accessModes:
-    - ReadWriteOnce
-  storageClassName: reservation-storage
+  - ReadWriteOnce
   resources:
     requests:
       storage: 1Gi
+  storageClassName: reservation-storage

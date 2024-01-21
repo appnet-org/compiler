@@ -3,20 +3,20 @@ kind: PersistentVolume
 metadata:
   name: recommendation-pv
 spec:
-  volumeMode: Filesystem
   accessModes:
-    - ReadWriteOnce
+  - ReadWriteOnce
   capacity:
     storage: 1Gi
-  storageClassName: recommendation-storage
   hostPath:
-    path: /data/volumes/recommendation-pv   # Where all the hard drives are mounted
+    path: /data/volumes/recommendation-pv
     type: DirectoryOrCreate
-  nodeAffinity:     
+  nodeAffinity:
     required:
       nodeSelectorTerms:
-        - matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values:
-                - h2.hotel.meshbench-pg0.clemson.cloudlab.us
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
+  storageClassName: recommendation-storage
+  volumeMode: Filesystem

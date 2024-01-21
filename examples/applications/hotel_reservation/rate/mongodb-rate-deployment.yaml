@@ -20,28 +20,28 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: "false"
+        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: mongodb-rate
     spec:
-      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
-        - image: mongo:4.4.6
-          name: hotel-reserv-rate-mongo
-          ports:
-            - containerPort: 27017
-          resources:
-            requests:
-              cpu: 100m
-            limits:
-              cpu: 1000m
-          volumeMounts:
-            - mountPath: /data/db
-              name: rate
+      - image: mongo:4.4.6
+        name: hotel-reserv-rate-mongo
+        ports:
+        - containerPort: 27017
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+        volumeMounts:
+        - mountPath: /data/db
+          name: rate
+      nodeName: h3.hotelbench.meshbench-pg0.clemson.cloudlab.us
       restartPolicy: Always
       volumes:
-        - name: rate
-          persistentVolumeClaim:
-            claimName: rate-pvc
+      - name: rate
+        persistentVolumeClaim:
+          claimName: rate-pvc
 status: {}

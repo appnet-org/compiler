@@ -19,25 +19,25 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: "false"
+        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: consul
     spec:
-      nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us
       containers:
-        - image: hashicorp/consul:latest
-          name: consul
-          ports:
-            - containerPort: 8300
-            - containerPort: 8400
-            - containerPort: 8500
-            - containerPort: 53
-              protocol: UDP
-          resources:
-            requests:
-              cpu: 100m
-            limits:
-              cpu: 1000m
+      - image: hashicorp/consul:latest
+        name: consul
+        ports:
+        - containerPort: 8300
+        - containerPort: 8400
+        - containerPort: 8500
+        - containerPort: 53
+          protocol: UDP
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+      nodeName: h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
       restartPolicy: Always
 status: {}
