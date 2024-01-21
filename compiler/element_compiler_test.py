@@ -70,7 +70,7 @@ if __name__ == "__main__":
 
     # Generate the element properties.
     start = datetime.datetime.now()
-    ret = compile_element_property(elements, verbose)
+    ret = compile_element_property(elements, verbose=verbose)
     end = datetime.datetime.now()
     LOG.info(f"Element properties: {ret}")
     LOG.info(f"Property Analysis took: {(end-start).microseconds/1000}ms")

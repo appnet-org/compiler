@@ -106,6 +106,7 @@ def compile_impl(
     placement: str,
     proto: str,
     method: str,
+    server: str,
 ):
     gen_name = "".join(engine_name)[:24]
     if backend == "mrpc":
@@ -114,7 +115,9 @@ def compile_impl(
         gen_dir = os.path.join(gen_dir, f"{gen_name}_{backend}")
     proto_path = os.path.join(proto_base_dir, proto)
     os.system(f"mkdir -p {gen_dir}")
-    gen_code(engine_name, gen_name, gen_dir, backend, placement, proto_path, method)
+    gen_code(
+        engine_name, gen_name, gen_dir, backend, placement, proto_path, method, server
+    )
 
 
 def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
@@ -139,6 +142,7 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
                         placement,
                         element.proto,
                         element.method,
+                        gir.server,
                     )
                 compiled_name.add(identifier)
 

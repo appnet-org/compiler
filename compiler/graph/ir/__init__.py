@@ -62,16 +62,24 @@ class GraphIR:
         c_pt, s_pt = 0, len(chain) - 1
         while c_pt <= s_pt:
             if c_pt <= c_id:
-                self.elements["req_client"].append(AbsElement(chain[c_pt]))
+                self.elements["req_client"].append(
+                    AbsElement(chain[c_pt], server=server)
+                )
                 c_pt += 1
             elif s_pt >= s_id:
-                self.elements["req_server"].insert(0, AbsElement(chain[s_pt]))
+                self.elements["req_server"].insert(
+                    0, AbsElement(chain[s_pt], server=server)
+                )
                 s_pt -= 1
             elif len(self.elements["req_client"]) <= len(self.elements["req_server"]):
-                self.elements["req_client"].append(AbsElement(chain[c_pt]))
+                self.elements["req_client"].append(
+                    AbsElement(chain[c_pt], server=server)
+                )
                 c_pt += 1
             else:
-                self.elements["req_server"].insert(0, AbsElement(chain[s_pt]))
+                self.elements["req_server"].insert(
+                    0, AbsElement(chain[s_pt], server=server)
+                )
                 s_pt -= 1
         # The initial response graph is identical to the request graph, except for
         # the required positions of element pairs
@@ -94,17 +102,17 @@ class GraphIR:
                 "method": pdict["method"],
             }
             self.elements["req_client"].append(
-                AbsElement(edict1, partner=pdict["name2"])
+                AbsElement(edict1, partner=pdict["name2"], server=server)
             )
             self.elements["req_server"].insert(
-                0, AbsElement(edict2, partner=pdict["name1"])
+                0, AbsElement(edict2, partner=pdict["name1"], server=server)
             )
             edict1["position"], edict2["position"] = (
                 edict2["position"],
                 edict1["position"],
             )
-            self.elements["res_client"].append(AbsElement(edict2))
-            self.elements["res_server"].insert(0, AbsElement(edict1))
+            self.elements["res_client"].append(AbsElement(edict2, server=server))
+            self.elements["res_server"].insert(0, AbsElement(edict1, server=server))
 
     @property
     def name(self) -> str:
