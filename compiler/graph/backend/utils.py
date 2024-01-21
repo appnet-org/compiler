@@ -278,7 +278,6 @@ def bypass_sidecar(hostname: str, service_name: str, port: str, direction: str):
 
 bypass_script = """
 import os
-import json
 import sys
 
 sys.path.append(os.path.join(os.getenv("HOME"), "adn-compiler"))
