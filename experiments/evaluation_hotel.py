@@ -97,8 +97,8 @@ def parse_args():
 def generate_user_spec(backend: str, num: int, path: str):
     assert path.endswith(".yml"), "wrong user spec format"
 
-    selected_elements_strong = []
-    selected_elements_weak = []
+    selected_elements_strong = {}
+    selected_elements_weak = {}
 
     # Generate spec for each edge
     for client, server in app_edges[backend]:
@@ -107,8 +107,8 @@ def generate_user_spec(backend: str, num: int, path: str):
             selected_yml_str_strong,
             selected_yml_str_weak,
         ) = select_random_elements(client, server, num)
-        selected_elements_strong.append(yaml.safe_load(selected_yml_str_strong))
-        selected_elements_weak.append(yaml.safe_load(selected_yml_str_weak))
+        selected_elements_strong.update(yaml.safe_load(selected_yml_str_strong))
+        selected_elements_weak.update(yaml.safe_load(selected_yml_str_weak))
 
     spec_strong = yml_header[backend] + yaml.dump(
         {"edge": selected_elements_strong}, default_flow_style=False, indent=4
