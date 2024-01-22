@@ -14,7 +14,7 @@ def scriptgen(
     girs: Dict[str, GraphIR],
     backend: str,
     app: str,
-    app_manifest_file: str,
+    app_manifest_dir: str,
     app_edges: list,
 ):
     """
@@ -30,4 +30,4 @@ def scriptgen(
     except:
         raise ValueError(f"backend {backend} not supported")
     generator = getattr(module, f"scriptgen_{backend}")
-    generator(girs, app, app_manifest_file, app_edges)
+    generator(girs, app, app_manifest_dir, app_edges)
