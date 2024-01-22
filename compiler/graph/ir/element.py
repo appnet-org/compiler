@@ -51,7 +51,7 @@ class AbsElement:
 
     @property
     def lib_name(self) -> str:
-        return "".join(self.name)[:24]
+        return self.server + "".join(self.name)[:24]
 
     @property
     def configs(self) -> str:
