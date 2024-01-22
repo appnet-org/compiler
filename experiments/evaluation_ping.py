@@ -49,8 +49,7 @@ app_structure = {
 }
 
 yml_header = {
-    "envoy": """app_name: "ping_pong_bench"
-app_manifest: "ping-pong-app.yaml"
+    "envoy": """app_name: "ping-pong-app"
 app_structure:
 -   "frontend->ping"
 """,

@@ -48,8 +48,7 @@ app_edges = {
 }
 
 yml_header = {
-    "envoy": """app_name: "hotel_bench"
-app_manifest: "hotel_reservation.yaml"
+    "envoy": """app_name: "hotel_reservation"
 app_structure:
 -   "frontend->search"
 -   "frontend->reservation"
