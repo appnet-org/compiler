@@ -42,7 +42,7 @@ metadata:
 spec:
   workloadSelector:
     labels:
-      app: {service}
+      {service_label}: {service}
   configPatches:
   - applyTo: HTTP_FILTER
     match:
