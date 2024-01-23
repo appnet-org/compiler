@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package search;
 
-// Search service returns best hotel chocies for a user.
+// Search service returns best hotel choices for a user.
 service Search {
   rpc Nearby(NearbyRequest) returns (SearchResult);
 }

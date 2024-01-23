@@ -106,15 +106,18 @@ def compile_impl(
     placement: str,
     proto: str,
     method: str,
+    server: str,
 ):
-    gen_name = "".join(engine_name)[:24]
+    gen_name = server + "".join(engine_name)[:24]
     if backend == "mrpc":
         gen_dir = os.path.join(gen_dir, f"{gen_name}_{placement}_{backend}")
     else:
         gen_dir = os.path.join(gen_dir, f"{gen_name}_{backend}")
     proto_path = os.path.join(proto_base_dir, proto)
     os.system(f"mkdir -p {gen_dir}")
-    gen_code(engine_name, gen_name, gen_dir, backend, placement, proto_path, method)
+    gen_code(
+        engine_name, gen_name, gen_dir, backend, placement, proto_path, method, server
+    )
 
 
 def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
@@ -139,6 +142,7 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
                         placement,
                         element.proto,
                         element.method,
+                        gir.server,
                     )
                 compiled_name.add(identifier)
 
@@ -165,7 +169,7 @@ def main(args):
     # Step 1: Parse the spec file and generate graph IRs (see examples/graph_spec for details about spec format)
     GRAPH_LOG.info(f"Parsing graph spec file {args.spec_path}...")
     parser = GraphParser()
-    graphirs, app_name, app_manifest_file, app_edges = parser.parse(args.spec_path)
+    graphirs, app_name, app_manifest_dir, app_edges = parser.parse(args.spec_path)
 
     if args.verbose:
         for gir in graphirs.values():
@@ -192,7 +196,7 @@ def main(args):
         # pseudo_impl is set to True when we want to use hand-coded impl instead of auto-generated ones
         generate_element_impl(graphirs, args.pseudo_impl)
         # Step 3.2: Generate deployment scripts
-        scriptgen(graphirs, args.backend, app_name, app_manifest_file, app_edges)
+        scriptgen(graphirs, args.backend, app_name, app_manifest_dir, app_edges)
 
     # Dump graphir summary (in yaml)
     gen_dir = os.path.join(graph_base_dir, "generated")

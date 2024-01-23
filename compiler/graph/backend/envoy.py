@@ -18,13 +18,15 @@ from compiler.graph.logger import GRAPH_BACKEND_LOG
 
 def scriptgen_envoy(
     girs: Dict[str, GraphIR],
-    app: str,
-    app_manifest_file: str,
+    app_name: str,
+    app_manifest_dir: str,
     app_edges: List[Tuple[str, str]],
 ):
     global local_gen_dir
     local_gen_dir = os.path.join(graph_base_dir, "generated")
     os.makedirs(local_gen_dir, exist_ok=True)
+    deploy_dir = os.path.join(local_gen_dir, f"{app_name}_deploy")
+    os.makedirs(deploy_dir, exist_ok=True)
 
     # Compile each element
     GRAPH_BACKEND_LOG.info("Compiling elements for Envoy. This might take a while...")
@@ -57,6 +59,18 @@ def scriptgen_envoy(
                     ]
                 )
 
+    for file_or_dir in os.listdir(app_manifest_dir):
+        if app_name not in file_or_dir:
+            execute_local(
+                [
+                    "cp",
+                    "-r",
+                    os.path.join(app_manifest_dir, file_or_dir),
+                    os.path.join(deploy_dir, file_or_dir),
+                ]
+            )
+
+    app_manifest_file = os.path.join(app_manifest_dir, f"{app_name}.yaml")
     # Generate the istio manifest file for the application.
     execute_local(
         [
@@ -65,7 +79,7 @@ def scriptgen_envoy(
             "-f",
             app_manifest_file,
             "-o",
-            os.path.join(local_gen_dir, app + "_istio.yml"),
+            os.path.join(local_gen_dir, app_name + "_istio.yml"),
         ]
     )
     GRAPH_BACKEND_LOG.info("Generating the istio manifest file for the application...")
@@ -78,8 +92,9 @@ def scriptgen_envoy(
     #         )
     service_to_hostname = extract_service_pos(yml_list_plain)
     service_to_port_number = extract_service_port(yml_list_plain)
+    service_to_label = extract_service_label(yml_list_plain)
 
-    with open(os.path.join(local_gen_dir, app + "_istio.yml"), "r") as f:
+    with open(os.path.join(local_gen_dir, app_name + "_istio.yml"), "r") as f:
         yml_list_istio = list(yaml.safe_load_all(f))
     with open(os.path.join(BACKEND_CONFIG_DIR, "webdis_template.yml"), "r") as f:
         webdis_service, webdis_deploy = list(yaml.safe_load_all(f))
@@ -88,7 +103,9 @@ def scriptgen_envoy(
     services = list()
     for yml in yml_list_istio:
         if yml and "kind" in yml and yml["kind"] == "Service":
-            services.append(yml["metadata"]["name"])
+            sname = yml["metadata"]["name"]
+            if "mongodb" not in sname and "memcached" not in sname:
+                services.append(sname)
 
     # element_deploy_count counts the number of elements attached to each service.
     # structure example:
@@ -205,10 +222,10 @@ def scriptgen_envoy(
 
     # Dump the final manifest file (somehow there is a None)
     yml_list_istio = [yml for yml in yml_list_istio if yml is not None]
-    with open(os.path.join(local_gen_dir, "install.yml"), "w") as f:
+    with open(os.path.join(deploy_dir, "install.yml"), "w") as f:
         yaml.dump_all(yml_list_istio, f, default_flow_style=False)
     # TODO: we probably should just pipe the output of istioctl
-    execute_local(["rm", os.path.join(local_gen_dir, app + "_istio.yml")])
+    execute_local(["rm", os.path.join(local_gen_dir, app_name + "_istio.yml")])
 
     # Generate script to attach elements.
     attach_all_yml = ""
@@ -228,15 +245,15 @@ def scriptgen_envoy(
                 "port": service_to_port_number[gir.server],
                 "vmid": f"vm.sentinel.{e.lib_name}-{placement}",
                 "filename": f"/etc/{e.lib_name}.wasm",
+                "service_label": service_to_label[sname],
             }
             attach_all_yml += attach_yml.format(**contents)
-    attach_file_path = os.path.join(local_gen_dir, f"attach_all_elements.yml")
-    with open(attach_file_path, "w") as f:
+    with open(os.path.join(deploy_dir, "attach_all_elements.yml"), "w") as f:
         f.write(attach_all_yml)
 
     GRAPH_BACKEND_LOG.info(
         "Element compilation and manifest generation complete. The generated files are in the 'generated' directory."
     )
     GRAPH_BACKEND_LOG.info(
-        f"To deploy the application and attach the elements, run kubectl apply -f {local_gen_dir}"
+        f"To deploy the application and attach the elements, run kubectl apply -Rf {deploy_dir}"
     )

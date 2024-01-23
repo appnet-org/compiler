@@ -26,6 +26,7 @@ def gen_code(
     placement: str,
     proto_path: str,
     method_name: str,
+    server: str,
     verbose: bool = False,
 ) -> str:
     """
@@ -97,12 +98,19 @@ def gen_code(
     for element_name in element_names:
         LOG.info(f"(CodeGen) Parsing {element_name}")
 
-        element_spec_base_dir = os.environ.get("ELEMENT_SPEC_BASE_DIR")
-        assert element_spec_base_dir is not None and os.path.exists(
-            element_spec_base_dir
-        )
+        # element_spec_base_dir = os.environ.get("ELEMENT_SPEC_BASE_DIR")
+        # assert element_spec_base_dir is not None and os.path.exists(
+        # element_spec_base_dir
+        # )
 
-        with open(os.path.join(element_spec_base_dir, f"{element_name}.adn")) as f:
+        with open(
+            os.path.join(
+                root_base_dir,
+                "experiments/elements",
+                f"{server}_elements",
+                f"{element_name}.adn",
+            )
+        ) as f:
             spec = f.read()
             ir = compiler.parse_and_transform(spec)
             if verbose:
@@ -135,7 +143,9 @@ def gen_code(
     finalize(output_name, ctx, output_dir, placement, proto_path)
 
 
-def compile_element_property(element_names: List[str], verbose: bool = False) -> Dict:
+def compile_element_property(
+    element_names: List[str], verbose: bool = False, server: str = ""
+) -> Dict:
     """
     Compiles and analyzes properties of elements defined using ADN syntax.
 
@@ -174,12 +184,19 @@ def compile_element_property(element_names: List[str], verbose: bool = False) ->
     for element_name in element_names:
         LOG.info(f"(Property Analyzer) Parsing {element_name}")
 
-        element_spec_base_dir = os.environ.get("ELEMENT_SPEC_BASE_DIR")
-        assert element_spec_base_dir is not None and os.path.exists(
-            element_spec_base_dir
-        )
+        # element_spec_base_dir = os.environ.get("ELEMENT_SPEC_BASE_DIR")
+        # assert element_spec_base_dir is not None and os.path.exists(
+        # element_spec_base_dir
+        # )
 
-        with open(os.path.join(element_spec_base_dir, f"{element_name}.adn")) as f:
+        with open(
+            os.path.join(
+                root_base_dir,
+                "experiments/elements",
+                f"{server}_elements",
+                f"{element_name}.adn",
+            )
+        ) as f:
             # Read the specification from file and generate the intermediate representation
             spec = f.read()
             ir = compiler.parse_and_transform(spec)

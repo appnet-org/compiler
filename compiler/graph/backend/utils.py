@@ -68,6 +68,29 @@ def extract_service_port(yml_list: List[Dict]) -> Dict[str, str]:
     return service_ports
 
 
+def extract_service_label(yml_list: List[Dict]) -> Dict[str, str]:
+    """
+    Extract the service name to label mapping from a list of service YAML definitions.
+
+    Args:
+        yml_list: A list of dictionaries representing the parsed YAML content of the service files.
+
+    Returns:
+        A dictionary mapping each service name to its port number.
+    """
+    service_labels = {}
+    for yml in yml_list:
+        if yml["kind"] == "Service":
+            service_name = yml["metadata"]["name"]
+            # We assume the service label value is the same as the service name
+            for k, v in yml["metadata"]["labels"].items():
+                if v == service_name:
+                    label_name = k
+            service_labels[service_name] = label_name
+
+    return service_labels
+
+
 def error_handling(res, msg):
     """Output the given error message and the stderr contents if the subprocess exits abnormally.
 
@@ -278,7 +301,6 @@ def bypass_sidecar(hostname: str, service_name: str, port: str, direction: str):
 
 bypass_script = """
 import os
-import json
 import sys
 
 sys.path.append(os.path.join(os.getenv("HOME"), "adn-compiler"))

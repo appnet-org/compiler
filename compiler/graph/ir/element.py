@@ -18,7 +18,9 @@ def fetch_global_id() -> str:
 
 
 class AbsElement:
-    def __init__(self, info: Union[Dict[str, Any], str], partner: str = ""):
+    def __init__(
+        self, info: Union[Dict[str, Any], str], partner: str = "", server: str = ""
+    ):
         """
         Args:
             info(dict): basic element information, including name, config, proto, method, etc.
@@ -30,6 +32,9 @@ class AbsElement:
         else:
             self.id = fetch_global_id()
             self.name: List[str] = [info["name"]]
+            self.server = (
+                server  # the server side of the edge, used for finding adn spec
+            )
             self.config = info["config"] if "config" in info else []
             self.position = info["position"] if "position" in info else "C/S"
             self.proto = info["proto"]
@@ -46,7 +51,7 @@ class AbsElement:
 
     @property
     def lib_name(self) -> str:
-        return "".join(self.name)[:24]
+        return self.server + "".join(self.name)[:24]
 
     @property
     def configs(self) -> str:
@@ -83,7 +88,7 @@ class AbsElement:
                 if self.pseudo_property:
                     self._prop = pseudo_gen_property(self)
                 else:
-                    self._prop = compile_element_property(self.name)
+                    self._prop = compile_element_property(self.name, server=self.server)
                 # TODO: remove this after property compiler has deduplication
                 for path in ["request", "response"]:
                     for p in self._prop[path].keys():
