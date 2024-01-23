@@ -104,7 +104,11 @@ def scriptgen_envoy(
     for yml in yml_list_istio:
         if yml and "kind" in yml and yml["kind"] == "Service":
             sname = yml["metadata"]["name"]
-            if "mongodb" not in sname and "memcached" not in sname:
+            if (
+                "mongodb" not in sname
+                and "memcached" not in sname
+                and "jaeger" not in sname
+            ):
                 services.append(sname)
 
     # element_deploy_count counts the number of elements attached to each service.
