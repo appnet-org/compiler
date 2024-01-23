@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package reviews;
+
+service Reviews {
+    rpc getReviews(Product) returns (Result);
+}
+
+message Product {
+    int32 id = 1;
+    string user = 2;
+}
+
+message Review {
+    int32 ProductID = 1;
+    string reviewer = 2;
+    string text = 3;
+}
+
+message Result {
+    repeated Review review = 1;
+    string user = 2;
+    int32 stars = 4; 
+    string color = 5;
+}

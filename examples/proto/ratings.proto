@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package ratings;
+
+service Ratings {
+    rpc getRatings(Product) returns (Result);
+}
+
+message Product {
+    int32 id = 1;
+    string user = 2;
+}
+
+message Result {
+    int32 ratings = 1;
+    string user = 2;
+}
