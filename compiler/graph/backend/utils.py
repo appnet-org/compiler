@@ -234,7 +234,7 @@ def kapply_and_sync(file_or_dir: str):
     Args:
         file: configuration filename.
     """
-    execute_local(["kubectl", "apply", "-f", file_or_dir])
+    execute_local(["kubectl", "apply", "-Rf", file_or_dir])
     ksync()
 
 
