@@ -1,3 +1,4 @@
+import argparse
 import os
 from pathlib import Path
 
@@ -5,7 +6,7 @@ import yaml
 
 ROOT_DIR = Path(__file__).parent.parent
 
-application = "hotel_reservation"
+application = None
 cluster_name = "hotelbench"
 
 placement_dict = {
@@ -16,7 +17,13 @@ placement_dict = {
         "rate": "h3",
         "reservation": "h4",
         "profile": "h5",
-    }
+    },
+    "bookinfo": {
+        "productpage": "h2",
+        "reviews": "h3",
+        "details": "h4",
+        "ratings": "h5",
+    },
 }
 
 
@@ -29,6 +36,10 @@ def get_placement(meta_name: str) -> str:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-a", "--app", type=str, required=True)
+    args = parser.parse_args()
+    application = args.app
     manifest_path = os.path.join(ROOT_DIR, "examples/applications", application)
     for subdir, dirs, files in os.walk(manifest_path):
         for file in files:
