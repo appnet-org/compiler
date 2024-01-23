@@ -2,6 +2,8 @@ gen/
 report/
 report_hotel/
 report_ping/
+report_bookinfo/
 generated/
 generated_hotel/
 generated_ping/
+generated_bookinfo/
