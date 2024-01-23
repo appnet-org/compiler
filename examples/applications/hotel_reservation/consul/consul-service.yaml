@@ -10,16 +10,16 @@ metadata:
   name: consul
 spec:
   ports:
-  - name: '8300'
+  - name: consul-8300
     port: 8300
     targetPort: 8300
-  - name: '8400'
+  - name: consul-8400
     port: 8400
     targetPort: 8400
-  - name: '8500'
+  - name: consul-8500
     port: 8500
     targetPort: 8500
-  - name: '8600'
+  - name: consul-8600
     port: 8600
     protocol: UDP
     targetPort: 53

@@ -6,15 +6,15 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: user
+    app: user
   name: user
 spec:
   ports:
-  - name: '8086'
+  - name: grpc-user
     port: 8086
     targetPort: 8086
   selector:
-    io.kompose.service: user
+    app: user
 status:
   loadBalancer: {}
 ---
@@ -26,13 +26,13 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: user
+    app: user
   name: user
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: user
+      app: user
   strategy: {}
   template:
     metadata:
@@ -41,7 +41,7 @@ spec:
         kompose.version: 1.22.0 (955b78124)
       creationTimestamp: null
       labels:
-        io.kompose.service: user
+        app: user
     spec:
       containers:
       - command:
@@ -67,15 +67,15 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: search
+    app: search
   name: search
 spec:
   ports:
-  - name: '8082'
+  - name: grpc-search
     port: 8082
     targetPort: 8082
   selector:
-    io.kompose.service: search
+    app: search
 status:
   loadBalancer: {}
 ---
@@ -87,13 +87,13 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: search
+    app: search
   name: search
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: search
+      app: search
   strategy: {}
   template:
     metadata:
@@ -102,7 +102,7 @@ spec:
         kompose.version: 1.22.0 (955b78124)
       creationTimestamp: null
       labels:
-        io.kompose.service: search
+        app: search
     spec:
       containers:
       - command:
@@ -129,15 +129,15 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: reservation
+    app: reservation
   name: reservation
 spec:
   ports:
-  - name: '8087'
+  - name: grpc-reservation
     port: 8087
     targetPort: 8087
   selector:
-    io.kompose.service: reservation
+    app: reservation
 status:
   loadBalancer: {}
 ---
@@ -149,13 +149,13 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: reservation
+    app: reservation
   name: reservation
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: reservation
+      app: reservation
   strategy: {}
   template:
     metadata:
@@ -164,7 +164,7 @@ spec:
         kompose.version: 1.22.0 (955b78124)
       creationTimestamp: null
       labels:
-        io.kompose.service: reservation
+        app: reservation
     spec:
       containers:
       - command:
@@ -191,15 +191,15 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: recommendation
+    app: recommendation
   name: recommendation
 spec:
   ports:
-  - name: '8085'
+  - name: grpc-recommendation
     port: 8085
     targetPort: 8085
   selector:
-    io.kompose.service: recommendation
+    app: recommendation
 status:
   loadBalancer: {}
 ---
@@ -211,13 +211,13 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: recommendation
+    app: recommendation
   name: recommendation
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: recommendation
+      app: recommendation
   strategy: {}
   template:
     metadata:
@@ -226,7 +226,7 @@ spec:
         kompose.version: 1.22.0 (955b78124)
       creationTimestamp: null
       labels:
-        io.kompose.service: recommendation
+        app: recommendation
     spec:
       containers:
       - command:
@@ -253,15 +253,15 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: rate
+    app: rate
   name: rate
 spec:
   ports:
-  - name: '8084'
+  - name: grpc-rate
     port: 8084
     targetPort: 8084
   selector:
-    io.kompose.service: rate
+    app: rate
 status:
   loadBalancer: {}
 ---
@@ -273,13 +273,13 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: rate
+    app: rate
   name: rate
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: rate
+      app: rate
   strategy: {}
   template:
     metadata:
@@ -288,7 +288,7 @@ spec:
         kompose.version: 1.22.0 (955b78124)
       creationTimestamp: null
       labels:
-        io.kompose.service: rate
+        app: rate
     spec:
       containers:
       - command:
@@ -315,15 +315,15 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: profile
+    app: profile
   name: profile
 spec:
   ports:
-  - name: '8081'
+  - name: grpc-profile
     port: 8081
     targetPort: 8081
   selector:
-    io.kompose.service: profile
+    app: profile
 status:
   loadBalancer: {}
 ---
@@ -335,13 +335,13 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: profile
+    app: profile
   name: profile
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: profile
+      app: profile
   strategy: {}
   template:
     metadata:
@@ -350,7 +350,7 @@ spec:
         kompose.version: 1.22.0 (955b78124)
       creationTimestamp: null
       labels:
-        io.kompose.service: profile
+        app: profile
     spec:
       containers:
       - command:
@@ -377,15 +377,15 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: geo
+    app: geo
   name: geo
 spec:
   ports:
-  - name: '8083'
+  - name: grpc-geo
     port: 8083
     targetPort: 8083
   selector:
-    io.kompose.service: geo
+    app: geo
 status:
   loadBalancer: {}
 ---
@@ -397,13 +397,13 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: geo
+    app: geo
   name: geo
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: geo
+      app: geo
   strategy: {}
   template:
     metadata:
@@ -412,7 +412,7 @@ spec:
         kompose.version: 1.22.0 (955b78124)
       creationTimestamp: null
       labels:
-        io.kompose.service: geo
+        app: geo
     spec:
       containers:
       - command:
@@ -439,16 +439,16 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: frontend
+    app: frontend
   name: frontend
 spec:
   clusterIP: 10.96.88.88
   ports:
-  - name: '5000'
+  - name: frontend
     port: 5000
     targetPort: 5000
   selector:
-    io.kompose.service: frontend
+    app: frontend
 status:
   loadBalancer: {}
 ---
@@ -460,13 +460,13 @@ metadata:
     kompose.version: 1.22.0 (955b78124)
   creationTimestamp: null
   labels:
-    io.kompose.service: frontend
+    app: frontend
   name: frontend
 spec:
   replicas: 1
   selector:
     matchLabels:
-      io.kompose.service: frontend
+      app: frontend
   strategy: {}
   template:
     metadata:
@@ -475,7 +475,7 @@ spec:
         kompose.version: 1.22.0 (955b78124)
       creationTimestamp: null
       labels:
-        io.kompose.service: frontend
+        app: frontend
     spec:
       containers:
       - command:
@@ -492,4 +492,611 @@ spec:
             cpu: 100m
       nodeName: h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
       restartPolicy: Always
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-user
+  name: mongodb-user
+spec:
+  ports:
+  - name: mongodb-user
+    port: 27017
+    targetPort: 27017
+  selector:
+    io.kompose.service: mongodb-user
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: memcached-reserve
+  name: memcached-reserve
+spec:
+  ports:
+  - name: memcached-reserve
+    port: 11211
+    targetPort: 11211
+  selector:
+    io.kompose.service: memcached-reserve
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-reservation
+  name: mongodb-reservation
+spec:
+  ports:
+  - name: mongodb-reservation
+    port: 27017
+    targetPort: 27017
+  selector:
+    io.kompose.service: mongodb-reservation
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-recommendation
+  name: mongodb-recommendation
+spec:
+  ports:
+  - name: mongodb-recommendation
+    port: 27017
+    targetPort: 27017
+  selector:
+    io.kompose.service: mongodb-recommendation
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: memcached-rate
+  name: memcached-rate
+spec:
+  ports:
+  - name: memcached-rate
+    port: 11211
+    targetPort: 11211
+  selector:
+    io.kompose.service: memcached-rate
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-rate
+  name: mongodb-rate
+spec:
+  ports:
+  - name: mongodb-rate
+    port: 27017
+    targetPort: 27017
+  selector:
+    io.kompose.service: mongodb-rate
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: memcached-profile
+  name: memcached-profile
+spec:
+  ports:
+  - name: memcached-profile
+    port: 11211
+    targetPort: 11211
+  selector:
+    io.kompose.service: memcached-profile
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-profile
+  name: mongodb-profile
+spec:
+  ports:
+  - name: mongodb-profile
+    port: 27017
+    targetPort: 27017
+  selector:
+    io.kompose.service: mongodb-profile
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-geo
+  name: mongodb-geo
+spec:
+  ports:
+  - name: mongodb-geo
+    port: 27017
+    targetPort: 27017
+  selector:
+    io.kompose.service: mongodb-geo
+status:
+  loadBalancer: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-user
+  name: mongodb-user
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: mongodb-user
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+        sidecar.istio.io/inject: 'false'
+      creationTimestamp: null
+      labels:
+        io.kompose.service: mongodb-user
+    spec:
+      containers:
+      - image: mongo:4.4.6
+        name: hotel-reserv-user-mongo
+        ports:
+        - containerPort: 27017
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+        volumeMounts:
+        - mountPath: /data/db
+          name: user
+      hostname: user-db
+      nodeName: h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      restartPolicy: Always
+      volumes:
+      - name: user
+        persistentVolumeClaim:
+          claimName: user-pvc
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: memcached-reserve
+  name: memcached-reserve
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: memcached-reserve
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+        sidecar.istio.io/inject: 'false'
+      creationTimestamp: null
+      labels:
+        io.kompose.service: memcached-reserve
+    spec:
+      containers:
+      - env:
+        - name: MEMCACHED_CACHE_SIZE
+          value: '128'
+        - name: MEMCACHED_THREADS
+          value: '2'
+        image: memcached
+        name: hotel-reserv-reservation-mmc
+        ports:
+        - containerPort: 11211
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+      nodeName: h4.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      restartPolicy: Always
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-reservation
+  name: mongodb-reservation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: mongodb-reservation
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+        sidecar.istio.io/inject: 'false'
+      creationTimestamp: null
+      labels:
+        io.kompose.service: mongodb-reservation
+    spec:
+      containers:
+      - image: mongo:4.4.6
+        name: hotel-reserv-reservation-mongo
+        ports:
+        - containerPort: 27017
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+        volumeMounts:
+        - mountPath: /data/db
+          name: reservation
+      hostname: reservation-db
+      nodeName: h4.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      restartPolicy: Always
+      volumes:
+      - name: reservation
+        persistentVolumeClaim:
+          claimName: reservation-pvc
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-recommendation
+  name: mongodb-recommendation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: mongodb-recommendation
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+        sidecar.istio.io/inject: 'false'
+      creationTimestamp: null
+      labels:
+        io.kompose.service: mongodb-recommendation
+    spec:
+      containers:
+      - image: mongo:4.4.6
+        name: hotel-reserv-recommendation-mongo
+        ports:
+        - containerPort: 27017
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+        volumeMounts:
+        - mountPath: /data/db
+          name: recommendation
+      hostname: recommendation-db
+      nodeName: h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      restartPolicy: Always
+      volumes:
+      - name: recommendation
+        persistentVolumeClaim:
+          claimName: recommendation-pvc
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-rate
+  name: mongodb-rate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: mongodb-rate
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+        sidecar.istio.io/inject: 'false'
+      creationTimestamp: null
+      labels:
+        io.kompose.service: mongodb-rate
+    spec:
+      containers:
+      - image: mongo:4.4.6
+        name: hotel-reserv-rate-mongo
+        ports:
+        - containerPort: 27017
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+        volumeMounts:
+        - mountPath: /data/db
+          name: rate
+      nodeName: h3.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      restartPolicy: Always
+      volumes:
+      - name: rate
+        persistentVolumeClaim:
+          claimName: rate-pvc
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: memcached-rate
+  name: memcached-rate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: memcached-rate
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+        sidecar.istio.io/inject: 'false'
+      creationTimestamp: null
+      labels:
+        io.kompose.service: memcached-rate
+    spec:
+      containers:
+      - env:
+        - name: MEMCACHED_CACHE_SIZE
+          value: '128'
+        - name: MEMCACHED_THREADS
+          value: '2'
+        image: memcached
+        name: hotel-reserv-rate-mmc
+        ports:
+        - containerPort: 11211
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+      nodeName: h3.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      restartPolicy: Always
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: memcached-profile
+  name: memcached-profile
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: memcached-profile
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+        sidecar.istio.io/inject: 'false'
+      creationTimestamp: null
+      labels:
+        io.kompose.service: memcached-profile
+    spec:
+      containers:
+      - env:
+        - name: MEMCACHED_CACHE_SIZE
+          value: '128'
+        - name: MEMCACHED_THREADS
+          value: '2'
+        image: memcached
+        name: hotel-reserv-profile-mmc
+        ports:
+        - containerPort: 11211
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+      nodeName: h5.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      restartPolicy: Always
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-profile
+  name: mongodb-profile
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: mongodb-profile
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+        sidecar.istio.io/inject: 'false'
+      creationTimestamp: null
+      labels:
+        io.kompose.service: mongodb-profile
+    spec:
+      containers:
+      - image: mongo:4.4.6
+        name: hotel-reserv-profile-mongo
+        ports:
+        - containerPort: 27017
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+        volumeMounts:
+        - mountPath: /data/db
+          name: profile
+      hostname: profile-db
+      nodeName: h5.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      restartPolicy: Always
+      volumes:
+      - name: profile
+        persistentVolumeClaim:
+          claimName: profile-pvc
+status: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: mongodb-geo
+  name: mongodb-geo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: mongodb-geo
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+        sidecar.istio.io/inject: 'false'
+      creationTimestamp: null
+      labels:
+        io.kompose.service: mongodb-geo
+    spec:
+      containers:
+      - image: mongo:4.4.6
+        name: hotel-reserv-geo-mongo
+        ports:
+        - containerPort: 27017
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+        volumeMounts:
+        - mountPath: /data/db
+          name: geo
+      nodeName: h3.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      restartPolicy: Always
+      volumes:
+      - name: geo
+        persistentVolumeClaim:
+          claimName: geo-pvc
 status: {}
