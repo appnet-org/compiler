@@ -110,7 +110,7 @@ metadata:
     service: mongodb-details
   name: mongodb-details
 spec:
-  replicas: 5
+  replicas: 1
   selector:
     matchLabels:
       service: mongodb-details
@@ -221,7 +221,7 @@ metadata:
     service: mongodb-ratings
   name: mongodb-ratings
 spec:
-  replicas: 5
+  replicas: 1
   selector:
     matchLabels:
       service: mongodb-ratings
@@ -419,7 +419,7 @@ metadata:
     service: mongodb-reviews
   name: mongodb-reviews
 spec:
-  replicas: 5
+  replicas: 1
   selector:
     matchLabels:
       service: mongodb-reviews
