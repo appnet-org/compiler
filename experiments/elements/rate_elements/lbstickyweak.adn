@@ -1,0 +1,24 @@
+internal {
+    lb_tab: Map<string, string>
+}
+
+fn init() {
+
+}
+
+fn req(rpc_req) {
+    match (lb_tab.get(rpc_req.get('out_date'))) {
+		Some(dst) => {
+            // do nothing
+		}
+		None => {
+            lb_tab.set(rpc_req.get('out_date'), '1');
+		}
+	};
+
+	send(rpc_req, NET);
+}
+
+fn resp(rpc_resp) {
+	send(rpc_resp, APP);
+}

@@ -1,0 +1,32 @@
+internal
+{
+	acl: Map<string, string>
+}
+
+fn init() {
+	acl.set('2024-01-01', 'No');
+}
+
+fn req(rpc_req) {
+	match (acl.get(rpc_req.get('out_date'))) {
+		Some(permission) => {
+			match (permission) {
+				'Yes' => {
+					send(rpc_req, NET);
+				}
+				'No' => {
+					send(err('acl'), APP);
+				}
+				_ => {
+				}
+			};
+		}
+		None => {
+			send(rpc_req, NET);
+		}
+	};
+}
+
+fn resp(rpc_resp) {
+    send(rpc_resp, APP);
+}

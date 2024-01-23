@@ -1,0 +1,34 @@
+internal
+{
+	cache: Map<string, string>
+}
+
+fn init() {
+}
+
+
+fn req(rpc_req) {
+    res := cache.get(rpc_req.get('customer_name'));
+	match (res) {
+		Some(name) => {
+            match (name) {
+                'cached' => {
+                    send(err('200'), APP);
+                }
+                _ => {
+                    send(err('403'), APP);
+                }
+            };
+		}
+		None => {
+			send(rpc_req, NET);
+		}
+	};
+}
+
+fn resp(rpc_resp) {
+    key := rpc_resp.get('customer_name');
+	value := 'cached';
+	cache.set(key, value);
+	send(rpc_resp, APP);
+}

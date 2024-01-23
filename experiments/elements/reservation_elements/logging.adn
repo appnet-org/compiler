@@ -13,5 +13,6 @@ fn req(rpc_req) {
 }
 
 fn resp(rpc_resp) {
+	record_resp.set(record_resp.size(), rpc_req.get('customer_name'));
 	send(rpc_resp, APP);
 }

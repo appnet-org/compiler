@@ -7,9 +7,9 @@ internal {
 
 fn init() {
 	last_bw := current_time();
-	limit_bw := 12000.0;
-	token_bw := 12000.0;
-	per_sec_bw := 12000.0;
+	limit_bw := 100000.0;
+	token_bw := 100000.0;
+	per_sec_bw := 100000.0;
 }
 
 fn req(rpc_req) {
