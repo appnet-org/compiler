@@ -1,7 +1,6 @@
 internal
 {
 	record_req: Vec<string>
-	record_resp: Vec<string>
 }
 
 fn init() {
@@ -13,6 +12,5 @@ fn req(rpc_req) {
 }
 
 fn resp(rpc_resp) {
-	record_resp.set(record_resp.size(), rpc_resp.get('locale'));
 	send(rpc_resp, APP);
 }
