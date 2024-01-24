@@ -22,14 +22,12 @@ fn req(rpc_req) {
             };
 		}
 		None => {
+	        cache.set(rpc_req.get('in_date'), 'cached');
 			send(rpc_req, NET);
 		}
 	};
 }
 
 fn resp(rpc_resp) {
-    key := rpc_resp.get('in_date');
-	value := 'cached';
-	cache.set(key, value);
 	send(rpc_resp, APP);
 }
