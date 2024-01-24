@@ -5,7 +5,7 @@ internal
 }
 
 fn init() {
-	acl.set('2024-02-02', 'No');
+	acl.set('2015-03-01', 'No');
 }
 
 fn req(rpc_req) {
