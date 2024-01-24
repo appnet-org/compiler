@@ -21,6 +21,7 @@ fn req(rpc_req) {
             };
 		}
 		None => {
+			cache.set(rpc_req.get('customer_name'), 'cached');
 			send(rpc_req, NET);
 		}
 	};
