@@ -71,7 +71,7 @@ gen_dir = os.path.join(EXP_DIR, "generated_hotel")
 report_parent_dir = os.path.join(EXP_DIR, "report_hotel")
 current_time = datetime.now().strftime("%m_%d_%H_%M_%S")
 report_dir = os.path.join(report_parent_dir, "trial_" + current_time)
-wrk_script_path = os.path.join(EXP_DIR, "wrk/hotel_no_drop.lua")
+wrk_script_path = os.path.join(EXP_DIR, "wrk/hotel.lua")
 
 
 def parse_args():
