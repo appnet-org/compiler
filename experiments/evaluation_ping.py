@@ -62,7 +62,7 @@ app_structure:
 gen_dir = os.path.join(EXP_DIR, "generated_ping")
 report_parent_dir = os.path.join(EXP_DIR, "report_ping")
 current_time = datetime.now().strftime("%m_%d_%H_%M_%S")
-report_dir = os.path.join(report_parent_dir, "trail_" + current_time)
+report_dir = os.path.join(report_parent_dir, "trial_" + current_time)
 wrk_script_path = os.path.join(EXP_DIR, "wrk/ping.lua")
 
 

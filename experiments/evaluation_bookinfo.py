@@ -61,7 +61,7 @@ app_structure:
 gen_dir = os.path.join(EXP_DIR, "generated_bookinfo")
 report_parent_dir = os.path.join(EXP_DIR, "report_bookinfo")
 current_time = datetime.now().strftime("%m_%d_%H_%M_%S")
-report_dir = os.path.join(report_parent_dir, "trail_" + current_time)
+report_dir = os.path.join(report_parent_dir, "trial_" + current_time)
 wrk_script_path = os.path.join(EXP_DIR, "wrk/bookinfo.lua")
 
 
@@ -138,7 +138,7 @@ def run_trial(curr_trial_num) -> List[Element]:
         "opt_data_weak_transport_ignore": {},
     }
 
-    # # Step 2: Collect latency and CPU result for pre- and post- optimization
+    # Step 2: Collect latency and CPU result for pre- and post- optimization
     for mode in results.keys():
 
         spec_path = (
