@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package details;
+
+service Details {
+    rpc getDetails(Product) returns (Result);
+}
+
+message Product {
+    int32 id = 1;
+    string user = 2;
+}
+
+message Detail {
+    int32 ProductID = 1;
+    string author = 2;
+    int32 year = 3;
+    string type = 4;
+    int32 pages = 5;
+    string publisher = 6;
+    string language = 7;
+    string ISBN10 = 8;
+    string ISBN13 = 9;
+}
+
+message Result {
+    repeated Detail detail = 1;
+    string user = 2;
+}

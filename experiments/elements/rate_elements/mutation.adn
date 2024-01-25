@@ -3,8 +3,8 @@ internal{}
 fn init() {}
 
 fn req(rpc_req) {
-  mutation_body := rpc_req.get('in_date');
-  rpc_req.set('in_date', mutation_body);
+  mutation_body := rpc_req.get('out_date');
+  rpc_req.set('out_date', mutation_body);
   send(rpc_req, NET);
 }
 

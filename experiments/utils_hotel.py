@@ -34,7 +34,6 @@ element_configs = {
 }
 
 app_to_method = {
-    "ping": "PingEcho",
     "search": "Nearby",
     "geo": "Nearby",
     "rate": "GetRates",
@@ -145,7 +144,7 @@ def select_random_elements(client: str, server: str, number: int):
 
 def test_application(num_requests=10, timeout_duration=1):
     responses = []
-    url = "http://10.96.88.88:8080/ping-echo?body=test"
+    url = "http://10.96.88.88:5000/hotels?inDate=2015-04-10&outDate=2015-04-11&lat=38.0235&lon=-122.095"
 
     for _ in range(num_requests):
         try:
@@ -190,7 +189,7 @@ def run_wrk_and_get_latency(lua_script_path, duration=20):
         os.path.join(EXP_DIR, "wrk/wrk"),
         "-t 1",
         "-c 1",
-        "http://10.96.88.88:8080/ping-echo",
+        "http://10.96.88.88:5000/hotels",
         f"-d {duration}",
         "-L",
         f"-s {lua_script_path}",
@@ -295,7 +294,7 @@ def run_wrk2_and_get_cpu(
         os.path.join(EXP_DIR, "wrk/wrk2"),
         "-t 10",
         "-c 100",
-        "http://10.96.88.88:8080/ping-echo",
+        "http://10.96.88.88:5000/hotels",
         f"-d {wrk2_duration}",
         f"-R {str(int(target_rate))}",
         f"-s {lua_script_path}",
@@ -354,7 +353,7 @@ def run_wrk2_and_get_tail_latency(
         os.path.join(EXP_DIR, "wrk/wrk2"),
         "-t 10",
         "-c 100",
-        "http://10.96.88.88:8080/ping-echo",
+        "http://10.96.88.88:5000/hotels",
         f"-d {wrk2_duration}",
         f"-R {str(int(target_rate))}",
         "-L ",

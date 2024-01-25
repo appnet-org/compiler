@@ -1,7 +1,6 @@
 internal
 {
 	record_req: Vec<string>
-	record_resp: Vec<string>
 }
 
 fn init() {

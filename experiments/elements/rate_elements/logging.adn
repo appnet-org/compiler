@@ -1,14 +1,13 @@
 internal
 {
 	record_req: Vec<string>
-	record_resp: Vec<string>
 }
 
 fn init() {
 }
 
 fn req(rpc_req) {
-	record_req.set(record_req.size(), rpc_req.get('in_date'));
+	record_req.set(record_req.size(), rpc_req.get('out_date'));
 	send(rpc_req, NET);
 }
 

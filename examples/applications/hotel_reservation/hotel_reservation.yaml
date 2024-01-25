@@ -696,7 +696,6 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: mongodb-user
@@ -744,7 +743,6 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: memcached-reserve
@@ -790,7 +788,6 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: mongodb-reservation
@@ -839,7 +836,6 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: mongodb-recommendation
@@ -888,7 +884,6 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: mongodb-rate
@@ -935,7 +930,6 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: memcached-rate
@@ -980,7 +974,6 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: memcached-profile
@@ -1026,7 +1019,6 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: mongodb-profile
@@ -1075,7 +1067,6 @@ spec:
       annotations:
         kompose.cmd: kompose convert
         kompose.version: 1.22.0 (955b78124)
-        sidecar.istio.io/inject: 'false'
       creationTimestamp: null
       labels:
         io.kompose.service: mongodb-geo

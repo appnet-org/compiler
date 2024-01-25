@@ -100,26 +100,23 @@ def scriptgen_envoy(
         webdis_service, webdis_deploy = list(yaml.safe_load_all(f))
 
     # Extract the list of microservices
-    services = list()
+    services_all = list()
     for yml in yml_list_istio:
         if yml and "kind" in yml and yml["kind"] == "Service":
-            sname = yml["metadata"]["name"]
-            if "mongodb" not in sname and "memcached" not in sname:
-                services.append(sname)
+            services_all.append(yml["metadata"]["name"])
+    services = list(
+        filter(
+            lambda s: "mongodb" not in s and "memcached" not in s and "jaeger" not in s,
+            services_all,
+        )
+    )
 
-    # element_deploy_count counts the number of elements attached to each service.
-    # structure example:
-    # element_deploy_count[service1][(service2, "C")] = c
-    #    service1 (c elements) -> service2
-    element_deploy_count = {}
-
-    for client, server in app_edges:
-        if client not in element_deploy_count:
-            element_deploy_count[client] = {}
-        if server not in element_deploy_count:
-            element_deploy_count[server] = {}
-        element_deploy_count[client][f"{server}_C"] = 0
-        element_deploy_count[server][f"{client}_S"] = 0
+    whitelist_port, blacklist_port = {}, {}
+    for sname in services_all:
+        whitelist_port[(sname, "C")] = set()
+        whitelist_port[(sname, "S")] = set()
+        blacklist_port[(sname, "C")] = []
+        blacklist_port[(sname, "S")] = []
 
     # Attach elements to the sidecar pods using volumes
     for gir in girs.values():
@@ -127,11 +124,8 @@ def scriptgen_envoy(
             (e, gir.server) for e in gir.elements["req_server"]
         ]
         for (element, sname) in elist:
-            # increment element count on client/server services
-            if sname == gir.client:
-                element_deploy_count[sname][f"{gir.server}_C"] += 1
-            else:
-                element_deploy_count[sname][f"{gir.client}_S"] += 1
+            placement = "C" if sname == gir.client else "S"
+            whitelist_port[(sname, placement)].add(service_to_port_number[gir.server])
 
             # If the element is stateful and requires strong consistency, deploy a webdis instance
             if (
@@ -166,7 +160,7 @@ def scriptgen_envoy(
             )
 
             # Find the corresponding service in the manifest
-            target_service_yml = find_target_yml(locals()["yml_list_istio"], sname)
+            target_service_yml = find_target_yml(yml_list_istio, sname)
 
             # Attach the element to the sidecar using volumes
             target_service_yml["spec"]["template"]["spec"]["containers"][1][
@@ -187,37 +181,51 @@ def scriptgen_envoy(
                 }
             )
 
-    bypass_info_dict = {
-        "element_deploy_count": element_deploy_count,
-        "service_to_hostname": service_to_hostname,
-        "service_to_port_number": service_to_port_number,
-    }
-    # pprint(bypass_info_dict)
-    # bypass_info_dump_path = os.path.join(local_gen_dir, "bypass_info.json")
-    # with open(bypass_info_dump_path, "w") as f:
-    #     json.dump(bypass_info_dict, f, indent = 4)
+    if os.getenv("ADN_NO_OPTIMIZE") != "1":
+        # has optimization: exclude ports that has no element attached to
+        for client, server in app_edges:
+            port_number = service_to_port_number[server]
+            if port_number not in whitelist_port[(client, "C")]:
+                blacklist_port[(client, "C")].append(port_number)
+            if port_number not in whitelist_port[(server, "S")]:
+                blacklist_port[(server, "S")].append(port_number)
+        # bypass frontend ingress sidecar
+        if "frontend" in services:
+            blacklist_port[("frontend", "S")].append(service_to_port_number["frontend"])
+        for (sname, placement), portlist in blacklist_port.items():
+            if portlist != []:
+                annotation_name = (
+                    "traffic.sidecar.istio.io/excludeOutboundPorts"
+                    if placement == "C"
+                    else "traffic.sidecar.istio.io/excludeInboundPorts"
+                )
+                target_service_yml = find_target_yml(yml_list_istio, sname)
+                target_service_yml["spec"]["template"]["metadata"][
+                    "annotations"
+                ].update({annotation_name: ",".join(portlist)})
+    else:
+        # no optimization: keep everything unchanged so that no sidecar will be bypassed
+        # TODO: bypass frontend ingress sidecar for ping-pong-app
+        pass
 
-    # if s1 -> s2 has no element on client/server side, bypass sidecar
-    bypass_script_dump_path = os.path.join(local_gen_dir, "bypass.py")
-    with open(bypass_script_dump_path, "w") as f:
-        if os.getenv("ADN_NO_OPTIMIZE") != "1":
-            f.write(bypass_script.format(bypass_info_dict=str(bypass_info_dict)))
-        else:
-            f.write("pass")
-
-    # if a service has no elment attached, turn off its sidecar
     # if os.getenv("ADN_NO_OPTIMIZE") != "1":
-    #     for sname in services:
-    #         if element_deploy_count[sname] == 0:
-    #             target_yml = find_target_yml(locals()["yml_list_istio"], sname)
-    #             target_yml.clear()
-    #             target_yml.update(find_target_yml(locals()["yml_list_plain"], sname))
+    #     # has optimization: add whitelist annotations, ports not included in whitelist will be bypassed
+    #     for (sname, placement), portset in whitelist_port.items():
+    #         annotation_name = "traffic.sidecar.istio.io/includeOutboundPorts" if placement == "C" else "traffic.sidecar.istio.io/includeInboundPorts"
+    #         target_service_yml = find_target_yml(yml_list_istio, sname)
+    #         target_service_yml["spec"]["template"]["metadata"]["annotations"].update({
+    #             # annotation_name: ','.join(list(portset))
+    #             annotation_name: ''
+    #         })
+    # else:
+    #     # no optimization: keep everything unchanged so that no sidecar will be bypassed
+    #     pass
 
     # Adjust replica count
     replica = os.getenv("SERVICE_REPLICA")
     if replica is not None:
         for sname in services:
-            target_yml = find_target_yml(locals()["yml_list_istio"], sname)
+            target_yml = find_target_yml(yml_list_istio, sname)
             target_yml["spec"]["replicas"] = int(replica)
 
     # Dump the final manifest file (somehow there is a None)

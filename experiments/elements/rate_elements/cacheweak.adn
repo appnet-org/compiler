@@ -1,0 +1,32 @@
+internal
+{
+	cache: Map<string, string>
+}
+
+fn init() {
+}
+
+
+fn req(rpc_req) {
+    res := cache.get(rpc_req.get('out_date'));
+	match (res) {
+		Some(name) => {
+            match (name) {
+                'cached' => {
+                    send(err('200'), APP);
+                }
+                _ => {
+                    send(err('403'), APP);
+                }
+            };
+		}
+		None => {
+			cache.set(rpc_req.get('out_date'), 'cached');
+			send(rpc_req, NET);
+		}
+	};
+}
+
+fn resp(rpc_resp) {
+	send(rpc_resp, APP);
+}
