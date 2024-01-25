@@ -224,7 +224,7 @@ def run_trial(curr_trial_num) -> List[Element]:
         results[mode]["tail latency(us)"] = run_wrk2_and_get_tail_latency(
             wrk_script_path,
             args.latency_duration,
-            args.target_rate * 0.3,
+            args.target_rate * 0.15,
         )
 
         if not results[mode]["tail latency(us)"]:
