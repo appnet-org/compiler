@@ -1,14 +1,13 @@
 state:
-	log_request: Vec<string>;
-    log_response: Vec<string>;
+	log_req
+    log_resp
 
 init:
-    pass
 
-req: 
-	log_request.set(log_request.size(), rpc_req.get('name'));
-	send(rpc_req, NET);
+req(rpc):
+	send(get(rpc, 'key'), log_req)
+	send(rpc, down)
 
-resp:
-    log_response.set(log_response.size(), rpc_req.get('name'));
-	send(rpc_resp, APP);
+resp(rpc):
+	send(get(rpc, 'key'), log_resp)
+	send(rpc, down)

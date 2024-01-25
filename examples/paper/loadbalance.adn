@@ -1,17 +1,16 @@
 state: 
-    lb_tab: Map<string, string>
+    lb_tab
 
-init():
-    pass
+init:
 
 req:
-    match (lb_tab.get(rpc_req.get('name'))) 
-		Some(dst) => 
-			rpc_req.set('meta_dst', dst);
-		None => 
-	        idx := random(0, len(addrs));
-	        rpc_req.set('meta_dst', addrs.get(idx));
-	send(rpc_req, NET);
+	match (get(lb_tab, 'client'))
+		dst =>
+			set(rpc, 'meta_dst', dst)
+			send(rpc, down)
+		'*' =>
+			set(rpc, 'meta_dst', random_dst())
+			send(rpc, down)
 
-resp:
-	send(rpc_resp, APP);
+resp(rpc):
+	send(rpc, down)

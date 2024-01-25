@@ -1,13 +1,13 @@
 state:
-	abort_probability: float
+	rej_prob
 
-init(abort_probability):
-	abort_probability := abort_probability;
+init:
+	rej_prob = 0.05
 
-req:
-	match(randomf(0,1) < prob) 
-		true => send(rpc_req, NET);
-		false => send(err('fault_injected'), APP);
+req(rpc):
+	match(random(0, 1) < rej_prob) 
+		true => send('error', up)
+		false => send(rpc, down)
 
-resp:
-    send(rpc_resp, APP);
+resp(rpc):
+    send(rpc, down)

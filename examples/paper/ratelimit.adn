@@ -1,24 +1,24 @@
 state:
-	last: Instant
-	limit: float
-	token: float
-	per_sec: float
+	last_ts
+	limit
+	token
+	per_sec
 
-fn init(limit, token, per_sec) 
-	last := current_time();
-	limit := limit;
-	token := token;
-	per_sec :=per_sec;
+init:
+	last_ts = current_time()
+	limit = 1000.0
+	token = 1000.0
+	per_sec = 1000.0
 
-req:
-	token := min(limit, token + (per_sec * time_diff(current_time(), last)));
-	last := current_time();
+req(rpc):
+	token = min(limit, token + (per_sec * (current_time() - last_ts)))
+	last_ts := current_time()
     match (token > 1.0) 
 		true => 
-			token := token - 1.0;
-			send(rpc_req, NET);
+			token := token - 1.0
+			send(rpc, down)
 		false => 
-			send(err('ratelimit'), APP);
+			send('error', up)
 
-resp
-    send(rpc_resp, APP);
+resp(rpc):
+	send(rpc, down)
