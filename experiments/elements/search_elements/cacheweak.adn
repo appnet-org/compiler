@@ -28,8 +28,5 @@ fn req(rpc_req) {
 }
 
 fn resp(rpc_resp) {
-    key := rpc_resp.get('in_date');
-	value := 'cached';
-	cache.set(key, value);
 	send(rpc_resp, APP);
 }
