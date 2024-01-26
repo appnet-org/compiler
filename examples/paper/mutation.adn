@@ -1,12 +1,10 @@
 state:
-    pass
 
 init:
-    pass
 
-req:
-  rpc_req.set('name', 'orange');
-  send(rpc_req, NET);
+req(rpc):
+    set(rpc, 'name', 'orange')
+    send(rpc, down)
 
-resp:
-	send(rpc_resp, APP);
+resp(rpc):
+    send(rpc, down)

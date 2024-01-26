@@ -1,14 +1,14 @@
-state
-	password: string
+state:
+    password
 
 init:
-    password := '123456';
+    password = '123456'
 
-req:
-	ori := rpc_req.get('name');
-    encrypted := encrypt(ori, password);
-    rpc_req.set('name', encrypted);
-    send(rpc_req, NET);
+req(rpc):
+    f = get(rpc, 'payload')
+    encrypted = encrypt(f, password)
+    set(rpc, 'payload', encrypted)
+    send(rpc, down)
 
-resp:
-    send(rpc_resp, APP);
+resp(rpc)
+    send(rpc, up)

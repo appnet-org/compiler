@@ -1,25 +1,24 @@
 state:
-	multiplier: float
-	success: float 
-	total: float
+	multiplier
+	accepts
+	requests
 
+init:
+	multiplier = 2.0
+	requests = 0
+	accepts = 0
 
-init(multiplier):
-	multiplier := multiplier;
-	success := 0.0;
-	total := 0.0;
+req(rpc):
+	rej_prob = max(0, (requests - multiplier * accepts) / (requests + 1))
+	requests = requests + 1
+	match (random(0, 1) < rej_prob) 
+		true => send(rpc, down)
+		false => send('error', up)
 
-fn req(rpc_req) 
-	total := total + 1.0;
-	prob := (total - (multiplier * success)) / (total + 1.0);
-	match(randomf(0,1) < prob) 
-		true => send(rpc_req, NET);
-		false => send(err('admission control'), APP);
-
-fn resp(rpc_resp) 
-	match(rpc_resp.get('meta_status') == 'success') 
-		true => 
-			success := success + 1.0;
-			send(rpc_resp, APP);
-		false => 
-            send(rpc_resp, APP);
+resp(rpc):
+	match(get(rpc, 'status')) 
+		'success' =>
+			accepts = accepts + 1
+			send(rpc, down)
+		'*' =>
+			send(rpc, down)

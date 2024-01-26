@@ -1,19 +1,15 @@
 state:
-	acl: Map<string, string>
+	firewall_rules
 
 init:
-	acl.set('Apple', 'Yes');
-	acl.set('Banana', 'No');
+	set(firewall_rules, 'Apple', 'Yes')
+	set(firewall_rules, 'Banana', 'No')
 
-req:
-	match (acl.get(rpc_req.get('name'))) 
-		Some(permission) => 
-			match (permission) 
-				'Yes' => send(rpc_req, NET);
-				'No' => send(err('acl'), APP);
-				 _ => send(err('acl'), APP);
-		None =>
-			send(err('acl'), APP);
+req(rpc):
+	match (get(firewall_rules, rpc_req.get('name'))) 
+		'Yes' => send(rpc, down)
+		'No'  => send('error', up)
+		'*'   => send(rpc, down)
 
-resp:
-    send(rpc_resp, APP);	
+resp(rpc):
+    send(rpc, down)

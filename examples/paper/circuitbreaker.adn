@@ -1,22 +1,19 @@
 state:
-	max_concurrent_req: int
-    pending_req: int
-    drop_count: int
+	max_concurrent_req
+    pending_req
 
-init(max_concurrent_req):
-	max_concurrent_req := max_concurrent_req;
-    pending_req := 0;
-    drop_count := 0;
+init:
+	max_concurrent_req = 100
+    pending_req = 0
 
-req:
+req(rpc):
 	match(pending_req <= max_concurrent_req) 
 		true => 
-            pending_req := pending_req + 1;
-			send(rpc_req, NET);
+            pending_req = pending_req + 1
+			send(rpc, down)
 		false => 
-            drop_count := drop_count + 1;
-			send(err('circuit breaker'), APP);
+			send('error', up)
 
-resp:
-    pending_req := pending_req - 1;
-    send(rpc_resp, APP);
+resp(rpc):
+    pending_req = pending_req - 1
+    send(rpc, down)
