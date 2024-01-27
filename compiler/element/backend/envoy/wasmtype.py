@@ -307,7 +307,8 @@ WasmGlobalFunctions = {
         False,
         """pub fn gen_encrypt(a: &str, b: &str) -> String {
             let mut ret = String::new();
-            for (x, y) in a.bytes().zip(b.bytes()) {
+            let b_bytes = b.bytes();
+            for (x, &y) in a.bytes().zip(b.iter().cycle()) {
                 ret.push((x ^ y) as char);
             }
             ret
@@ -320,7 +321,8 @@ WasmGlobalFunctions = {
         False,
         """pub fn gen_decrypt(a: &str, b: &str) -> String {
             let mut ret = String::new();
-            for (x, y) in a.bytes().zip(b.bytes()) {
+            let b_bytes = b.bytes();
+            for (x, &y) in a.bytes().zip(b.iter().cycle()) {
                 ret.push((x ^ y) as char);
             }
             ret

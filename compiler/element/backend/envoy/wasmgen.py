@@ -863,7 +863,7 @@ def proto_gen_bytesize(rpc: str, args: List[str]) -> str:
     # TODO: fix - should return usize.
     # Also, this does not seem to return the actual length of the RPC but the pointer size.
     # return f"mem::size_of_val(&{rpc}) as f64"
-    return "body_size as f64"
+    return f"{rpc}.body.bytes().len() as f64"
 
 
 def proto_get_arg_type(arg: str, ctx: WasmContext) -> str:
