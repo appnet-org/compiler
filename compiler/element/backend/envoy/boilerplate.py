@@ -39,7 +39,7 @@ impl Context for {FilterName}Root {{}}
 
 impl RootContext for {FilterName}Root {{
     fn on_vm_start(&mut self, _: usize) -> bool {{
-        log::warn!("executing on_vm_start");
+        // log::warn!("executing on_vm_start");
         {Init}
         true
     }}
@@ -55,7 +55,7 @@ struct {FilterName}Body {{
 
 impl Context for {FilterName}Body {{
     fn on_http_call_response(&mut self, _: u32, _: usize, body_size: usize, _: usize) {{
-        log::warn!("executing on_http_call_response, self.context_id: {{}}", self.context_id);
+        // log::warn!("executing on_http_call_response, self.context_id: {{}}", self.context_id);
         if let Some(body) = self.get_http_call_response_body(0, body_size) {{
             if let Ok(body_str) = std::str::from_utf8(&body) {{
                 {ExternalCallResponse}
@@ -69,7 +69,7 @@ impl Context for {FilterName}Body {{
 
 impl HttpContext for {FilterName}Body {{
     fn on_http_request_headers(&mut self, _num_of_headers: usize, _end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_request_headers, self.context_id: {{}}", self.context_id);
+        // log::warn!("executing on_http_request_headers, self.context_id: {{}}", self.context_id);
         // if !end_of_stream {{
         //     return Action::Continue;
         // }}
@@ -86,7 +86,7 @@ impl HttpContext for {FilterName}Body {{
     }}
 
     fn on_http_request_body(&mut self, body_size: usize, _end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_request_body, self.context_id: {{}}", self.context_id);
+        // log::warn!("executing on_http_request_body, self.context_id: {{}}", self.context_id);
         // if !end_of_stream {{
         //    return Action::Pause;
         // }}
@@ -95,7 +95,7 @@ impl HttpContext for {FilterName}Body {{
     }}
 
     fn on_http_response_headers(&mut self, _num_headers: usize, _end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_response_headers, self.context_id: {{}}", self.context_id);
+        // log::warn!("executing on_http_response_headers, self.context_id: {{}}", self.context_id);
         // if !end_of_stream {{
         //    return Action::Continue;
         // }}
@@ -104,7 +104,7 @@ impl HttpContext for {FilterName}Body {{
     }}
 
     fn on_http_response_body(&mut self, body_size: usize, _end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_response_body, self.context_id: {{}}", self.context_id);
+        // log::warn!("executing on_http_response_body, self.context_id: {{}}", self.context_id);
         // if !end_of_stream {{
         //    return Action::Pause;
         // }}
