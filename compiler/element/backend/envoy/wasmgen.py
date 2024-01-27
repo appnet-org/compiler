@@ -382,7 +382,7 @@ class WasmGenerator(Visitor):
                             {res_get_code}
                         }}
                         _ => {{
-                            log::warn!("Only GET results will be parsed!");
+                            // log::warn!("Only GET results will be parsed!");
                             return;
                         }}
                     }},
