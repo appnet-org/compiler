@@ -339,7 +339,7 @@ WasmGlobalFunctions = {
         WasmBasicType("f64"),
         True,
         """pub fn gen_current_timestamp(ctx: & impl Context) -> f64 {
-            DateTime::<Utc>::from(ctx.get_current_time()).timestamp() as f64
+            DateTime::<Utc>::from(ctx.get_current_time()).timestamp_micros() as f64
         }""",
     ),
     "time_diff": WasmFunctionType(
@@ -347,7 +347,7 @@ WasmGlobalFunctions = {
         [WasmBasicType("f64"), WasmBasicType("f64")],
         WasmBasicType("f64"),
         False,
-        "pub fn gen_time_difference(a: f64, b: f64) -> f64 { a - b }",
+        "pub fn gen_time_difference(a: f64, b: f64) -> f64 { (a - b) / 1000000.0 as f64 }",
     ),
     "random_f64": WasmFunctionType(
         "gen_random_f64",

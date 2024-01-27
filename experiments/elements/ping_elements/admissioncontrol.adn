@@ -13,10 +13,10 @@ fn init(multiplier) {
 
 fn req(rpc_req) {
 	prob := 1.0 - max(0, (total - (multiplier * success)) / (total + 1.0));
+	total := total + 1.0;
 
 	match(randomf(0,1) < prob) {
 		true => {
-			total := total + 1.0;
 			send(rpc_req, NET);
 		}
 		false => {
