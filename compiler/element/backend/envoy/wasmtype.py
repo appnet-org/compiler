@@ -307,8 +307,8 @@ WasmGlobalFunctions = {
         False,
         """pub fn gen_encrypt(a: &str, b: &str) -> String {
             let mut ret = String::new();
-            let b_bytes = b.bytes();
-            for (x, &y) in a.bytes().zip(b.iter().cycle()) {
+            let b_bytes = b.as_bytes();
+            for (x, &y) in a.bytes().zip(b_bytes.iter().cycle()) {
                 ret.push((x ^ y) as char);
             }
             ret
@@ -321,8 +321,8 @@ WasmGlobalFunctions = {
         False,
         """pub fn gen_decrypt(a: &str, b: &str) -> String {
             let mut ret = String::new();
-            let b_bytes = b.bytes();
-            for (x, &y) in a.bytes().zip(b.iter().cycle()) {
+            let b_bytes = b.as_bytes();
+            for (x, &y) in a.bytes().zip(b_bytes.iter().cycle()) {
                 ret.push((x ^ y) as char);
             }
             ret
@@ -385,19 +385,6 @@ WasmGlobalFunctions = {
         WasmBasicType("f64"),
         False,
         "pub fn gen_max_f64(a: f64, b: f64) -> f64 { a.max(b) }",
-    ),
-    "encrypt": WasmFunctionType(
-        "gen_encrypt",
-        [WasmType("&str"), WasmType("&str")],
-        WasmBasicType("String"),
-        False,
-        """pub fn gen_encrypt(a: &str, b: &str) -> String {
-            let mut ret = String::new();
-            for (x, y) in a.bytes().zip(b.bytes()) {
-                ret.push((x ^ y) as char);
-            }
-            ret
-        }""",
     ),
 }
 
