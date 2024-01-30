@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Dict, List, Optional, Set
 
 from compiler.element.backend.envoy import *
+from compiler.element.backend.envoy.boilerplate import on_tick_template
 from compiler.element.backend.envoy.wasmtype import *
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
@@ -26,9 +27,12 @@ class WasmContext:
         self.internal_states: List[
             WasmVariable
         ] = []  # List of internal state variables
-        self.strong_consisteny_states: List[
+        self.strong_consistency_states: List[
             WasmVariable
         ] = []  # List of strong consistency variables
+        self.weak_consistency_states: List[
+            WasmVariable
+        ] = []  # List of weak consistency variables
         self.inners: List[
             WasmVariable
         ] = []  # Inners are temp variables used to access state
@@ -39,6 +43,7 @@ class WasmContext:
         self.temp_var_scope: Dict[str, Optional[Node]] = {}
         self.current_procedure: str = "unknown"  # Name of the current procedure (i.e., init/req/resp) being processed
         self.params: List[WasmVariable] = []  # List of parameters for the function
+        self.on_tick_code: List[str] = []  # Code for background sync
         self.init_code: List[str] = []  # Code for initialization
         self.req_hdr_code: List[str] = []  # Code for request header processing
         self.resp_hdr_code: List[str] = []  # Code for response header processing
@@ -92,8 +97,12 @@ class WasmContext:
                 combiner=combiner,
                 persistence=persistence,
             )
+            if consistency == "weak":
+                # weak consistency states will be treated like local states, except that
+                # we periodically sync the states in the background
+                self.weak_consistency_states.append(var)
             if consistency == "strong":
-                self.strong_consisteny_states.append(var)
+                self.strong_consistency_states.append(var)
                 self.name2var[name] = var
             elif not temp_var and not var.rpc and atomic:
                 # If it's not a temp variable and does not belong to RPC request or response processing.
@@ -132,7 +141,11 @@ class WasmContext:
 
     @property
     def strong_state_count(self) -> int:
-        return len(self.strong_consisteny_states)
+        return len(self.strong_consistency_states)
+
+    @property
+    def weak_state_count(self) -> int:
+        return len(self.weak_consistency_states)
 
     @property
     def rpc_hashmap(self) -> str:
@@ -278,6 +291,13 @@ class WasmGenerator(Visitor):
             ctx.declare(
                 state_name, state_wasm_type, False, True, cons.name, comb.name, per.name
             )
+        # For each eventual consistent state, add synchronization logic into on_tick()
+        for var in ctx.weak_consistency_states:
+            contents = {
+                "state_name": var.name,
+                "element_name": ctx.element_name,
+            }
+            ctx.on_tick_code.append(on_tick_template.format(**contents))
 
     def visitProcedure(self, node: Procedure, ctx: WasmContext):
         # TODO: Add request and response header processing.
@@ -402,6 +422,10 @@ class WasmGenerator(Visitor):
             elif original_procedure == FUNC_RESP_BODY:
                 if "rpc_resp" in ctx.access_ops[FUNC_RESP_BODY]:
                     ctx.push_code(prefix)
+
+        # if there exist weak consistency states, register on_tick function
+        if ctx.current_procedure == FUNC_INIT and ctx.weak_state_count > 0:
+            ctx.push_code("self.set_tick_period(Duration::from_secs(1));")
 
         for p in node.params:
             name = p.name
@@ -624,7 +648,7 @@ class WasmGenerator(Visitor):
             vec_type = type_def[4:].split(">")[0].strip()
             # If the vector state requires strong consistency, we need to rely on an external storage
             # Otherwise (local state or eventual consistent state), use a local vector
-            if node.consistency and node.consistency == "strong":
+            if node.consistency == "strong":
                 return WasmSyncVecType(map_basic_type(vec_type))
             else:
                 return WasmVecType(map_basic_type(vec_type))
@@ -634,7 +658,7 @@ class WasmGenerator(Visitor):
             value_type = temp.split(",")[1].strip()
             # If the map state requires strong consistency, we need to rely on an external storage
             # Otherwise (local state or eventual consistent state), use a local map
-            if node.consistency and node.consistency == "strong":
+            if node.consistency == "strong":
                 return WasmSyncMapType(
                     map_basic_type(key_type), map_basic_type(value_type)
                 )
