@@ -28,13 +28,13 @@ envoy_element_pool = [
     "aclstrong",
     "metrics",
     "admissioncontrol",
-    "encryptping-decryptping",
+    "zzencrypt-aadecrypt",
     "bandwidthlimit",
     "circuitbreaker",
 ]
 
 envoy_pair_pool = [
-    "encryptping-decryptping",
+    "zzencrypt-aadecrypt",
 ]
 
 app_structure = {
@@ -132,10 +132,11 @@ def run_trial(curr_trial_num) -> List[Element]:
             ]
 
             # Specify the equivalence level (no, weak, strong, ignore)
-            compile_cmd.extend(["--opt_level", "no"])
 
             if mode == "handwritten":
                 compile_cmd.extend(["--pseudo_impl"])
+            else:
+                compile_cmd.extend(["--opt_level", "no"])
 
             EVAL_LOG.info(f"[{mode}] Compiling spec...")
             execute_local(compile_cmd)
