@@ -88,22 +88,18 @@ def select_random_elements(client: str, server: str, element_name: str):
     e = Element(
         element_name,
         position="C" if element_name not in pair_pool else "CS",
-        proto=os.path.join(
-            proto_base_dir, "ping.proto"
-        ),  
+        proto=os.path.join(proto_base_dir, "ping.proto"),
         method="PingEcho",
     )
-    
-    if element_name  in pair_pool:
+
+    if element_name in pair_pool:
         pairs.append(e)
     else:
         selected.append(e)
 
     # Convert elements to YAML format
     yaml_data = {
-        "edge": {
-            f"{client}->{server}": [element.to_dict() for element in selected]
-        },
+        "edge": {f"{client}->{server}": [element.to_dict() for element in selected]},
         "link": {f"{client}->{server}": [element.to_dict() for element in pairs]},
     }
 

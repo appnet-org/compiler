@@ -89,10 +89,7 @@ def parse_args():
 
 def generate_user_spec(backend: str, element_name: str, path: str):
     assert path.endswith(".yml"), "wrong user spec format"
-    (
-        selected_elements,
-        selected_yml_str,
-    ) = select_random_elements(
+    (selected_elements, selected_yml_str,) = select_random_elements(
         app_structure[backend]["client"], app_structure[backend]["server"], element_name
     )
     spec = yml_header[backend] + selected_yml_str
@@ -103,12 +100,10 @@ def generate_user_spec(backend: str, element_name: str, path: str):
 
 def run_trial(curr_trial_num) -> List[Element]:
     # Step 1: Generate a random user specification based on the backend and number of elements
-    EVAL_LOG.info(
-        f"Randomly generate user specification, backend = {args.backend}..."
-    )
-    
+    EVAL_LOG.info(f"Randomly generate user specification, backend = {args.backend}...")
+
     for element_name in envoy_element_pool:
-        
+
         selected_elements, spec = generate_user_spec(
             args.backend,
             element_name,
@@ -138,10 +133,10 @@ def run_trial(curr_trial_num) -> List[Element]:
 
             # Specify the equivalence level (no, weak, strong, ignore)
             compile_cmd.extend(["--opt_level", "no"])
-            
+
             if mode == "handwritten":
                 compile_cmd.extend(["--pseudo_impl"])
-                
+
             EVAL_LOG.info(f"[{mode}] Compiling spec...")
             execute_local(compile_cmd)
 
@@ -150,12 +145,14 @@ def run_trial(curr_trial_num) -> List[Element]:
                 yml_list_plain = list(yaml.safe_load_all(f))
             results[mode]["graphir"] = yml_list_plain[0]["graphir"][0]
 
-            EVAL_LOG.info(f"[{mode}] Printing final GraphIR: {results[mode]['graphir']}")
+            EVAL_LOG.info(
+                f"[{mode}] Printing final GraphIR: {results[mode]['graphir']}"
+            )
 
             EVAL_LOG.info(
                 f"[{mode}] Backend code and deployment script generated. Deploying the application..."
             )
-            
+
             # Clean up the k8s deployments
             kdestroy()
 
@@ -166,14 +163,11 @@ def run_trial(curr_trial_num) -> List[Element]:
             EVAL_LOG.info(f"[{mode}] Application deployed...")
             time.sleep(10)
 
-
             # Perform some basic testing to see if the application is healthy
             if test_application():
                 EVAL_LOG.info(f"Application is healthy...")
             else:
-                EVAL_LOG.warning(
-                    f"Application is unhealthy. Restarting the trial..."
-                )
+                EVAL_LOG.warning(f"Application is unhealthy. Restarting the trial...")
                 return selected_elements, "Application Health Check Failed"
 
             # Run wrk to get the service time
@@ -229,7 +223,9 @@ def run_trial(curr_trial_num) -> List[Element]:
             kdestroy()
 
         EVAL_LOG.info("Dumping report...")
-        with open(os.path.join(report_dir, f"report_{element_name}_{curr_trial_num}.yml"), "w") as f:
+        with open(
+            os.path.join(report_dir, f"report_{element_name}_{curr_trial_num}.yml"), "w"
+        ) as f:
             f.write(spec)
             f.write("---\n")
             f.write(yaml.dump(results, default_flow_style=False, indent=4))
