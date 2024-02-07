@@ -154,10 +154,13 @@ def scriptgen_envoy(
                 yml_list_istio.append(webdis_service_copy)
                 yml_list_istio.append(webdis_deploy_copy)
 
-            # Copy the wasm binary to the remote host
-            copy_remote_host(
-                service_to_hostname[sname], f"/tmp/{element.lib_name}.wasm", "/tmp/"
-            )
+            # Copy the wasm binary to the remote hosts
+            # We need to copy to all hosts because we don't know where the service will be scheduled
+            nodes = get_node_names()
+            for node in nodes:
+                copy_remote_host(
+                    node, f"/tmp/{element.lib_name}.wasm", "/tmp/"
+                )
 
             # Find the corresponding service in the manifest
             target_service_yml = find_target_yml(yml_list_istio, sname)

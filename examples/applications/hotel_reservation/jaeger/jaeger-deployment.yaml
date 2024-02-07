@@ -44,6 +44,6 @@ spec:
             cpu: 1000m
           requests:
             cpu: 100m
-      nodeName: h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      # nodeName: h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
       restartPolicy: Always
 status: {}

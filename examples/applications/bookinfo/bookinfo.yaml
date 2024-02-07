@@ -47,7 +47,7 @@ spec:
         name: details
         ports:
         - containerPort: 8081
-      nodeName: h4.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      # nodeName: h4.hotelbench.meshbench-pg0.clemson.cloudlab.us
       serviceAccountName: bookinfo-details
 ---
 apiVersion: v1
@@ -62,14 +62,14 @@ spec:
   hostPath:
     path: /data/volumes/details-pv
     type: DirectoryOrCreate
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - h4.hotelbench.meshbench-pg0.clemson.cloudlab.us
+  # nodeAffinity:
+  #   required:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: kubernetes.io/hostname
+  #         operator: In
+  #         values:
+  #         - h4.hotelbench.meshbench-pg0.clemson.cloudlab.us
   storageClassName: details-storage
   volumeMode: Filesystem
 ---
@@ -135,7 +135,7 @@ spec:
         volumeMounts:
         - mountPath: /data/db
           name: details
-      nodeName: h4.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      # nodeName: h4.hotelbench.meshbench-pg0.clemson.cloudlab.us
       restartPolicy: Always
       volumes:
       - name: details
@@ -193,7 +193,7 @@ spec:
         name: productpage
         ports:
         - containerPort: 8080
-      nodeName: h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      # nodeName: h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
       serviceAccountName: bookinfo-productpage
 ---
 apiVersion: v1
@@ -246,7 +246,7 @@ spec:
         volumeMounts:
         - mountPath: /data/db
           name: ratings
-      nodeName: h5.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      # nodeName: h5.hotelbench.meshbench-pg0.clemson.cloudlab.us
       restartPolicy: Always
       volumes:
       - name: ratings
@@ -302,7 +302,7 @@ spec:
         name: ratings
         ports:
         - containerPort: 8082
-      nodeName: h5.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      # nodeName: h5.hotelbench.meshbench-pg0.clemson.cloudlab.us
       serviceAccountName: bookinfo-ratings
 ---
 apiVersion: v1
@@ -317,14 +317,14 @@ spec:
   hostPath:
     path: /data/volumes/ratings-pv
     type: DirectoryOrCreate
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - h5.hotelbench.meshbench-pg0.clemson.cloudlab.us
+  # nodeAffinity:
+  #   required:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: kubernetes.io/hostname
+  #         operator: In
+  #         values:
+  #         - h5.hotelbench.meshbench-pg0.clemson.cloudlab.us
   storageClassName: ratings-storage
   volumeMode: Filesystem
 ---
@@ -391,7 +391,7 @@ spec:
         name: reviews
         ports:
         - containerPort: 8083
-      nodeName: h3.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      # nodeName: h3.hotelbench.meshbench-pg0.clemson.cloudlab.us
       serviceAccountName: bookinfo-reviews
 ---
 apiVersion: v1
@@ -444,7 +444,7 @@ spec:
         volumeMounts:
         - mountPath: /data/db
           name: reviews
-      nodeName: h3.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      # nodeName: h3.hotelbench.meshbench-pg0.clemson.cloudlab.us
       restartPolicy: Always
       volumes:
       - name: reviews
@@ -464,14 +464,14 @@ spec:
   hostPath:
     path: /data/volumes/reviews-pv
     type: DirectoryOrCreate
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - h3.hotelbench.meshbench-pg0.clemson.cloudlab.us
+  # nodeAffinity:
+  #   required:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: kubernetes.io/hostname
+  #         operator: In
+  #         values:
+  #         - h3.hotelbench.meshbench-pg0.clemson.cloudlab.us
   storageClassName: reviews-storage
   volumeMode: Filesystem
 ---
@@ -567,6 +567,6 @@ spec:
             cpu: 1000m
           requests:
             cpu: 100m
-      nodeName: h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
+      # nodeName: h2.hotelbench.meshbench-pg0.clemson.cloudlab.us
       restartPolicy: Always
 status: {}

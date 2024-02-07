@@ -98,15 +98,10 @@ def gen_code(
     for element_name in element_names:
         LOG.info(f"(CodeGen) Parsing {element_name}")
 
-        # element_spec_base_dir = os.environ.get("ELEMENT_SPEC_BASE_DIR")
-        # assert element_spec_base_dir is not None and os.path.exists(
-        # element_spec_base_dir
-        # )
-
         with open(
             os.path.join(
                 root_base_dir,
-                "experiments/elements",
+                "examples/elements",
                 f"{server}_elements",
                 f"{element_name}.adn",
             )
@@ -192,7 +187,7 @@ def compile_element_property(
         with open(
             os.path.join(
                 root_base_dir,
-                "experiments/elements",
+                "examples/elements",
                 f"{server}_elements",
                 f"{element_name}.adn",
             )

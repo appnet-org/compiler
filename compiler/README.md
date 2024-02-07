@@ -13,25 +13,27 @@ git clone https://github.com/kristoff-starling/phoenix --recursive -b multi ~/ph
 ```bash
 # Run the graph compiler on demo.yml to generate element code and deployment scripts for mRPC.
 export ELEMENT_SPEC_BASE_DIR="$(dirname $(pwd))/examples/element"
-python3 ~/adn-compiler/compiler/main.py --spec ~/adn-compiler/examples/graph/dummy.yml --backend envoy -v --opt_level strong
+python3.10 ~/adn-compiler/compiler/main.py --spec ~/adn-compiler/examples/graph/ping.yml --backend envoy -v --opt_level no
 
-usage: main.py [-h] -s SPEC_PATH [-v][--pseudo_property] [--pseudo_impl] -b {mrpc,envoy}
-               [--mrpc_dir MRPC_DIR] [--dry_run] [--no_optimize] [--debug]
+usage: main.py [-h] -s SPEC_PATH [-v] [--pseudo_property] [--pseudo_impl] -b {mrpc,envoy} [--mrpc_dir MRPC_DIR] [--dry_run]
+               [--opt_level {no,ignore,weak,strong}] [--no_optimize] [--replica REPLICA] [--opt_algorithm OPT_ALGORITHM] [--debug]
 
 options:
   -h, --help            show this help message and exit
   -s SPEC_PATH, --spec_path SPEC_PATH
                         Path to user specification file
-  -v, --verbose         If added, request graphs (i.e., element chains) on each edge will be printed on
-                        the terminal
+  -v, --verbose         If added, request graphs (i.e., element chains) on each edge will be printed on the terminal
   --pseudo_property     If added, use hand-coded properties instead of auto-generated ones
   --pseudo_impl         If added, use hand-coded impl instead of auto-generated ones
   -b {mrpc,envoy}, --backend {mrpc,envoy}
                         Backend name
   --mrpc_dir MRPC_DIR   Path to mrpc repo
-  --dry_run             If added, the compilation terminates after optimization (i.e., no backend
-                        scriptgen)
+  --dry_run             If added, the compilation terminates after optimization (i.e., no backend scriptgen)
+  --opt_level {no,ignore,weak,strong}
+                        optimization level
   --no_optimize         If added, no optimization will be applied to GraphIR
+  --replica REPLICA     #replica for each service
+  --opt_algorithm OPT_ALGORITHM
   --debug               Print debug info
 ```
 

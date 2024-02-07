@@ -10,13 +10,13 @@ spec:
   hostPath:
     path: /data/volumes/reservation-pv
     type: DirectoryOrCreate
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - h4.hotelbench.meshbench-pg0.clemson.cloudlab.us
+  # nodeAffinity:
+  #   required:
+  #     nodeSelectorTerms:
+  #     - matchExpressions:
+  #       - key: kubernetes.io/hostname
+  #         operator: In
+  #         values:
+  #         - h4.hotelbench.meshbench-pg0.clemson.cloudlab.us
   storageClassName: reservation-storage
   volumeMode: Filesystem

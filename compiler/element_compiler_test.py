@@ -1,11 +1,13 @@
 import argparse
 import datetime
 import sys
+import os
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
 sys.path.append(str(Path(__file__).parent.absolute()))
 
+from compiler import *
 from compiler.config import COMPILER_ROOT
 from compiler.element import compile_element_property, gen_code
 from compiler.element.deploy import install, move_template
@@ -60,6 +62,7 @@ if __name__ == "__main__":
     placement = args.placement
     proto_path = args.proto
     method_name = args.method_name
+    server = proto_path.split(".")[0]
     if placement == "c" or placement == "client":
         placement = "client"
     elif placement == "s" or placement == "server":
@@ -70,11 +73,19 @@ if __name__ == "__main__":
 
     # Generate the element properties.
     start = datetime.datetime.now()
-    ret = compile_element_property(elements, verbose=verbose)
+    ret = compile_element_property(elements, verbose=verbose, server=server)
     end = datetime.datetime.now()
     LOG.info(f"Element properties: {ret}")
     LOG.info(f"Property Analysis took: {(end-start).microseconds/1000}ms")
 
+    # Check if proto file exists
+    if not os.path.exists(proto_path):
+        proto_path =  os.path.join(
+                root_base_dir,
+                "examples/proto",
+                proto_path,
+            )
+    
     # Generate real element code
     output_name = (
         "Gen" + "".join(elements).capitalize() + placement.lower().capitalize()
@@ -87,6 +98,7 @@ if __name__ == "__main__":
         placement,
         proto_path,
         method_name,
+        server,
         verbose,
     )
     end = datetime.datetime.now()

@@ -222,6 +222,21 @@ def wait_until_running(namespace: str = "default"):
             time.sleep(2)
 
 
+def get_node_names():
+    # Load kube config from default location (`~/.kube/config`)
+    config.load_kube_config()
+
+    # Create a client for the CoreV1Api
+    v1 = client.CoreV1Api()
+
+    print("Listing nodes in cluster:")
+    # Retrieve a list of all nodes
+    nodes = v1.list_node()
+
+    # Parse the response
+    return [node.metadata.name for node in nodes.items]
+
+
 def ksync():
     """Restart pods to ensure all changes are synchronized"""
     execute_local(["kubectl", "delete", "pods", "--all"])

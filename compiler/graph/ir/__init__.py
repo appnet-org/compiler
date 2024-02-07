@@ -155,7 +155,7 @@ class GraphIR:
             "request",
             opt_level,
         )
-        # TODO: currently, we don't consider optimization for the response chain,
+        # Currently, we don't consider optimization for the response chain,
         # so the response chain is copied from request chain.
         self.elements["res_client"] = deepcopy(self.elements["req_client"])
         self.elements["res_server"] = deepcopy(self.elements["res_server"])
