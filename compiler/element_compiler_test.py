@@ -1,7 +1,7 @@
 import argparse
 import datetime
-import sys
 import os
+import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
@@ -80,12 +80,12 @@ if __name__ == "__main__":
 
     # Check if proto file exists
     if not os.path.exists(proto_path):
-        proto_path =  os.path.join(
-                root_base_dir,
-                "examples/proto",
-                proto_path,
-            )
-    
+        proto_path = os.path.join(
+            root_base_dir,
+            "examples/proto",
+            proto_path,
+        )
+
     # Generate real element code
     output_name = (
         "Gen" + "".join(elements).capitalize() + placement.lower().capitalize()

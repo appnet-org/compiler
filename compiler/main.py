@@ -151,7 +151,7 @@ def print_gir_summary(graphirs: Dict[str, GraphIR]):
     GRAPH_LOG.info("Graph IR summary:")
     for gir in graphirs.values():
         gir_summary[gir.name]["post-optimized"] = gir.to_rich()
-        
+
     for gname, summary in gir_summary.items():
         console.print()
         console.print(gname, style="underline bold italic")

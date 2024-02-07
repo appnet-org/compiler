@@ -158,9 +158,7 @@ def scriptgen_envoy(
             # We need to copy to all hosts because we don't know where the service will be scheduled
             nodes = get_node_names()
             for node in nodes:
-                copy_remote_host(
-                    node, f"/tmp/{element.lib_name}.wasm", "/tmp/"
-                )
+                copy_remote_host(node, f"/tmp/{element.lib_name}.wasm", "/tmp/")
 
             # Find the corresponding service in the manifest
             target_service_yml = find_target_yml(yml_list_istio, sname)
