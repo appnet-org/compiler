@@ -229,7 +229,6 @@ def get_node_names():
     # Create a client for the CoreV1Api
     v1 = client.CoreV1Api()
 
-    print("Listing nodes in cluster:")
     # Retrieve a list of all nodes
     nodes = v1.list_node()
 
