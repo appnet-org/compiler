@@ -1,0 +1,21 @@
+state
+	acl: Map<string, string>
+
+init() 
+	acl.set('test', 'No')
+
+req(rpc) 
+	match (acl.get(rpc_req.get('body'))) 
+		Some(permission) => 
+			match (permission) 
+				'Yes' =>
+					send(rpc, NET)
+				'No' =>
+					send(err('acl'), APP)
+				_ => 
+		None => 
+			send(rpc, NET)
+
+
+resp(rpc)
+    send(rpc, APP)
