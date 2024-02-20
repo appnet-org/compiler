@@ -11,9 +11,7 @@ from compiler.element.frontend.parser import ElementParser
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-e", "--element_path", type=str, required=True
-    )
+    parser.add_argument("-e", "--element_path", type=str, required=True)
     args = parser.parse_args()
 
     # Parse the elements

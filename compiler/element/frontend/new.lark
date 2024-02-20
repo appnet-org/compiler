@@ -1,6 +1,6 @@
 start: definition procedure procedure procedure
 
-definition: "state" declaration* 
+definition: "state" declaration*
 
 declaration: (consistency_decorator | combiner_decorator | persistence_decorator)* identifier ":" type_
 
@@ -32,9 +32,9 @@ primitive: "send" "(" (expr | err) "," ("APP" | "NET") ")"
 
 assign: identifier ":=" expr
 
-match: "match" "(" expr ")" action* 
+match: "match" "(" expr ")" action*
 
-action: pattern "=>" statement* 
+action: pattern "=>" statement*
 
 pattern: const
         | "None" -> none_pattern
