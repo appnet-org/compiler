@@ -144,10 +144,11 @@ class FlowGraph:
         paths = self.extract_path()
         rpc_name = f"rpc_{proc.name}"
 
+        direction = ""
         if proc.name == "req":
-            direction = "NET"
+            direction = "Down"
         elif proc.name == "resp":
-            direction = "APP"
+            direction = "Up"
 
         report = "Total #Path = " + str(len(paths)) + "\n"
 

@@ -1,0 +1,84 @@
+start: definition procedure procedure procedure
+
+definition: "state" "{" declaration* "}"
+
+declaration: (consistency_decorator | combiner_decorator | persistence_decorator)* identifier ":" type_
+
+procedure: name parameters body
+
+parameters: "(" (parameter | parameter ",") *  ")"
+
+parameter: "rpc_req" | "rpc_resp" | identifier
+
+body: "{" statement* "}"
+
+statement: (expr | assign | primitive | match)
+
+primitive: "send" "(" (expr | err) "," ("Up" | "Down") ")"
+
+assign: identifier "=" expr
+
+match: "match" "(" expr ")" "{" action* "}"
+
+action: pattern "=>" "{" statement* "}"
+
+pattern: const
+        | "None" -> none_pattern
+        | "Some" "(" (identifier | err) ")" -> some_pattern
+
+
+expr:  "(" expr ")" | identifier | method | func | const | expr op expr
+
+method: identifier "." (get | set_ | delete | byte_size | size)
+
+func: identifier arguments
+
+arguments: "(" (expr | (expr ","))*  ")"
+
+consistency_decorator: "@consistency" "(" CNAME ")"
+combiner_decorator: "@combiner" "(" CNAME ")"
+persistence_decorator: "@persistence" "(" bool ")"
+
+name: CNAME
+
+identifier: CNAME
+
+type_: single_type
+       | "Vec" "<" single_type ">"  -> vec_type
+       | "Map" "<" single_type "," single_type ">" -> map_type
+
+single_type: CNAME
+
+const: CNAME | quoted_string | NUMBER
+
+bool: "true" -> true | "false" -> false
+
+get: "get" "(" expr ")"
+set_: "set" ( "(" expr "," expr ")" | "(" expr ")" )
+delete: "delete" "(" expr ")"
+byte_size: "byte_size()"
+size: "size()"
+
+op: "*" -> op_mul
+       | "/" -> op_div
+       | "+" -> op_add
+       | "-" -> op_sub
+       | "&&" -> op_land
+       | "||" -> op_lor
+       | "==" -> op_eq
+       | "!=" -> op_neq
+       | "<" -> op_lt
+       | ">" -> op_gt
+       | "<=" -> op_le
+       | ">=" -> op_ge
+
+quoted_string: /'[^']*'/
+
+err: "err" "(" (quoted_string | CNAME) ")"
+
+%import common.SIGNED_NUMBER -> NUMBER
+%import common.WS
+%import common.CPP_COMMENT
+%import common.CNAME
+%ignore WS
+%ignore CPP_COMMENT

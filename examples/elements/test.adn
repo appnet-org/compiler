@@ -1,0 +1,32 @@
+state
+{
+	acl: Map<string, string>
+}
+
+init() {
+	acl.set('test', 'No')
+}
+
+req(rpc_req) {
+	match (acl.get(rpc_req.get('body'))) {
+		Some(permission) => {
+			match (permission) {
+				'Yes' => {
+					send(rpc_req, Up)
+				}
+				'No' => {
+					send(err('acl'), Down)
+				}
+				_ => {
+				}
+			}
+		}
+		None => {
+			send(rpc_req, Down)
+		}
+	}
+}
+
+resp(rpc_resp) {
+    send(rpc_resp, Up)
+}

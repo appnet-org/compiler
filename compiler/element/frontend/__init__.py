@@ -11,7 +11,6 @@ class ElementCompiler:
     def parse_and_transform(self, spec: str) -> Program:
         # Step 1: Generate a parse tree based on our grammar
         ast = self.parser.parse(spec)
-        # print(ast.pretty())
 
         # Step 2: Transforme traverses the parse tree and applies transformation to its nodes.
         ir = self.transformer.transform(ast)
