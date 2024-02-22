@@ -146,9 +146,9 @@ class FlowGraph:
 
         direction = ""
         if proc.name == "req":
-            direction = "NET"
+            direction = "Down"
         elif proc.name == "resp":
-            direction = "APP"
+            direction = "Up"
 
         report = "Total #Path = " + str(len(paths)) + "\n"
 
