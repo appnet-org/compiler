@@ -1,6 +1,6 @@
 start: definition procedure procedure procedure
 
-definition: "state" declaration*
+definition: "state" "{" declaration* "}"
 
 declaration: (consistency_decorator | combiner_decorator | persistence_decorator)* identifier ":" type_
 
@@ -22,19 +22,19 @@ name: CNAME
 
 parameters: "(" (parameter | parameter ",") *  ")"
 
-parameter: "rpc" | identifier
+parameter: "rpc_req" | "rpc_resp" | identifier
 
-body: statement*
+body: "{" statement* "}"
 
 statement: (expr | assign | primitive | match)
 
-primitive: "send" "(" (expr | err) "," ("APP" | "NET") ")"
+primitive: "send" "(" (expr | err) "," ("Up" | "Down") ")"
 
 assign: identifier ":=" expr
 
-match: "match" "(" expr ")" action*
+match: "match" "(" expr ")" "{" action* "}"
 
-action: pattern "=>" statement*
+action: pattern "=>" "{" statement* "}"
 
 pattern: const
         | "None" -> none_pattern

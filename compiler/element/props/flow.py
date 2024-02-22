@@ -144,6 +144,7 @@ class FlowGraph:
         paths = self.extract_path()
         rpc_name = f"rpc_{proc.name}"
 
+        direction = ""
         if proc.name == "req":
             direction = "NET"
         elif proc.name == "resp":

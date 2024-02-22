@@ -146,7 +146,7 @@ class ElementTransformer(Transformer):
         assert isinstance(f[0], Identifier)
         if f[0].name == "send":
             assert len(f[1]) == 2
-            assert f[1][1].name == "APP" or f[1][1].name == "NET"
+            assert f[1][1].name == "Up" or f[1][1].name == "Down"
             # f[1][1] should be str, but it will be parsed as Identifier
             return Send(f[1][1].name, f[1][0])
         elif f[0].name == "err":
