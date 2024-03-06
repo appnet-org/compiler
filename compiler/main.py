@@ -163,7 +163,7 @@ def main(args):
     # Step 1: Parse the spec file and generate graph IRs (see examples/graph_spec for details about spec format)
     GRAPH_LOG.info(f"Parsing graph spec file {args.spec_path}...")
     parser = GraphParser()
-    graphirs, app_name, app_manifest_dir, app_edges = parser.parse(args.spec_path)
+    graphirs, app_name, app_manifest_file, app_edges = parser.parse(args.spec_path)
 
     if args.verbose:
         for gir in graphirs.values():
@@ -190,7 +190,7 @@ def main(args):
         # pseudo_impl is set to True when we want to use hand-coded impl instead of auto-generated ones
         generate_element_impl(graphirs, args.pseudo_impl)
         # Step 3.2: Generate deployment scripts
-        scriptgen(graphirs, args.backend, app_name, app_manifest_dir, app_edges)
+        scriptgen(graphirs, args.backend, app_name, app_manifest_file, app_edges)
 
     # Dump graphir summary (in yaml)
     gen_dir = os.path.join(graph_base_dir, "generated")

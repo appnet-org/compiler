@@ -13,21 +13,23 @@ BACKEND_CONFIG_DIR = os.path.join(Path(__file__).parent, "config")
 def scriptgen(
     girs: Dict[str, GraphIR],
     backend: str,
-    app: str,
-    app_manifest_dir: str,
+    app_name: str,
+    app_manifest_file: str,
     app_edges: list,
 ):
     """
-    Call corresponding scripg generation procedure according to the backend name.
+    Call corresponding script generation procedure according to the backend name.
 
     Args:
         girs: A dictionary mapping edge name to corresponding graphir.
         backend: backend name.
-        service_pos: A dictionary mapping service name to hostname.
+        app_name: the name of the application (for naming)
+        app_manifest_file: the path to the application manifest file
+        app_edges: the communication edges of the application
     """
     try:
         module = importlib.import_module(f"compiler.graph.backend.{backend}")
     except:
         raise ValueError(f"backend {backend} not supported")
     generator = getattr(module, f"scriptgen_{backend}")
-    generator(girs, app, app_manifest_dir, app_edges)
+    generator(girs, app_name, app_manifest_file, app_edges)

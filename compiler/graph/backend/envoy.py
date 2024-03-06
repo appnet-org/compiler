@@ -19,7 +19,7 @@ from compiler.graph.logger import GRAPH_BACKEND_LOG
 def scriptgen_envoy(
     girs: Dict[str, GraphIR],
     app_name: str,
-    app_manifest_dir: str,
+    app_manifest_file: str,
     app_edges: List[Tuple[str, str]],
 ):
     global local_gen_dir
@@ -59,18 +59,17 @@ def scriptgen_envoy(
                     ]
                 )
 
-    for file_or_dir in os.listdir(app_manifest_dir):
-        if app_name not in file_or_dir:
-            execute_local(
-                [
-                    "cp",
-                    "-r",
-                    os.path.join(app_manifest_dir, file_or_dir),
-                    os.path.join(deploy_dir, file_or_dir),
-                ]
-            )
+    # for file_or_dir in os.listdir(app_manifest_dir):
+    #     if app_name not in file_or_dir:
+    #         execute_local(
+    #             [
+    #                 "cp",
+    #                 "-r",
+    #                 os.path.join(app_manifest_dir, file_or_dir),
+    #                 os.path.join(deploy_dir, file_or_dir),
+    #             ]
+    #         )
 
-    app_manifest_file = os.path.join(app_manifest_dir, f"{app_name}.yaml")
     # Generate the istio manifest file for the application.
     execute_local(
         [
@@ -85,11 +84,7 @@ def scriptgen_envoy(
     GRAPH_BACKEND_LOG.info("Generating the istio manifest file for the application...")
     with open(app_manifest_file, "r") as f:
         yml_list_plain = list(yaml.safe_load_all(f))
-    # for file in yml_list_plain:
-    #     if file["kind"] == "Deployment":
-    #         file["spec"]["template"]["metadata"].update(
-    #             {"annotations": {"sidecar.istio.io/inject": "false"}}
-    #         )
+
     service_to_hostname = extract_service_pos(yml_list_plain)
     service_to_port_number = extract_service_port(yml_list_plain)
     service_to_label = extract_service_label(yml_list_plain)
