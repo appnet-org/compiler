@@ -1091,3 +1091,263 @@ spec:
         persistentVolumeClaim:
           claimName: geo-pvc
 status: {}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: user-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: user-storage
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: user-pv
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /data/volumes/user-pv
+    type: DirectoryOrCreate
+  storageClassName: user-storage
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: reservation-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: reservation-storage
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: reservation-pv
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /data/volumes/reservation-pv
+    type: DirectoryOrCreate
+  storageClassName: reservation-storage
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: recommendation-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: recommendation-storage
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: recommendation-pv
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /data/volumes/recommendation-pv
+    type: DirectoryOrCreate
+  storageClassName: recommendation-storage
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rate-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: rate-storage
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rate-pv
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /data/volumes/rate-pv
+    type: DirectoryOrCreate
+  storageClassName: rate-storage
+  volumeMode: Filesystem
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: profile-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: profile-storage
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: profile-pv
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /data/volumes/profile-pv
+    type: DirectoryOrCreate
+  storageClassName: profile-storage
+  volumeMode: Filesystem
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: jaeger
+  name: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: jaeger
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.22.0 (955b78124)
+        sidecar.istio.io/inject: 'false'
+      creationTimestamp: null
+      labels:
+        io.kompose.service: jaeger
+    spec:
+      containers:
+      - image: jaegertracing/all-in-one:latest
+        name: hotel-reserv-jaeger
+        ports:
+        - containerPort: 14269
+        - containerPort: 5778
+        - containerPort: 14268
+        - containerPort: 14267
+        - containerPort: 16686
+        - containerPort: 5775
+          protocol: UDP
+        - containerPort: 6831
+          protocol: UDP
+        - containerPort: 6832
+          protocol: UDP
+        resources:
+          limits:
+            cpu: 1000m
+          requests:
+            cpu: 100m
+      restartPolicy: Always
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.22.0 (955b78124)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: jaeger
+  name: jaeger
+spec:
+  ports:
+  - name: jaeger-14269
+    port: 14269
+    targetPort: 14269
+  - name: jaeger-5778
+    port: 5778
+    targetPort: 5778
+  - name: jaeger-14268
+    port: 14268
+    targetPort: 14268
+  - name: jaeger-14267
+    port: 14267
+    targetPort: 14267
+  - name: jaeger-16686
+    port: 16686
+    targetPort: 16686
+  - name: jaeger-5775
+    port: 5775
+    protocol: UDP
+    targetPort: 5775
+  - name: jaeger-6831
+    port: 6831
+    protocol: UDP
+    targetPort: 6831
+  - name: jaeger-6832
+    port: 6832
+    protocol: UDP
+    targetPort: 6832
+  selector:
+    io.kompose.service: jaeger
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: geo-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: geo-storage
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: geo-pv
+spec:
+  accessModes:
+  - ReadWriteMany
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /data/volumes/geo-pv
+    type: DirectoryOrCreate
+  storageClassName: geo-storage
+  volumeMode: Filesystem
+---
+
+
+
