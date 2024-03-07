@@ -66,6 +66,7 @@ class GraphParser:
         # Get file path for application's manifest file
         app_name = spec_dict["app_name"]
         app_manifest_file = spec_dict["app_manifest"]
+
         assert os.path.exists(app_manifest_file)
 
         return graphir, app_name, app_manifest_file, self.app_edges

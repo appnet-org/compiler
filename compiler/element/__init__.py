@@ -20,6 +20,7 @@ from compiler.element.props.flow import FlowGraph, Property
 
 def gen_code(
     element_names: List[str],
+    element_paths: List[str],
     output_name: str,
     output_dir: str,
     backend_name: str,
@@ -95,17 +96,10 @@ def gen_code(
 
     # Generate element IR for each element.
     eirs = []
-    for element_name in element_names:
+    for element_name, element_path in zip(element_names, element_paths):
         LOG.info(f"(CodeGen) Parsing {element_name}")
 
-        with open(
-            os.path.join(
-                root_base_dir,
-                "examples/elements",
-                f"{server}_elements",
-                f"{element_name}.adn",
-            )
-        ) as f:
+        with open(element_path, "r") as f:
             spec = f.read()
             ir = compiler.parse_and_transform(spec)
             if verbose:
@@ -139,7 +133,10 @@ def gen_code(
 
 
 def compile_element_property(
-    element_names: List[str], verbose: bool = False, server: str = ""
+    element_names: List[str],
+    element_paths: List[str],
+    verbose: bool = False,
+    server: str = "",
 ) -> Dict:
     """
     Compiles and analyzes properties of elements defined using ADN syntax.
@@ -176,22 +173,10 @@ def compile_element_property(
     persistence = False
     state_dependence = None
 
-    for element_name in element_names:
+    for element_name, element_path in zip(element_names, element_paths):
         LOG.info(f"(Property Analyzer) Parsing {element_name}")
 
-        # element_spec_base_dir = os.environ.get("ELEMENT_SPEC_BASE_DIR")
-        # assert element_spec_base_dir is not None and os.path.exists(
-        # element_spec_base_dir
-        # )
-
-        with open(
-            os.path.join(
-                root_base_dir,
-                "examples/elements",
-                f"{server}_elements",
-                f"{element_name}.adn",
-            )
-        ) as f:
+        with open(element_path) as f:
             # Read the specification from file and generate the intermediate representation
             spec = f.read()
             ir = compiler.parse_and_transform(spec)

@@ -25,7 +25,7 @@ def scriptgen_envoy(
     global local_gen_dir
     local_gen_dir = os.path.join(graph_base_dir, "generated")
     os.makedirs(local_gen_dir, exist_ok=True)
-    deploy_dir = os.path.join(local_gen_dir, f"{app_name}_deploy")
+    deploy_dir = os.path.join(local_gen_dir, f"{app_name}-deploy")
     os.makedirs(deploy_dir, exist_ok=True)
 
     # Compile each element

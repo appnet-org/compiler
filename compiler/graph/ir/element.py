@@ -32,6 +32,7 @@ class AbsElement:
         else:
             self.id = fetch_global_id()
             self.name: List[str] = [info["name"]]
+            self.path: List[str] = [info["path"]]
             self.server = (
                 server  # the server side of the edge, used for finding adn spec
             )
@@ -88,7 +89,9 @@ class AbsElement:
                 if self.pseudo_property:
                     self._prop = pseudo_gen_property(self)
                 else:
-                    self._prop = compile_element_property(self.name, server=self.server)
+                    self._prop = compile_element_property(
+                        self.name, self.path, server=self.server
+                    )
                 # TODO: remove this after property compiler has deduplication
                 for path in ["request", "response"]:
                     for p in self._prop[path].keys():

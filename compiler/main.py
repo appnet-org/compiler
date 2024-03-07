@@ -100,23 +100,33 @@ def parse_args():
 
 
 def compile_impl(
-    engine_name: List[str],
+    element_names: str,
+    element_paths: str,
     gen_dir: str,
     backend: str,
     placement: str,
-    proto: str,
+    proto_path: str,
     method: str,
     server: str,
 ):
-    gen_name = server + "".join(engine_name)[:24]
+    gen_name = (
+        server + "".join(element_names)[:24]
+    )  # Envoy does not allow long struct names
     if backend == "mrpc":
         gen_dir = os.path.join(gen_dir, f"{gen_name}_{placement}_{backend}")
     else:
         gen_dir = os.path.join(gen_dir, f"{gen_name}_{backend}")
-    proto_path = os.path.join(proto_base_dir, proto)
     os.system(f"mkdir -p {gen_dir}")
     gen_code(
-        engine_name, gen_name, gen_dir, backend, placement, proto_path, method, server
+        element_names,
+        element_paths,
+        gen_name,
+        gen_dir,
+        backend,
+        placement,
+        proto_path,
+        method,
+        server,
     )
 
 
@@ -137,6 +147,7 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
                 else:
                     compile_impl(
                         element.name,
+                        element.path,
                         gen_dir,
                         args.backend,
                         placement,
