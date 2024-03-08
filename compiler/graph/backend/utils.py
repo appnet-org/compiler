@@ -222,7 +222,7 @@ def wait_until_running(namespace: str = "default"):
             time.sleep(2)
 
 
-def get_node_names():
+def get_node_names(control_plane=True):
     # Load kube config from default location (`~/.kube/config`)
     config.load_kube_config()
 
@@ -232,7 +232,14 @@ def get_node_names():
     # Retrieve a list of all nodes
     nodes = v1.list_node()
 
-    # Parse the response
+    if not control_plane:
+        return [
+            node.metadata.name
+            for node in nodes.items
+            if "node-role.kubernetes.io/control-plane"
+            not in node.metadata.labels.keys()
+        ]
+
     return [node.metadata.name for node in nodes.items]
 
 
