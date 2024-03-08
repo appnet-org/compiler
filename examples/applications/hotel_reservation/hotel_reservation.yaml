@@ -1348,6 +1348,3 @@ spec:
   storageClassName: geo-storage
   volumeMode: Filesystem
 ---
-
-
-
