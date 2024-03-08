@@ -34,7 +34,7 @@ def extract_service_pos(yml_list: List[Dict]) -> Dict[str, str]:
     """
     service_pos = {}
     for yml in yml_list:
-        if yml["kind"] == "Deployment":
+        if yml and yml["kind"] == "Deployment":
             if "nodeName" in yml["spec"]["template"]["spec"]:
                 service_pos[yml["metadata"]["name"]] = yml["spec"]["template"]["spec"][
                     "nodeName"
@@ -56,7 +56,7 @@ def extract_service_port(yml_list: List[Dict]) -> Dict[str, str]:
     """
     service_ports = {}
     for yml in yml_list:
-        if yml["kind"] == "Service":
+        if yml and yml["kind"] == "Service":
             service_name = yml["metadata"]["name"]
             ports = yml["spec"]["ports"]
             if ports and isinstance(ports, list):
@@ -80,7 +80,7 @@ def extract_service_label(yml_list: List[Dict]) -> Dict[str, str]:
     """
     service_labels = {}
     for yml in yml_list:
-        if yml["kind"] == "Service":
+        if yml and yml["kind"] == "Service":
             service_name = yml["metadata"]["name"]
             # We assume the service label value is the same as the service name
             for k, v in yml["metadata"]["labels"].items():
