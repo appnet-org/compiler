@@ -4,7 +4,7 @@
 
 This compiler is designed for translating ADN specifications into optimized, deployable data plane programs. For more information, refer to our [HotNets paper](https://xzhu27.me/papers/adn-hotnets2023.pdf) and the [talk](https://www.youtube.com/watch?v=hJobLIq1Bmk).
 
-# Installation
+<!-- # Installation
 ## Requirements
 - Python (Version >= 3.10)
 
@@ -19,7 +19,7 @@ cd ~/adn-compiler
 . ./install.sh
 # Alternatively, if you need to install Python3.10, run:
 . ./utils/python310.sh
-```
+``` -->
 
 # Usage
 See [compiler README ](./compiler/README.md) for usage.
