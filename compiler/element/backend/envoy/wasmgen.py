@@ -794,7 +794,7 @@ class WasmGenerator(Visitor):
                             vec![
                                 ("grpc-status", "1"),
                             ],
-                            None,
+                            Some(b"{node.msg.msg.value}."),
                         );
                     """
                 + return_stmt
