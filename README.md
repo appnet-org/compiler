@@ -1,29 +1,11 @@
-# Compiler for Application Defined Networks
+# AppNet Compiler
 
 # Overview
 
-This compiler is designed for translating ADN specifications into optimized, deployable data plane programs. For more information, refer to our [HotNets paper](https://xzhu27.me/papers/adn-hotnets2023.pdf) and the [talk](https://www.youtube.com/watch?v=hJobLIq1Bmk).
-
-<!-- # Installation
-## Requirements
-- Python (Version >= 3.10)
-
-Please make sure that you clone the adn-compiler repository under `$HOME`.
-```bash
-git clone https://github.com/adn-compiler ~/adn-compiler
-```
-
-Run the following script to install necessary tools:
-```bash
-cd ~/adn-compiler
-. ./install.sh
-# Alternatively, if you need to install Python3.10, run:
-. ./utils/python310.sh
-``` -->
+This compiler is designed for translating AppNet specifications into optimized, deployable data plane programs. For more information, refer to our [HotNets paper](https://xzhu27.me/papers/adn-hotnets2023.pdf) and the [talk](https://www.youtube.com/watch?v=hJobLIq1Bmk).
 
 # Usage
 See [compiler README ](./compiler/README.md) for usage.
-
 
 ## Supported Backends
 
@@ -43,13 +25,13 @@ Repo Root
   |---- element        # Source code for the element compiler
     |---- backend      # Source code for backend (code generation)
     |---- frontend     # Source code for frontend (parse tree and IR generation)
-    |---- optimize     # Source code for various IR optimizatons
+    |---- optimize     # Source code for various IR optimizations
     |---- props        # Source code for property analyzer
   |---- graph          # Source code for the graph compiler
 ```
 
 # Reference
-Please consider citing our paper if you find MeshInsight related to your research.
+Please consider citing our paper if you find AppNet related to your research.
 ```bibtex
 @inproceedings{applicationdefinednetworks,
   title={Application Defined Networks},
