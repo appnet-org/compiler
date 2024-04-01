@@ -5,6 +5,8 @@ from compiler import *
 from compiler.element.backend.envoy.analyzer import AccessAnalyzer
 from compiler.element.backend.envoy.finalizer import finalize as WasmFinalize
 from compiler.element.backend.envoy.wasmgen import WasmContext, WasmGenerator
+from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
+from compiler.element.backend.grpc.gogen import GoContext, GoGenerator
 from compiler.element.backend.mrpc.finalizer import finalize as RustFinalize
 from compiler.element.backend.mrpc.rustgen import RustContext, RustGenerator
 from compiler.element.frontend import ElementCompiler
@@ -59,7 +61,7 @@ def gen_code(
     proto = os.path.basename(proto_path).replace(".proto", "")
 
     # Currently, we only support mRPC and Envoy (Proxy WASM) as the backends
-    assert backend_name == "mrpc" or backend_name == "envoy"
+    assert backend_name == "mrpc" or backend_name == "envoy" or backend_name == "grpc"
     compiler = ElementCompiler()
 
     # Find the request and response message names.
@@ -91,6 +93,18 @@ def gen_code(
             response_message_name=response_message_name,
             message_field_types=message_field_types,
         )
+    elif backend_name == "grpc":
+        generator = GoGenerator(placement)
+        finalize = GoFinalize
+        ctx = GoContext(
+            proto=proto,
+            method_name=method_name,
+            element_name=output_name,
+            request_message_name=request_message_name,
+            response_message_name=response_message_name,
+            message_field_types=message_field_types,
+        )
+
 
     printer = Printer()
 
