@@ -1,7 +1,0 @@
-request:
-    drop: True
-    read:
-    - "body"
-response:
-    read:
-    - "*"
