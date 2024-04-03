@@ -225,6 +225,6 @@ if __name__ == "__main__":
     if args.dry_run:
         os.environ["DRY_RUN"] = "1"
     if args.opt_level == "no":
-        os.environ["ADN_NO_OPTIMIZE"] = "1"
+        os.environ["APPNET_NO_OPTIMIZE"] = "1"
 
     main(args)

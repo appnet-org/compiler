@@ -12,8 +12,7 @@ git clone https://github.com/kristoff-starling/phoenix --recursive -b multi ~/ph
 
 ```bash
 # Run the graph compiler on demo.yml to generate element code and deployment scripts for mRPC.
-export ELEMENT_SPEC_BASE_DIR="$(dirname $(pwd))/examples/element"
-python3.10 ~/adn-compiler/compiler/main.py --spec ~/adn-compiler/examples/graph/ping.yml --backend envoy -v --opt_level no
+python compiler/main.py --spec examples/graph/ping.yml --backend envoy -v --opt_level no
 
 usage: main.py [-h] -s SPEC_PATH [-v] [--pseudo_property] [--pseudo_impl] -b {mrpc,envoy} [--mrpc_dir MRPC_DIR] [--dry_run]
                [--opt_level {no,ignore,weak,strong}] [--no_optimize] [--replica REPLICA] [--opt_algorithm OPT_ALGORITHM] [--debug]
@@ -46,7 +45,7 @@ The compiler will automatically install elements on all the nodes and
 
 Follow these steps if you want to interact with the element compiler directly.
 
-The element compiler convert ADN program to an IR. From IR, we can infer the element property (used by graph compiler). The element compiler also generates backend code for each element.
+The element compiler convert AppNet program to an IR. From IR, we can infer the element property (used by graph compiler). The element compiler also generates backend code for each element.
 
 ```bash
 cd compiler
@@ -82,7 +81,7 @@ options:
 - `-p` for placement, which is either `c` client or `s` server
 
 Note:
-- The grammar is defined (in BNF format) [**here**](./element/frontend/adn.lark).
+- The grammar is defined (in BNF format) [**here**](./element/frontend/element.lark).
 
 ## Supported Backends
 

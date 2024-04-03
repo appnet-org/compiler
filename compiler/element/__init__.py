@@ -139,9 +139,9 @@ def compile_element_property(
     server: str = "",
 ) -> Dict:
     """
-    Compiles and analyzes properties of elements defined using ADN syntax.
+    Compiles and analyzes properties of elements defined using AppNet syntax.
 
-    Each .adn file contains the specification of an element's behavior. The function
+    Each .appnet file contains the specification of an element's behavior. The function
     uses an ElementCompiler to compile these specifications into an intermediate representation (IR),
     and then analyzes the properties of the request and response flows using FlowGraph.
 

@@ -177,7 +177,7 @@ def scriptgen_envoy(
                 }
             )
 
-    if os.getenv("ADN_NO_OPTIMIZE") != "1":
+    if os.getenv("APPNET_NO_OPTIMIZE") != "1":
         # has optimization: exclude ports that has no element attached to
         for client, server in app_edges:
             port_number = service_to_port_number[server]
@@ -204,7 +204,7 @@ def scriptgen_envoy(
         # TODO: bypass frontend ingress sidecar for ping-pong-app
         pass
 
-    # if os.getenv("ADN_NO_OPTIMIZE") != "1":
+    # if os.getenv("APPNET_NO_OPTIMIZE") != "1":
     #     # has optimization: add whitelist annotations, ports not included in whitelist will be bypassed
     #     for (sname, placement), portset in whitelist_port.items():
     #         annotation_name = "traffic.sidecar.istio.io/includeOutboundPorts" if placement == "C" else "traffic.sidecar.istio.io/includeInboundPorts"

@@ -324,7 +324,7 @@ bypass_script = """
 import os
 import sys
 
-sys.path.append(os.path.join(os.getenv("HOME"), "adn-compiler"))
+sys.path.append(os.path.join(os.getenv("HOME"), "compiler"))
 from compiler.graph.backend.utils import bypass_sidecar
 
 bypass_info_dict = {bypass_info_dict}

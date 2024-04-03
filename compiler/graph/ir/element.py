@@ -34,7 +34,7 @@ class AbsElement:
             self.name: List[str] = [info["name"]]
             self.path: List[str] = [info["path"]]
             self.server = (
-                server  # the server side of the edge, used for finding adn spec
+                server  # the server side of the edge, used for finding AppNet spec
             )
             self.config = info["config"] if "config" in info else []
             self.position = info["position"] if "position" in info else "C/S"
