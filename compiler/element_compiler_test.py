@@ -18,7 +18,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-e", "--element", type=str, help="(Element_name',') *", required=True
+        "-e", "--element_path", type=str, help="(Element_name',') *", required=True
     )
     parser.add_argument("-v", "--verbose", help="Print Debug info", action="store_true")
     parser.add_argument(
@@ -55,7 +55,10 @@ if __name__ == "__main__":
 
     # Some preprocessing
     args = parser.parse_args()
-    elements = args.element.split(",")
+    element_paths = args.element_path.split(",")
+    elements = [os.path.splitext(os.path.basename(path))[0] for path in element_paths]
+    print(element_paths)
+    print(elements)
     backend = args.backend
     verbose = args.verbose
     deploy = args.deploy
@@ -73,7 +76,7 @@ if __name__ == "__main__":
 
     # Generate the element properties.
     start = datetime.datetime.now()
-    ret = compile_element_property(elements, verbose=verbose, server=server)
+    ret = compile_element_property(elements, element_paths, verbose=verbose, server=server)
     end = datetime.datetime.now()
     LOG.info(f"Element properties: {ret}")
     LOG.info(f"Property Analysis took: {(end-start).microseconds/1000}ms")
@@ -92,8 +95,9 @@ if __name__ == "__main__":
     )
     ret = gen_code(
         elements,
+        element_paths,
         output_name,
-        str(COMPILER_ROOT) + "/generated/" + str(backend),
+        os.path.join(str(COMPILER_ROOT), "element", "generated", str(backend)),
         backend,
         placement,
         proto_path,
@@ -104,6 +108,6 @@ if __name__ == "__main__":
     end = datetime.datetime.now()
     LOG.info(f"Code Generation took: {(end-start).microseconds/1000}ms")
 
-    if deploy:
-        move_template("/home/banruo/phoenix", output_name)
-        install([output_name], "/home/banruo/phoenix")
+    # if deploy:
+    #     move_template("/home/user/phoenix", output_name)
+    #     install([output_name], "/home/user/phoenix")
