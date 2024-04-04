@@ -7,12 +7,12 @@ fn init() {
 	firewall.set('test', 'No');
 }
 
-fn req(rpc_req) {
-	match (firewall.get(rpc_req.get('body'))) {
+fn req(rpc) {
+	match (firewall.get(rpc.get('body'))) {
 		Some(permission) => {
 			match (permission) {
 				'Yes' => {
-					send(rpc_req, Down);
+					send(rpc, Down);
 				}
 				'No' => {
 					send(err('blocked by firewall'), Up);
@@ -22,11 +22,11 @@ fn req(rpc_req) {
 			};
 		}
 		None => {
-			send(rpc_req, Down);
+			send(rpc, Down);
 		}
 	};
 }
 
-fn resp(rpc_resp) {
-    send(rpc_resp, Up);
+fn resp(rpc) {
+    send(rpc, Up);
 }

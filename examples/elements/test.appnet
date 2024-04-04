@@ -7,12 +7,12 @@ init() {
 	acl.set('test', 'No')
 }
 
-req(rpc_req) {
-	match (acl.get(rpc_req.get('body'))) {
+req(rpc) {
+	match (acl.get(rpc.get('body'))) {
 		Some(permission) => {
 			match (permission) {
 				'Yes' => {
-					send(rpc_req, Up)
+					send(rpc, Up)
 				}
 				'No' => {
 					send(err('acl'), Down)
@@ -22,11 +22,11 @@ req(rpc_req) {
 			}
 		}
 		None => {
-			send(rpc_req, Down)
+			send(rpc, Down)
 		}
 	}
 }
 
-resp(rpc_resp) {
-    send(rpc_resp, Up)
+resp(rpc) {
+    send(rpc, Up)
 }

@@ -8,12 +8,12 @@ fn init() {
 	acl.set('0.0', 'No');
 }
 
-fn req(rpc_req) {
-	match (acl.get(rpc_req.get('lat'))) {
+fn req(rpc) {
+	match (acl.get(rpc.get('lat'))) {
 		Some(permission) => {
 			match (permission) {
 				'Yes' => {
-					send(rpc_req, Down);
+					send(rpc, Down);
 				}
 				'No' => {
 					send(err('acl'), Up);
@@ -23,11 +23,11 @@ fn req(rpc_req) {
 			};
 		}
 		None => {
-			send(rpc_req, Down);
+			send(rpc, Down);
 		}
 	};
 }
 
-fn resp(rpc_resp) {
-    send(rpc_resp, Up);
+fn resp(rpc) {
+    send(rpc, Up);
 }

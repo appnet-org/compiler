@@ -9,11 +9,11 @@ fn init(max_concurrent_req) {
     drop_count := 0;
 }
 
-fn req(rpc_req) {
+fn req(rpc) {
 	match(pending_req <= max_concurrent_req) {
 		true => {
             pending_req := pending_req + 1;
-			send(rpc_req, Down);
+			send(rpc, Down);
 		}
 		false => {
             drop_count := drop_count + 1;
@@ -22,7 +22,7 @@ fn req(rpc_req) {
 	};
 }
 
-fn resp(rpc_resp) {
-	result := rpc_resp.get('meta_response');
-    send(rpc_resp, Up);
+fn resp(rpc) {
+	result := rpc.get('meta_response');
+    send(rpc, Up);
 }

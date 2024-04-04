@@ -11,13 +11,13 @@ fn init(multiplier) {
 	total := 0.0;
 }
 
-fn req(rpc_req) {
+fn req(rpc) {
 	prob := 1.0 - max(0, (total - (multiplier * success)) / (total + 1.0));
 
 	match(randomf(0,1) < prob) {
 		true => {
 			total := total + 1.0;
-			send(rpc_req, Down);
+			send(rpc, Down);
 		}
 		false => {
 			send(err('admission control'), Up);
@@ -25,14 +25,14 @@ fn req(rpc_req) {
 	};
 }
 
-fn resp(rpc_resp) {
-	match(rpc_resp.get('meta_status') == 'success') {
+fn resp(rpc) {
+	match(rpc.get('meta_status') == 'success') {
 		true => {
 			success := success + 1.0;
-			send(rpc_resp, Up);
+			send(rpc, Up);
 		}
 		false => {
-			send(rpc_resp, Up);
+			send(rpc, Up);
 		}
 	};
 }

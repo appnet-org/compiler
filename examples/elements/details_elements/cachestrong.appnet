@@ -8,8 +8,8 @@ fn init() {
 }
 
 
-fn req(rpc_req) {
-    res := cache.get(rpc_req.get('user'));
+fn req(rpc) {
+    res := cache.get(rpc.get('user'));
 	match (res) {
 		Some(name) => {
             match (name) {
@@ -22,14 +22,14 @@ fn req(rpc_req) {
             };
 		}
 		None => {
-			send(rpc_req, Down);
+			send(rpc, Down);
 		}
 	};
 }
 
-fn resp(rpc_resp) {
-    key := rpc_resp.get('user');
+fn resp(rpc) {
+    key := rpc.get('user');
 	value := 'cached';
 	cache.set(key, value);
-	send(rpc_resp, Up);
+	send(rpc, Up);
 }

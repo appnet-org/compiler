@@ -5,13 +5,13 @@ fn init() {
     password := '123456';
 }
 
-fn req(rpc_req) {
-	ori := rpc_req.get('in_date');
+fn req(rpc) {
+	ori := rpc.get('in_date');
     encrypted := encrypt(ori, password);
-    rpc_req.set('in_date', encrypted);
-    send(rpc_req, Down);
+    rpc.set('in_date', encrypted);
+    send(rpc, Down);
 }
 
-fn resp(rpc_resp) {
-    send(rpc_resp, Up);
+fn resp(rpc) {
+    send(rpc, Up);
 }

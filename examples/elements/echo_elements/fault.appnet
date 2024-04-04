@@ -6,7 +6,7 @@ fn init() {
 	prob := 0.99;
 }
 
-fn req(rpc_req) {
+fn req(rpc) {
 	match(randomf(0,1) < prob) {
 		true => {
 			send(err('fault injected'), Down);
@@ -17,6 +17,6 @@ fn req(rpc_req) {
 	};
 }
 
-fn resp(rpc_resp) {
-    send(rpc_resp, Up);
+fn resp(rpc) {
+    send(rpc, Up);
 }

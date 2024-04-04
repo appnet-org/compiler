@@ -12,13 +12,13 @@ fn init() {
 	per_sec_rate := 1000.0;
 }
 
-fn req(rpc_req) {
+fn req(rpc) {
 	token_rate := min(limit_rate, token_rate + (per_sec_rate * time_diff(current_time(), last_ts)));
 	last_ts := current_time();
     match (token_rate > 1.0) {
 		true => {
 			token_rate := token_rate - 1.0;
-			send(rpc_req, Down);
+			send(rpc, Down);
         }
 		false => {
 			send(err('ratelimit'), Up);
@@ -26,6 +26,6 @@ fn req(rpc_req) {
 	};
 }
 
-fn resp(rpc_resp) {
-    send(rpc_resp, Up);
+fn resp(rpc) {
+    send(rpc, Up);
 }

@@ -7,12 +7,12 @@ state
 fn init() {
 }
 
-fn req(rpc_req) {
-	record_req.set(record_req.size(), rpc_req.get('body'));
-	send(rpc_req, Down);
+fn req(rpc) {
+	record_req.set(record_req.size(), rpc.get('body'));
+	send(rpc, Down);
 }
 
-fn resp(rpc_resp) {
-	record_resp.set(record_resp.size(), rpc_resp.get('body'));
-	send(rpc_resp, Up);
+fn resp(rpc) {
+	record_resp.set(record_resp.size(), rpc.get('body'));
+	send(rpc, Up);
 }

@@ -6,11 +6,11 @@ state
 fn init() {
 }
 
-fn req(rpc_req) {
-	record_req.set(record_req.size(), rpc_req.get('lat'));
-	send(rpc_req, Down);
+fn req(rpc) {
+	record_req.set(record_req.size(), rpc.get('lat'));
+	send(rpc, Down);
 }
 
-fn resp(rpc_resp) {
-	send(rpc_resp, Up);
+fn resp(rpc) {
+	send(rpc, Up);
 }

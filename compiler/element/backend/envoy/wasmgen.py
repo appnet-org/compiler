@@ -20,8 +20,7 @@ class WasmContext:
         element_name: str = "",
     ) -> None:
         self.state_names: Set[str] = [
-            "rpc_req",
-            "rpc_resp",
+            "rpc",
         ]  # List of state names. Used by AccessAnalyzer
         self.strong_access_args: Dict[str, Expr] = {}
         self.states: List[
@@ -115,9 +114,9 @@ class WasmContext:
                 self.inners.append(v_inner)
                 self.name2var[name] = v_inner
             elif name == "rpc_request":
-                self.name2var["rpc_req"] = var
+                self.name2var["rpc"] = var
             elif name == "rpc_response":
-                self.name2var["rpc_resp"] = var
+                self.name2var["rpc"] = var
             else:
                 # temp variable, not rpc_req/resp
                 self.name2var[name] = var
@@ -417,10 +416,10 @@ class WasmGenerator(Visitor):
             if ctx.current_procedure == FUNC_EXTERNAL_RESPONSE:
                 prefix = prefix.replace("body_size", "rpc_body_size")
             if original_procedure == FUNC_REQ_BODY:
-                if "rpc_req" in ctx.access_ops[FUNC_REQ_BODY]:
+                if "rpc" in ctx.access_ops[FUNC_REQ_BODY]:
                     ctx.push_code(prefix)
             elif original_procedure == FUNC_RESP_BODY:
-                if "rpc_resp" in ctx.access_ops[FUNC_RESP_BODY]:
+                if "rpc" in ctx.access_ops[FUNC_RESP_BODY]:
                     ctx.push_code(prefix)
 
         # if there exist weak consistency states, register on_tick function
@@ -438,10 +437,10 @@ class WasmGenerator(Visitor):
 
         if ctx.current_procedure != FUNC_INIT:
             if original_procedure == FUNC_REQ_BODY:
-                if "rpc_req" in ctx.access_ops[FUNC_REQ_BODY]:
+                if "rpc" in ctx.access_ops[FUNC_REQ_BODY]:
                     ctx.push_code(suffix_decode_rpc)
             elif original_procedure == FUNC_RESP_BODY:
-                if "rpc_resp" in ctx.access_ops[FUNC_RESP_BODY]:
+                if "rpc" in ctx.access_ops[FUNC_RESP_BODY]:
                     ctx.push_code(suffix_decode_rpc)
 
     def visitStatement(self, node: Statement, ctx: WasmContext) -> str:

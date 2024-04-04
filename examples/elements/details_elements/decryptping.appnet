@@ -5,13 +5,13 @@ fn init() {
     password := '123456';
 }
 
-fn req(rpc_req) {
-    encrypted := rpc_req.get('body');
+fn req(rpc) {
+    encrypted := rpc.get('body');
     decrypted := decrypt(encrypted, password);
-    rpc_req.set('body', decrypted);
-    send(rpc_req, Down);
+    rpc.set('body', decrypted);
+    send(rpc, Down);
 }
 
-fn resp(rpc_resp) {
-    send(rpc_resp, Up);
+fn resp(rpc) {
+    send(rpc, Up);
 }

@@ -8,8 +8,8 @@ fn init() {
 }
 
 
-fn req(rpc_req) {
-    res := cache.get(rpc_req.get('in_date'));
+fn req(rpc) {
+    res := cache.get(rpc.get('in_date'));
 	match (res) {
 		Some(name) => {
             match (name) {
@@ -22,12 +22,12 @@ fn req(rpc_req) {
             };
 		}
 		None => {
-	        cache.set(rpc_req.get('in_date'), 'cached');
-			send(rpc_req, Down);
+	        cache.set(rpc.get('in_date'), 'cached');
+			send(rpc, Down);
 		}
 	};
 }
 
-fn resp(rpc_resp) {
-	send(rpc_resp, Up);
+fn resp(rpc) {
+	send(rpc, Up);
 }

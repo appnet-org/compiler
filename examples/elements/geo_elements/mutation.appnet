@@ -2,12 +2,12 @@ state{}
 
 fn init() {}
 
-fn req(rpc_req) {
-  mutation_body := rpc_req.get('lat');
-  rpc_req.set('lat', mutation_body);
-  send(rpc_req, Down);
+fn req(rpc) {
+  mutation_body := rpc.get('lat');
+  rpc.set('lat', mutation_body);
+  send(rpc, Down);
 }
 
-fn resp(rpc_resp) {
-	send(rpc_resp, Up);
+fn resp(rpc) {
+	send(rpc, Up);
 }

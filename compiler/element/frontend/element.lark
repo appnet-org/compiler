@@ -22,7 +22,7 @@ name: CNAME
 
 parameters: "(" (parameter | parameter ",") *  ")"
 
-parameter: "rpc_req" | "rpc_resp" | identifier
+parameter: "rpc" | identifier
 
 body: "{" statement* "}"
 

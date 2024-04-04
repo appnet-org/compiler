@@ -7,8 +7,8 @@ fn init() {
 
 }
 
-fn req(rpc_req) {
-    match (lb_tab.get(rpc_req.get('locale'))) {
+fn req(rpc) {
+    match (lb_tab.get(rpc.get('locale'))) {
 		Some(dst) => {
             // do nothing
 		}
@@ -17,9 +17,9 @@ fn req(rpc_req) {
 		}
 	};
 
-	send(rpc_req, Down);
+	send(rpc, Down);
 }
 
-fn resp(rpc_resp) {
-	send(rpc_resp, Up);
+fn resp(rpc) {
+	send(rpc, Up);
 }
