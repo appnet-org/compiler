@@ -1,0 +1,27 @@
+app_name: echo
+app_manifest: <COMPILER_DIR>/examples/elements/echo_elements/echo.yaml
+app_structure:
+- frontend->server
+edge:
+  frontend->server:
+  - method: echo
+    name: fault
+    path: <COMPILER_DIR>/examples/elements/echo_elements/fault.appnet
+    position: C
+    proto: <COMPILER_DIR>/examples/elements/echo_elements/echo.proto
+  - method: echo
+    name: logging
+    path: <COMPILER_DIR>/examples/elements/echo_elements/logging.appnet
+    position: C
+    proto: <COMPILER_DIR>/examples/elements/echo_elements/echo.proto
+  - method: echo
+    name: firwall
+    path: <COMPILER_DIR>/examples/elements/echo_elements/firewall.appnet
+    position: S
+    proto: <COMPILER_DIR>/examples/elements/echo_elements/echo.proto
+  - method: echo
+    name: metrics
+    path: <COMPILER_DIR>/examples/elements/echo_elements/metrics.appnet
+    position: C/S
+    proto: <COMPILER_DIR>/examples/elements/echo_elements/echo.proto
+link: {}
