@@ -46,19 +46,19 @@ def retrieve_info(ctx: RustContext):
         "ProtoRpcRequestType": f"{proto}::{proto_fc}Request",
         "ProtoRpcResponseType": f"{proto}::{proto_fc}Response",
         "GlobalFunctionInclude": gen_global_function_includes(),
-        "InternalStatesDefinition": "\n".join(gen_def()),
-        "InternalStatesDeclaration": "\n".join(
+        "StatesDefinition": "\n".join(gen_def()),
+        "StatesDeclaration": "\n".join(
             [f"use crate::engine::{i};" for i in ctx.gen_struct_names()]
         ),
-        "InternalStatesOnBuild": "\n".join(ctx.gen_init_localvar())
+        "StatesOnBuild": "\n".join(ctx.gen_init_localvar())
         + "\n".join(ctx.init_code),
-        "InternalStatesOnRestore": "\n".join(ctx.gen_init_localvar())
+        "StatesOnRestore": "\n".join(ctx.gen_init_localvar())
         + "\n".join(ctx.init_code),
-        "InternalStatesOnDecompose": "",
-        "InternalStatesInConstructor": "\n".join(
-            [f"{i}," for i in ctx.gen_internal_names()]
+        "StatesOnDecompose": "",
+        "StatesInConstructor": "\n".join(
+            [f"{i}," for i in ctx.gen_state_names()]
         ),
-        "InternalStatesInStructDefinition": "\n".join(
+        "StatesInStructDefinition": "\n".join(
             [f"pub(crate) {i}," for i in ctx.gen_struct_declaration()]
         ),
         "RpcRequest": "".join(ctx.req_code),

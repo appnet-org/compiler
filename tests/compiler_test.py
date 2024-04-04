@@ -8,6 +8,7 @@ import os
 import logging
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
+APPNET_ROOT = Path(__file__).parent.parent
 
 from tests import *
 
@@ -86,7 +87,7 @@ class CompilerTestCase(unittest.TestCase):
 
     def compile_elements(self):
         command = [
-            "bash", os.path.join(ROOT_DIR, "compiler/generated/envoy/build.sh"),
+            "bash", os.path.join(ROOT_DIR, "compiler/element/generated/envoy/build.sh"),
         ]
 
         result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -95,7 +96,7 @@ class CompilerTestCase(unittest.TestCase):
     # Dynamically create a test method for each element
     def create_test_method(app, element, proto_file, method_name):
         def test_method(self):
-            os.environ['ELEMENT_SPEC_BASE_DIR'] = os.path.join(ROOT_DIR, f"experiments/elements/{app}_elements")
+            # os.environ['ELEMENT_SPEC_BASE_DIR'] = os.path.join(ROOT_DIR, f"experiments/elements/{app}_elements")
             position_pool = ["client"] if backend == "envoy" else ["client", "server"]
             for position in position_pool:
                 TEST_LOG.info(f"Testing {app} element: {element} at position: {position}")
@@ -117,7 +118,8 @@ class CompilerTestCase(unittest.TestCase):
 for app in apps.keys():
     for element in element_pool:
         test_method_name = f"test_{app}_{element}_element_compilation"
-        test_method = CompilerTestCase.create_test_method(app, element, apps[app]["proto_file"], apps[app]["method_name"])
+        element_path = os.path.join(APPNET_ROOT, f"examples/elements/{app}_elements/{element}.appnet")
+        test_method = CompilerTestCase.create_test_method(app, element_path, apps[app]["proto_file"], apps[app]["method_name"])
         setattr(CompilerTestCase, test_method_name, test_method)
 
 if __name__ == "__main__":

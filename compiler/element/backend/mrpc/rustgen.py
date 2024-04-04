@@ -63,7 +63,7 @@ def proto_gen_bytesize(rpc: str, placement: str, args: List[str]) -> str:
 
 class RustContext:
     def __init__(self) -> None:
-        self.internal_states: List[RustVariable] = []
+        self.states: List[RustVariable] = []
         self.name2var: Dict[str, RustVariable] = {}
         self.current_func: str = "unknown"
         self.params: List[RustVariable] = []
@@ -80,7 +80,7 @@ class RustContext:
             )
             self.name2var[name] = var
             if not temp and not var.rpc:
-                self.internal_states.append(var)
+                self.states.append(var)
 
     def clear_temps(self) -> None:
         new_dic = {}
@@ -106,7 +106,7 @@ class RustContext:
             return None
 
     def explain(self) -> str:
-        return f"Context.Explain:\n\t{self.internal_states}\n\t{self.name2var}\n\t{self.current_func}\n\t{self.params}\n\t{self.init_code}\n\t{self.req_code}\n\t{self.resp_code}"
+        return f"Context.Explain:\n\t{self.states}\n\t{self.name2var}\n\t{self.current_func}\n\t{self.params}\n\t{self.init_code}\n\t{self.req_code}\n\t{self.resp_code}"
 
     def func_mapping(self, fname: str) -> RustFunctionType:
         match fname:
@@ -133,7 +133,7 @@ class RustContext:
     def gen_struct_names(self) -> List[str]:
         ret = []
         # todo! check this
-        # for i in self.internal_states:
+        # for i in self.states:
         #     ret.append(i.name)
         return ret
 
@@ -144,9 +144,9 @@ class RustContext:
                 ret.append(v.gen_init_localvar())
         return ret
 
-    def gen_internal_names(self) -> List[str]:
+    def gen_state_names(self) -> List[str]:
         ret = []
-        for i in self.internal_states:
+        for i in self.states:
             ret.append(i.name)
         return ret
 
@@ -159,7 +159,7 @@ class RustContext:
 
     def gen_struct_declaration(self) -> List[str]:
         ret = []
-        for v in self.internal_states:
+        for v in self.states:
             ret.append(v.gen_struct_declaration())
         return ret
 
@@ -176,14 +176,14 @@ class RustGenerator(Visitor):
     def visitProgram(self, node: Program, ctx: RustContext) -> None:
         node.definition.accept(self, ctx)
         node.init.accept(self, ctx)
-        for v in ctx.internal_states:
+        for v in ctx.states:
             if v.init == "":
                 v.init = v.type.gen_init()
         node.req.accept(self, ctx)
         node.resp.accept(self, ctx)
 
-    def visitInternal(self, node: Internal, ctx: RustContext) -> None:
-        for (i, t, cons, comb, per) in node.internal:
+    def visitState(self, node: State, ctx: RustContext) -> None:
+        for (i, t, cons, comb, per) in node.state:
             name = i.name
             rust_type = t.accept(self, ctx)
             ctx.declare(name, rust_type, False)

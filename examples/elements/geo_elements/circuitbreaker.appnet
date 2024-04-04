@@ -1,4 +1,4 @@
-internal {
+state {
 	max_concurrent_req: int
     pending_req: int
     drop_count: int

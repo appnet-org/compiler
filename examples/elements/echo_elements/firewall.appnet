@@ -1,4 +1,4 @@
-internal
+state
 {
 	firewall: Map<string, string>
 }

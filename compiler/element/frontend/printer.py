@@ -16,9 +16,9 @@ class Printer(Visitor):
 {node.req.accept(self, ctx)}
 {node.resp.accept(self, ctx)}"""
 
-    def visitInternal(self, node: Internal, ctx):
-        ret = "Internal:\n"
-        for (i, t, cons, comb, per) in node.internal:
+    def visitState(self, node: State, ctx):
+        ret = "State:\n"
+        for (i, t, cons, comb, per) in node.state:
             i_val = i.accept(self, ctx)
             t_val = t.accept(self, ctx)
             cons_val = cons.accept(self, ctx)

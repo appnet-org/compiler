@@ -2,7 +2,7 @@ from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, Ty
 
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
-from compiler.element.node import Expr, Identifier, Internal, MethodCall, Procedure
+from compiler.element.node import Expr, Identifier, State, MethodCall, Procedure
 from compiler.element.visitor import Visitor
 
 
@@ -13,8 +13,8 @@ class StateAnalyzer(Visitor):
     def visitNode(self, ctx):
         raise Exception("Should be unreachable!")
 
-    def visitInternal(self, node: Internal, ctx) -> int:
-        return len(node.internal) > 0
+    def visitState(self, node: State, ctx) -> int:
+        return len(node.state) > 0
 
 
 class CopyAnalyzer(Visitor):
@@ -36,7 +36,7 @@ class CopyAnalyzer(Visitor):
     def visitProgram(self, node: Program, ctx):
         raise Exception("Unreachable!")
 
-    def visitInternal(self, node: Internal, ctx):
+    def visitState(self, node: State, ctx):
         raise Exception("Unreachable!")
 
     def visitProcedure(self, node: Procedure, ctx):
@@ -111,7 +111,7 @@ class WriteAnalyzer(Visitor):
     def visitProgram(self, node: Program, ctx):
         raise Exception("Unreachable!")
 
-    def visitInternal(self, node: Internal, ctx):
+    def visitState(self, node: State, ctx):
         raise Exception("Unreachable!")
 
     def visitProcedure(self, node: Procedure, ctx):
@@ -198,7 +198,7 @@ class ReadAnalyzer(Visitor):
     def visitProgram(self, node: Program, ctx):
         raise Exception("Unreachable!")
 
-    def visitInternal(self, node: Internal, ctx):
+    def visitState(self, node: State, ctx):
         raise Exception("Unreachable!")
 
     def visitProcedure(self, node: Procedure, ctx):
@@ -288,7 +288,7 @@ class DropAnalyzer(Visitor):
     def visitProgram(self, node: Program, ctx):
         raise Exception("Unreachable!")
 
-    def visitInternal(self, node: Internal, ctx):
+    def visitState(self, node: State, ctx):
         raise Exception("Unreachable!")
 
     def visitProcedure(self, node: Procedure, ctx):
@@ -370,7 +370,7 @@ class AliasAnalyzer(Visitor):
     def visitProgram(self, node: Program, ctx):
         raise Exception("Unreachable!")
 
-    def visitInternal(self, node: Internal, ctx):
+    def visitState(self, node: State, ctx):
         raise Exception("Unreachable!")
 
     def visitProcedure(self, node: Procedure, ctx):

@@ -1,4 +1,4 @@
-internal {
+state {
 	prob: float
 }
 fn init(prob) {

@@ -1,4 +1,4 @@
-internal {
+state {
     lb_tab: Map<string, string>
 }
 

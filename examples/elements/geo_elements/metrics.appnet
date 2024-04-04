@@ -1,4 +1,4 @@
-internal
+state
 {
 	record: Map<uint, Instant>
   latency: Vec<float>

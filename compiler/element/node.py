@@ -24,7 +24,7 @@ class Node:
 
 class Program(Node):
     def __init__(
-        self, definition: Internal, init: Procedure, req: Procedure, resp: Procedure
+        self, definition: State, init: Procedure, req: Procedure, resp: Procedure
     ):
         self.definition = definition
         self.init = init
@@ -32,10 +32,10 @@ class Program(Node):
         self.resp = resp
 
 
-class Internal(Node):
+class State(Node):
     def __init__(
         self,
-        internal: List[
+        state: List[
             Tuple[
                 Identifier,
                 Type,
@@ -45,7 +45,7 @@ class Internal(Node):
             ]
         ],
     ):
-        self.internal = internal
+        self.state = state
 
 
 class Procedure(Node):

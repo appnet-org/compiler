@@ -1,4 +1,4 @@
-internal {
+state {
 	last_ts: Instant
 	limit_rate: float
 	token_rate: float

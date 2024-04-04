@@ -13,7 +13,7 @@ use phoenix_common::log;
 use serde::{{Deserialize, Serialize}};
 {Include}
 {GlobalFunctionInclude}
-{InternalStatesDeclaration}
+{StatesDeclaration}
 
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
@@ -56,7 +56,7 @@ lib_rs = """
 #![feature(strict_provenance)]
 use thiserror::Error;
 
-{InternalStatesDeclaration}
+{StatesDeclaration}
 {Include}
 
 pub use phoenix_common::{{InitFnResult, PhoenixAddon}};
@@ -100,7 +100,7 @@ use phoenix_common::storage::ResourceCollection;
 
 use super::engine::{TemplateNameFirstCap}Engine;
 use crate::config::{{create_log_file, {TemplateNameFirstCap}Config}};
-{InternalStatesDeclaration}
+{StatesDeclaration}
 {Include}
 {GlobalFunctionInclude}
 
@@ -115,12 +115,12 @@ impl {TemplateNameFirstCap}EngineBuilder {{
     }}
     // TODO! LogFile
     fn build(self) -> Result<{TemplateNameFirstCap}Engine> {{
-        {InternalStatesOnBuild}
+        {StatesOnBuild}
         Ok({TemplateNameFirstCap}Engine {{
             node: self.node,
             indicator: Default::default(),
             config: self.config,
-            {InternalStatesInConstructor}
+            {StatesInConstructor}
         }})
     }}
 }}
@@ -208,7 +208,7 @@ use phoenix_common::storage::ResourceCollection;
 
 use super::engine::{TemplateNameFirstCap}Engine;
 use crate::config::{{create_log_file, {TemplateNameFirstCap}Config}};
-{InternalStatesDeclaration}
+{StatesDeclaration}
 {Include}
 {GlobalFunctionInclude}
 
@@ -223,14 +223,14 @@ impl {TemplateNameFirstCap}EngineBuilder {{
     }}
     // TODO! LogFile
     fn build(self) -> Result<{TemplateNameFirstCap}Engine> {{
-        {InternalStatesOnBuild}
+        {StatesOnBuild}
         const META_BUFFER_POOL_CAP: usize = 128;
         Ok({TemplateNameFirstCap}Engine {{
             node: self.node,
             indicator: Default::default(),
             config: self.config,
             meta_buf_pool: MetaBufferPool::new(META_BUFFER_POOL_CAP),
-            {InternalStatesInConstructor}
+            {StatesInConstructor}
         }})
     }}
 }}
@@ -346,13 +346,13 @@ pub mod {ProtoDefinition} {{
 
 {ProtoGetters}
 
-{InternalStatesDefinition}
+{StatesDefinition}
 
 pub(crate) struct {TemplateNameCap}Engine {{
     pub(crate) node: DataPathNode,
     pub(crate) indicator: Indicator,
     pub(crate) config: {TemplateNameCap}Config,
-    {InternalStatesInStructDefinition}
+    {StatesInStructDefinition}
 }}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -411,7 +411,7 @@ impl Decompose for {TemplateNameCap}Engine {{
         let mut collections = ResourceCollection::with_capacity(4);
         collections.insert("config".to_string(), Box::new(engine.config));
         (collections, engine.node)
-        {InternalStatesOnDecompose}
+        {StatesOnDecompose}
     }}
 }}
 
@@ -426,12 +426,12 @@ impl {TemplateNameCap}Engine {{
             .unwrap()
             .downcast::<{TemplateNameCap}Config>()
             .map_err(|x| anyhow!("fail to downcast, type_name={{:?}}", x.type_name()))?;
-        {InternalStatesOnRestore}
+        {StatesOnRestore}
         let engine = {TemplateNameCap}Engine {{
             node,
             indicator: Default::default(),
             config,
-            {InternalStatesInConstructor}
+            {StatesInConstructor}
         }};
         Ok(engine)
     }}
@@ -574,14 +574,14 @@ pub mod {ProtoDefinition} {{
 
 {ProtoGetters}
 
-{InternalStatesDefinition}
+{StatesDefinition}
 
 pub(crate) struct {TemplateNameCap}Engine {{
     pub(crate) node: DataPathNode,
     pub(crate) indicator: Indicator,
     pub(crate) config: {TemplateNameCap}Config,
     pub(crate) meta_buf_pool: MetaBufferPool,
-    {InternalStatesInStructDefinition}
+    {StatesInStructDefinition}
 }}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -641,7 +641,7 @@ impl Decompose for {TemplateNameCap}Engine {{
         collections.insert("config".to_string(), Box::new(engine.config));
         collections.insert("meta_buf_pool".to_string(), Box::new(engine.meta_buf_pool));
         (collections, engine.node)
-        {InternalStatesOnDecompose}
+        {StatesOnDecompose}
     }}
 }}
 
@@ -661,13 +661,13 @@ impl {TemplateNameCap}Engine {{
             .unwrap()
             .downcast::<MetaBufferPool>()
             .map_err(|x| anyhow!("fail to downcast, type_name={{:?}}", x.type_name()))?;
-        {InternalStatesOnRestore}
+        {StatesOnRestore}
         let engine = {TemplateNameCap}Engine {{
             node,
             indicator: Default::default(),
             config,
             meta_buf_pool,
-            {InternalStatesInConstructor}
+            {StatesInConstructor}
         }};
         Ok(engine)
     }}

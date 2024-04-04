@@ -1,4 +1,4 @@
-internal {
+state {
 	// Agression. Increasing the multiplier will make throttling less aggressive
 	multiplier: float
 	success: float

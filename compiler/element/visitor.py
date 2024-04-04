@@ -19,7 +19,7 @@ class Visitor(ABC):
     def visitProgram(self, node: Program, ctx):
         return self.visitNode(node)
 
-    def visitInternal(self, node: Internal, ctx):
+    def visitState(self, node: State, ctx):
         return self.visitNode(node)
 
     def visitProcedure(self, node: Procedure, ctx):

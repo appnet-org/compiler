@@ -1,4 +1,4 @@
-internal {
+state {
 	last: Instant
 	limit: float
 	token: float

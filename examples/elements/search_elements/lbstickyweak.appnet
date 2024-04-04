@@ -1,4 +1,4 @@
-internal {
+state {
 	@consistency(weak) @combiner(sum) @persistence(true)
     lb_tab: Map<string, string>
 }

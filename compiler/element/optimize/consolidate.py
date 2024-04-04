@@ -3,7 +3,7 @@ from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, Ty
 
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
-from compiler.element.node import Expr, Identifier, Internal, MethodCall, Procedure
+from compiler.element.node import Expr, Identifier, State, MethodCall, Procedure
 from compiler.element.visitor import Visitor
 
 
@@ -12,14 +12,14 @@ def consolidate(irs: List[Program]) -> Program:
         left = irs.pop(0)
         right = irs.pop(0)
         new_prog = Program(
-            Internal([]),
+            State([]),
             Procedure("init", [], []),
             Procedure("req", [], []),
             Procedure("resp", [], []),
         )
 
-        new_prog.definition.internal = deepcopy(
-            left.definition.internal + right.definition.internal
+        new_prog.definition.state = deepcopy(
+            left.definition.state + right.definition.state
         )
 
         InitConsolidator().visitProcedure(new_prog.init, (left.init, right.init))

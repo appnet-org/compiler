@@ -147,7 +147,7 @@ def compile_element_property(
 
     The function aggregates properties (like read, write, block, copy, drop operations) for
     both request and response flows across all the provided element specifications. It also
-    determines if the overall behavior is stateful based on the internal definitions in the IR.
+    determines if the overall behavior is stateful based on the state definitions in the IR.
 
     If 'verbose' is true, it prints the compiled intermediate representation for each element.
 
@@ -206,10 +206,10 @@ def compile_element_property(
             ret[1].write = ret[1].write + resp.write
             ret[1].check()
 
-            stateful = stateful or len(ir.definition.internal) > 0
+            stateful = stateful or len(ir.definition.state) > 0
 
             # TODO: might want want to do a more fine-grained check state variables. (incl. conflict requirements)
-            for state in ir.definition.internal:
+            for state in ir.definition.state:
                 consistency = consistency or state[2].name
                 # TODO: this won't work if we use the combiner in the future
                 combiner = combiner or state[3].name

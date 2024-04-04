@@ -1,6 +1,6 @@
 start: definition procedure procedure procedure
 
-definition: "internal" "{" declaration* "}"
+definition: "state" "{" declaration* "}"
 
 declaration: (consistency_decorator | combiner_decorator | persistence_decorator)* identifier ":" type_
 

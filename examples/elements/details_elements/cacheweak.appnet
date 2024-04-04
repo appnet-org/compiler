@@ -1,4 +1,4 @@
-internal
+state
 {
 	cache: Map<string, string>
 }

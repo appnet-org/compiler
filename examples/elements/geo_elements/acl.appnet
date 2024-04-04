@@ -1,4 +1,4 @@
-internal
+state
 {
 	@consistency(strong) @combiner(LWW) @persistence(true)
 	acl: Map<float, string>

@@ -1,4 +1,4 @@
-internal {
+state {
 	last_bw: Instant
 	limit_bw: float
 	token_bw: float

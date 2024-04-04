@@ -19,14 +19,14 @@ class WasmContext:
         message_field_types=None,
         element_name: str = "",
     ) -> None:
-        self.internal_state_names: Set[str] = [
+        self.state_names: Set[str] = [
             "rpc_req",
             "rpc_resp",
-        ]  # List of internal state names. Used by AccessAnalyzer
+        ]  # List of state names. Used by AccessAnalyzer
         self.strong_access_args: Dict[str, Expr] = {}
-        self.internal_states: List[
+        self.states: List[
             WasmVariable
-        ] = []  # List of internal state variables
+        ] = []  # List of state variables
         self.strong_consistency_states: List[
             WasmVariable
         ] = []  # List of strong consistency variables
@@ -107,7 +107,7 @@ class WasmContext:
             elif not temp_var and not var.rpc and atomic:
                 # If it's not a temp variable and does not belong to RPC request or response processing.
                 var.init = rtype.gen_init()
-                self.internal_states.append(var)
+                self.states.append(var)
                 # Create an inner variable for the declared variable
                 v_inner = WasmVariable(
                     name + "_inner", rtype, False, False, False, inner=True
@@ -154,7 +154,7 @@ class WasmContext:
     def gen_inners(self) -> str:
         ret = ""
         # Generate inners based on operations
-        for v in self.internal_states:
+        for v in self.states:
             if v.name in self.access_ops[self.current_procedure]:
                 access_type = self.access_ops[self.current_procedure][v.name]
                 if access_type == MethodType.GET:
@@ -198,11 +198,11 @@ class WasmContext:
             return None
 
     def explain(self) -> str:
-        return f"Context.Explain:\n\t{self.internal_states}\n\t{self.name2var}\n\t{self.current_procedure}\n\t{self.params}\n\t{self.init_code}\n\t{self.req_code}\n\t{self.resp_code}"
+        return f"Context.Explain:\n\t{self.states}\n\t{self.name2var}\n\t{self.current_procedure}\n\t{self.params}\n\t{self.init_code}\n\t{self.req_code}\n\t{self.resp_code}"
 
     def gen_global_var_def(self) -> str:
         ret = ""
-        for v in self.internal_states:
+        for v in self.states:
             wrapped = WasmRwLock(v.type)
             ret = (
                 ret
@@ -277,15 +277,15 @@ class WasmGenerator(Visitor):
     def visitProgram(self, node: Program, ctx: WasmContext) -> None:
         node.definition.accept(self, ctx)
         node.init.accept(self, ctx)
-        for v in ctx.internal_states:
+        for v in ctx.states:
             if v.init == "":
                 v.init = v.type.gen_init()
         node.req.accept(self, ctx)
         node.resp.accept(self, ctx)
 
-    def visitInternal(self, node: Internal, ctx: WasmContext) -> None:
-        # Iterate through all internal state variables and declare them
-        for (i, t, cons, comb, per) in node.internal:
+    def visitState(self, node: State, ctx: WasmContext) -> None:
+        # Iterate through all state variables and declare them
+        for (i, t, cons, comb, per) in node.state:
             state_name = i.name
             state_wasm_type = t.accept(self, ctx)
             ctx.declare(

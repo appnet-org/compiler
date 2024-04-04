@@ -10,8 +10,8 @@ FUNC_RESP_BODY = "resp_body"
 
 
 def set_method(name: str, ctx: WasmContext, method: MethodType):
-    # If var name is not in the internal state definition, it's proabably a temporary variable.
-    if name not in ctx.internal_state_names:
+    # If var name is not in the state definition, it's proabably a temporary variable.
+    if name not in ctx.state_names:
         return
 
     if (
@@ -39,9 +39,9 @@ class AccessAnalyzer(
         node.req.accept(self, ctx)
         node.resp.accept(self, ctx)
 
-    def visitInternal(self, node: Internal, ctx: WasmContext):
-        for (var, _, cons, _, _) in node.internal:
-            ctx.internal_state_names.append(var.name)
+    def visitState(self, node: State, ctx: WasmContext):
+        for (var, _, cons, _, _) in node.state:
+            ctx.state_names.append(var.name)
             if cons.name == "strong":
                 ctx.strong_access_args[var.name] = ""
 

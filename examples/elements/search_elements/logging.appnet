@@ -1,4 +1,4 @@
-internal
+state
 {
 	record_req: Vec<string>
 }

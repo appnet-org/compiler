@@ -1,4 +1,4 @@
-internal
+state
 {
 	acl: Map<string, string>
 }
