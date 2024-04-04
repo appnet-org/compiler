@@ -14,20 +14,20 @@ fn req(rpc_req) {
 		Some(name) => {
             match (name) {
                 'cached' => {
-                    send(err('200'), APP);
+                    send(err('200'), Up);
                 }
                 _ => {
-                    send(err('403'), APP);
+                    send(err('403'), Up);
                 }
             };
 		}
 		None => {
 			cache.set(rpc_req.get('lat'), 'cached');
-			send(rpc_req, NET);
+			send(rpc_req, Down);
 		}
 	};
 }
 
 fn resp(rpc_resp) {
-	send(rpc_resp, APP);
+	send(rpc_resp, Up);
 }

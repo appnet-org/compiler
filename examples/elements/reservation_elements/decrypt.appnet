@@ -9,9 +9,9 @@ fn req(rpc_req) {
     encrypted := rpc_req.get('customer_name');
     decrypted := decrypt(encrypted, password);
     rpc_req.set('customer_name', decrypted);
-    send(rpc_req, NET);
+    send(rpc_req, Down);
 }
 
 fn resp(rpc_resp) {
-    send(rpc_resp, APP);
+    send(rpc_resp, Up);
 }

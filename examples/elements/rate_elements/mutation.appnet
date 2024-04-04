@@ -5,9 +5,9 @@ fn init() {}
 fn req(rpc_req) {
   mutation_body := rpc_req.get('out_date');
   rpc_req.set('out_date', mutation_body);
-  send(rpc_req, NET);
+  send(rpc_req, Down);
 }
 
 fn resp(rpc_resp) {
-	send(rpc_resp, APP);
+	send(rpc_resp, Up);
 }

@@ -9,9 +9,9 @@ fn req(rpc_req) {
 	ori := rpc_req.get('customer_name');
     encrypted := encrypt(ori, password);
     rpc_req.set('customer_name', encrypted);
-    send(rpc_req, NET);
+    send(rpc_req, Down);
 }
 
 fn resp(rpc_resp) {
-    send(rpc_resp, APP);
+    send(rpc_resp, Up);
 }

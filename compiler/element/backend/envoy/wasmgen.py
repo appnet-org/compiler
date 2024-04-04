@@ -772,7 +772,8 @@ class WasmGenerator(Visitor):
         # TODO: currently do not support doing things after send!
         status_code = 403
         # TODO: The status code should be configurable
-        if isinstance(node.msg, Error):
+        # TODO: Better error checking (e.g., check if the message is an Error message and direction is down)
+        if isinstance(node.msg, Error) and node.direction == "Up":
             # If the Error message is numeral, we will consider it as
             # the status code
             if (
@@ -800,7 +801,6 @@ class WasmGenerator(Visitor):
                 + return_stmt
             )
         else:
-            # return "return Action::Continue;"
             return ""
 
     def visitLiteral(self, node: Literal, ctx):

@@ -18,14 +18,14 @@ fn req(rpc_req) {
     match (token > 1.0) {
 		true => {
 			token := token - 1.0;
-			send(rpc_req, NET);
+			send(rpc_req, Down);
         }
 		false => {
-			send(err('ratelimit'), APP);
+			send(err('ratelimit'), Up);
 		}
 	};
 }
 
 fn resp(rpc_resp) {
-    send(rpc_resp, APP);
+    send(rpc_resp, Up);
 }

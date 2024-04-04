@@ -414,14 +414,14 @@ class RustGenerator(Visitor):
                 msg = node.msg.accept(self, ctx)
                 inner = f"let inner_gen = {msg};"
                 if ctx.current_func == FUNC_REQ:
-                    if node.direction == "NET":
+                    if node.direction == "Down":
                         return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
-                    elif node.direction == "APP":
+                    elif node.direction == "Up":
                         return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
                 elif ctx.current_func == FUNC_RESP:
-                    if node.direction == "NET":
+                    if node.direction == "Down":
                         return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
-                    elif node.direction == "APP":
+                    elif node.direction == "Up":
                         return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
             else:
                 msg = node.msg.accept(self, ctx)
@@ -447,14 +447,14 @@ class RustGenerator(Visitor):
                         let inner_gen = EngineRxMessage::RpcMessage(msg);
                     """
                 if ctx.current_func == FUNC_REQ:
-                    if node.direction == "NET":
+                    if node.direction == "Down":
                         return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
-                    elif node.direction == "APP":
+                    elif node.direction == "Up":
                         return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
                 elif ctx.current_func == FUNC_RESP:
-                    if node.direction == "NET":
+                    if node.direction == "Down":
                         return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
-                    elif node.direction == "APP":
+                    elif node.direction == "Up":
                         return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
             elif self.placement == "server":
                 if node.msg.name == "rpc_req":
@@ -470,14 +470,14 @@ class RustGenerator(Visitor):
                         let inner_gen = EngineTxMessage::RpcMessage(msg);
                     """
                 if ctx.current_func == FUNC_REQ:
-                    if node.direction == "NET":
+                    if node.direction == "Down":
                         return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
-                    elif node.direction == "APP":
+                    elif node.direction == "Up":
                         return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
                 elif ctx.current_func == FUNC_RESP:
-                    if node.direction == "NET":
+                    if node.direction == "Down":
                         return f"{inner}self.rx_outputs()[0].send(inner_gen)?"
-                    elif node.direction == "APP":
+                    elif node.direction == "Up":
                         return f"{inner}self.tx_outputs()[0].send(inner_gen)?"
 
     def visitLiteral(self, node: Literal, ctx):

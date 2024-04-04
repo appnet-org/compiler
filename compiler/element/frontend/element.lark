@@ -28,7 +28,7 @@ body: "{" statement* "}"
 
 statement: (expr | assign | primitive | match) ";"
 
-primitive: "send" "(" (expr | err) "," ("APP" | "NET") ")"
+primitive: "send" "(" (expr | err) "," ("Up" | "Down") ")"
 
 assign: identifier ":=" expr
 

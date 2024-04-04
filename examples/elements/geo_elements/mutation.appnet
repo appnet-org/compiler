@@ -5,9 +5,9 @@ fn init() {}
 fn req(rpc_req) {
   mutation_body := rpc_req.get('lat');
   rpc_req.set('lat', mutation_body);
-  send(rpc_req, NET);
+  send(rpc_req, Down);
 }
 
 fn resp(rpc_resp) {
-	send(rpc_resp, APP);
+	send(rpc_resp, Up);
 }

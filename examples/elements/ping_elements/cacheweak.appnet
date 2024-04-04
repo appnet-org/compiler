@@ -14,15 +14,15 @@ fn req(rpc_req) {
 		Some(name) => {
             match (name) {
                 'cached' => {
-                    send(err('200'), APP);
+                    send(err('200'), Up);
                 }
                 _ => {
-                    send(err('403'), APP);
+                    send(err('403'), Up);
                 }
             };
 		}
 		None => {
-			send(rpc_req, NET);
+			send(rpc_req, Down);
 		}
 	};
 }
@@ -30,5 +30,5 @@ fn req(rpc_req) {
 fn resp(rpc_resp) {
     key := rpc_resp.get('body');
 	cache.set(key, 'cached');
-	send(rpc_resp, APP);
+	send(rpc_resp, Up);
 }

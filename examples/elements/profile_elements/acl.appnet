@@ -13,21 +13,21 @@ fn req(rpc_req) {
 		Some(permission) => {
 			match (permission) {
 				'Yes' => {
-					send(rpc_req, NET);
+					send(rpc_req, Down);
 				}
 				'No' => {
-					send(err('acl'), APP);
+					send(err('acl'), Up);
 				}
 				_ => {
 				}
 			};
 		}
 		None => {
-			send(rpc_req, NET);
+			send(rpc_req, Down);
 		}
 	};
 }
 
 fn resp(rpc_resp) {
-    send(rpc_resp, APP);
+    send(rpc_resp, Up);
 }

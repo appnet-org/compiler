@@ -13,16 +13,16 @@ fn req(rpc_req) {
 	match(pending_req <= max_concurrent_req) {
 		true => {
             pending_req := pending_req + 1;
-			send(rpc_req, NET);
+			send(rpc_req, Down);
 		}
 		false => {
             drop_count := drop_count + 1;
-			send(err('circuit breaker'), APP);
+			send(err('circuit breaker'), Up);
 		}
 	};
 }
 
 fn resp(rpc_resp) {
     result := rpc_resp.get('meta_response');
-    send(rpc_resp, APP);
+    send(rpc_resp, Up);
 }

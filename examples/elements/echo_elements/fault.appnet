@@ -9,14 +9,14 @@ fn init() {
 fn req(rpc_req) {
 	match(randomf(0,1) < prob) {
 		true => {
-			send(rpc_req, NET);
+			send(err('fault injected'), Down);
 		}
 		false => {
-			send(err('fault injected'), APP);
+			send(err('fault injected'), Up);
 		}
 	};
 }
 
 fn resp(rpc_resp) {
-    send(rpc_resp, APP);
+    send(rpc_resp, Up);
 }
