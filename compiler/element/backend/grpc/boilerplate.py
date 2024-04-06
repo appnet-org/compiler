@@ -3,6 +3,7 @@ package interceptor
 
 import (
   "math/rand"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -39,21 +40,18 @@ import (
 	"google.golang.org/grpc"
 )
 
-func FaultServer(optFuncs ...CallOption) grpc.UnaryServerInterceptor {
+{GlobalFuncDef}
 
-
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		log.Println("Running FaultUnaryServerInterceptor")
-
-		// Generate a random float between 0 and 1.
-		rand.Seed(time.Now().UnixNano())
-		p := rand.Float64()
-		
-		if p <= intOpts.abortProbability {
-			return nil, status.Error(codes.Aborted, "request aborted by fault injection.")
-		}
-
-		return handler(ctx, req)
-	}
+func FaultServer(optFuncs ...CallOption) grpc.UnaryServerInterceptor {{
+	{GlobalVariables}
+  {Init}
+	return func(ctx context.Context, req interface{{}}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{{}}, error) {{
+		{Request}
+  
+		h := handler(ctx, req) // deal with this (overlap with user variables)
+    
+    {Response}
+    return
+	}}
 }
 """

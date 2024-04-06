@@ -29,12 +29,23 @@ class GoContext:
         self.resp_code: List[str] = []  # Code for response header processing
         self.req_code: List[str] = []  # Code for request body processing
         self.resp_code: List[str] = []  # Code for response body processing
+        self.internal_state_names: Set[str] = [
+            "rpc_req",
+            "rpc_resp",
+        ]  # List of internal state names. Used by AccessAnalyzer
         self.internal_states: List[
             GoVariable
         ] = []  # List of internal state variables
         self.name2var: Dict[
             str, GoVariable
-        ] = {}  # Mapping from names to Wasm variables
+        ] = {}  # Mapping from names to variables
+
+        # Maps to store the state (incl. RPC) operations on request/response headers and bodies
+        self.access_ops: Dict[str, Dict[str, MethodType]] = {
+            FUNC_INIT: {},
+            FUNC_REQ: {},
+            FUNC_RESP: {},
+        }
 
     def declare(
         self,
@@ -63,10 +74,8 @@ class GoContext:
                 combiner=combiner,
                 persistence=persistence,
             )
-            if not temp_var and not var.rpc and atomic:
-                # If it's not a temp variable and does not belong to RPC request or response processing.
-                # TODO(nikolabo):  These will need to be synchronized
-                var.init = rtype.gen_init()
+            if atomic:
+                # Only internal states are atomic
                 self.internal_states.append(var)
                 self.name2var[name] = var
             elif name == "rpc_request":
@@ -93,6 +102,24 @@ class GoContext:
                 new_dict[name] = var
         self.name2var = new_dict
         self.scope.pop()
+
+    def gen_locks(self) -> tuple[str, str]:
+        prefix = ""
+        suffix = ""
+
+        # Generate inners based on operations
+        for v in self.internal_states:
+            if v.name in self.access_ops[self.current_procedure]:
+                access_type = self.access_ops[self.current_procedure][v.name]
+                if access_type == MethodType.GET:
+                    prefix = prefix + f"{v.name}_mutex.RLock();"
+                    suffix = suffix + f"{v.name}_mutex.RUnlock();"
+                elif access_type == MethodType.SET:
+                    prefix = prefix + f"{v.name}_mutex.Lock();"
+                    suffix = suffix + f"{v.name}_mutex.Unlock();"
+                else:
+                    raise Exception("unknown method in gen_inners.")
+        return prefix, suffix
 
     def clear_temps(self) -> None:
         new_dic = {}
@@ -197,6 +224,13 @@ class GoGenerator(Visitor):
         #         if "rpc_resp" in ctx.access_ops[FUNC_RESP_BODY]:
         #             ctx.push_code(prefix)
 
+        prefix_locks, suffix_locks = ("", "")
+        if (ctx.current_procedure != FUNC_INIT): 
+            # No need for locks in init, nobody else has access to the closure
+            prefix_locks, suffix_locks = ctx.gen_locks()
+
+        ctx.push_code(prefix_locks)
+
         for p in node.params:
             name = p.name
             if ctx.find_var(name) == None:
@@ -205,6 +239,8 @@ class GoGenerator(Visitor):
         for s in node.body:
             code = s.accept(self, ctx)
             ctx.push_code(code)
+
+        ctx.push_code(suffix_locks)
 
         # NOTE(nikolabo): this is how rust backend closes unwrapped atomics
         #   could do something similar if need to unlock mutex?
@@ -221,9 +257,9 @@ class GoGenerator(Visitor):
             return "// NULL_STMT"
         else:
             if isinstance(node.stmt, Expr) or isinstance(node.stmt, Send):
-                return node.stmt.accept(self, ctx) + "\n"
+                return node.stmt.accept(self, ctx) + ";"
             else:
-                return node.stmt.accept(self, ctx)
+                return node.stmt.accept(self, ctx) + ";"
 
     def visitMatch(self, node: Match, ctx):
         ret = f"switch {node.expr.accept(self, ctx)}{{\n"
@@ -234,7 +270,7 @@ class GoGenerator(Visitor):
                 leg += f"       {st.accept(self, ctx)}\n"
             ret += leg
             ctx.pop_scope()
-        ret += "}"
+        ret += "}\n"
         return ret
 
     def visitAssign(self, node: Assign, ctx: GoContext):
@@ -323,8 +359,6 @@ class GoGenerator(Visitor):
                     return GoGlobalFunctions["random_float64"]
                 case "randomu":
                     return GoGlobalFunctions["random_uint32"]
-                case "update_window":
-                    raise NotImplementedError
                 case "current_time":
                     return GoGlobalFunctions["current_time"]
                 case "min":

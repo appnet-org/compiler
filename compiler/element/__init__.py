@@ -2,7 +2,8 @@ import os
 from typing import Dict, List
 
 from compiler import *
-from compiler.element.backend.envoy.analyzer import AccessAnalyzer
+from compiler.element.backend.envoy.analyzer import AccessAnalyzer as WasmAccessAnalyzer
+from compiler.element.backend.grpc.analyzer import AccessAnalyzer as GoAccessAnalyzer
 from compiler.element.backend.envoy.finalizer import finalize as WasmFinalize
 from compiler.element.backend.envoy.wasmgen import WasmContext, WasmGenerator
 from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
@@ -137,7 +138,10 @@ def gen_code(
     if backend_name == "envoy":
         assert isinstance(ctx, WasmContext), "Inconsistent context type"
         # Do a pass to analyze the IR and generate the access operation
-        consolidated.accept(AccessAnalyzer(placement), ctx)
+        consolidated.accept(WasmAccessAnalyzer(placement), ctx)
+    if backend_name == "grpc":
+        assert isinstance(ctx, GoContext), "Inconsistent context type"
+        consolidated.accept(GoAccessAnalyzer(placement), ctx)
 
     # Second pass to generate the code
     consolidated.accept(generator, ctx)

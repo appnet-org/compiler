@@ -121,7 +121,9 @@ class GoVariable:
         return f"{self.name}: {self.type}"
 
     def gen_init(self) -> str:
-        return f"var {self.name} {self.type} = {self.init}"
+        lock = ""
+        if (self.atomic): lock = f"; var {self.name}_mutex sync.RWMutex;"
+        return f"var {self.name} {self.type} = {self.init}{lock}"
 
 
 GoGlobalFunctions = {
