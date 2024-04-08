@@ -19,8 +19,10 @@ class GoContext:
         element_name: str = "",
     ) -> None:
         self.element_name: str = element_name  # Name of the generated element
+        self.method_name: str = method_name  # Name of the RPC method
         self.request_message_name: str = request_message_name
         self.response_message_name: str = response_message_name
+        self.message_field_types: Dict[str, Dict[str, str]] = message_field_types
         self.scope: List[Optional[Node]] = [None]
         self.temp_var_scope: Dict[str, Optional[Node]] = {}
         self.current_procedure: str = "unknown"  # Name of the current procedure (i.e., init/req/resp) being processed
@@ -29,6 +31,7 @@ class GoContext:
         self.resp_code: List[str] = []  # Code for response header processing
         self.req_code: List[str] = []  # Code for request body processing
         self.resp_code: List[str] = []  # Code for response body processing
+        self.proto: str = proto
         self.internal_state_names: Set[str] = [
             "rpc_req",
             "rpc_resp",
@@ -207,22 +210,22 @@ class GoGenerator(Visitor):
         original_procedure = ctx.current_procedure
 
         # Boilerplate code for decoding the RPC message
-        # TODO(nikolabo): get rpc state
-        # message_name = (
-        #     ctx.request_message_name
-        #     if procedure_type == "Request"
-        #     else ctx.response_message_name
-        # )
+        message_name, message = ctx.response_message_name, "reply"
+        if procedure_type == "Request":
+            message_name, message = ctx.request_message_name, "req"
+        prefix_decode_rpc = f"""
+            if rpc_{name}, ok := {message}.(*{ctx.proto}.{message_name}); ok {{
+        """
+        suffix_decode_rpc = "}"
 
         # If the procedure does not access the RPC message, then we do not need to decode the RPC message
-        # if ctx.current_procedure != FUNC_INIT:
-        #     prefix = prefix_decode_rpc
-        #     if original_procedure == FUNC_REQ_BODY:
-        #         if "rpc_req" in ctx.access_ops[FUNC_REQ_BODY]:
-        #             ctx.push_code(prefix)
-        #     elif original_procedure == FUNC_RESP_BODY:
-        #         if "rpc_resp" in ctx.access_ops[FUNC_RESP_BODY]:
-        #             ctx.push_code(prefix)
+        if ctx.current_procedure != FUNC_INIT:
+            if original_procedure == FUNC_REQ:
+                if "rpc_req" in ctx.access_ops[FUNC_REQ]:
+                    ctx.push_code(prefix_decode_rpc)
+            elif original_procedure == FUNC_RESP:
+                if "rpc_resp" in ctx.access_ops[FUNC_RESP]:
+                    ctx.push_code(prefix_decode_rpc)
 
         prefix_locks, suffix_locks = ("", "")
         if (ctx.current_procedure != FUNC_INIT): 
@@ -242,15 +245,13 @@ class GoGenerator(Visitor):
 
         ctx.push_code(suffix_locks)
 
-        # NOTE(nikolabo): this is how rust backend closes unwrapped atomics
-        #   could do something similar if need to unlock mutex?
-        # if ctx.current_procedure != FUNC_INIT:
-        #     if original_procedure == FUNC_REQ_BODY:
-        #         if "rpc_req" in ctx.access_ops[FUNC_REQ_BODY]:
-        #             ctx.push_code(suffix_decode_rpc)
-        #     elif original_procedure == FUNC_RESP_BODY:
-        #         if "rpc_resp" in ctx.access_ops[FUNC_RESP_BODY]:
-        #             ctx.push_code(suffix_decode_rpc)    
+        if ctx.current_procedure != FUNC_INIT:
+            if original_procedure == FUNC_REQ:
+                if "rpc_req" in ctx.access_ops[FUNC_REQ]:
+                    ctx.push_code(suffix_decode_rpc)
+            elif original_procedure == FUNC_RESP:
+                if "rpc_resp" in ctx.access_ops[FUNC_RESP]:
+                    ctx.push_code(suffix_decode_rpc)
 
     def visitStatement(self, node: Statement, ctx):
         if node.stmt == None:
@@ -262,15 +263,45 @@ class GoGenerator(Visitor):
                 return node.stmt.accept(self, ctx) + ";"
 
     def visitMatch(self, node: Match, ctx):
-        ret = f"switch {node.expr.accept(self, ctx)}{{\n"
-        for (p, s) in node.actions:
-            ctx.push_scope(p)
-            leg = f"case {p.accept(self, ctx)}:\n"
-            for st in s:
-                leg += f"       {st.accept(self, ctx)}\n"
-            ret += leg
-            ctx.pop_scope()
-        ret += "}\n"
+        first_pattern = node.actions[0][0]
+        if first_pattern.some: 
+            assert isinstance(first_pattern.value, Identifier)
+            assert len(node.actions) == 2
+            name = first_pattern.value.name
+            if ctx.find_var(name) != None:
+                LOG.error("variable already defined should not appear in Some")
+                raise Exception(f"variable {name} already defined")
+            # TODO: infer the correct type for the temp variable
+            ctx.declare(name, GoBasicType("String"), True, False)  # declare temp
+
+            # Grab the statements for some and none branches
+            some_statements = none_statements = ""
+            for st in node.actions[0][1]:
+                some_statements += f"{st.accept(self, ctx)}\n"
+            for st in node.actions[1][1]:
+                none_statements += f"{st.accept(self, ctx)}\n"
+
+            # Idiomatic check if key present in go
+            # TODO(nikolabo): avoid clashing with user vars named ok?
+            ret =   f"""if {name}, ok := {node.expr.accept(self, ctx)}; ok {{
+                            {some_statements}
+                        }} else {{
+                            {none_statements}
+                        }}
+                    """
+        else:
+            ret = f"switch {node.expr.accept(self, ctx)}{{\n"
+            for (p, s) in node.actions:
+                ctx.push_scope(p)
+                if isinstance(p.value, Literal) and p.value.value == "_":
+                    leg = "default:\n"
+                else:
+                    leg = f"case {p.accept(self, ctx)}:\n"
+                for st in s:
+                    leg += f"       {st.accept(self, ctx)}\n"
+                ret += leg
+                ctx.pop_scope()
+            ret += "}\n"
         return ret
 
     def visitAssign(self, node: Assign, ctx: GoContext):
@@ -289,6 +320,7 @@ class GoGenerator(Visitor):
             return f"{node.left.accept(self, ctx)} = {node.right.accept(self, ctx)}"
 
     def visitPattern(self, node: Pattern, ctx):
+        # Some/None patterns are never visited, handled in visitMatch
         return node.value.accept(self, ctx)
 
     def visitExpr(self, node: Expr, ctx):
@@ -337,20 +369,29 @@ class GoGenerator(Visitor):
 
     def visitType(self, node: Type, ctx: GoContext):
         # TODO(nikolabo): vectors
-        match node.name:
-            case "float":
-                return GoBasicType("float64")
-            case "int":
-                return GoBasicType("int32")
-            case "uint":
-                return GoBasicType("uint32")
-            case "string":
-                return GoBasicType("string")
-            case "Instant":
-                return GoBasicType("float64")
-            # case _:
-            #     LOG.warning(f"unknown type: {type_def}")
-            #     return WasmType(type_def)
+        def map_basic_type(type_def: str):
+            match type_def:
+                case "float":
+                    return GoBasicType("float64")
+                case "int":
+                    return GoBasicType("int32")
+                case "uint":
+                    return GoBasicType("uint32")
+                case "string":
+                    return GoBasicType("string")
+                case "Instant":
+                    return GoBasicType("float64")
+                case _:
+                    LOG.warning(f"unknown type: {type_def}")
+                #     return WasmType(type_def)
+        type_def: str = node.name
+        if type_def.startswith("Map<"):
+            temp = type_def[4:].split(">")[0]
+            key_type = temp.split(",")[0].strip()
+            value_type = temp.split(",")[1].strip()
+            return GoMaptype(map_basic_type(key_type), map_basic_type(value_type))
+        else:
+            return map_basic_type(type_def)
 
     def visitFuncCall(self, node: FuncCall, ctx: GoContext) -> str:
         def func_mapping(fname: str) -> GoFunctionType:
@@ -387,11 +428,55 @@ class GoGenerator(Visitor):
         return ret
 
     def visitMethodCall(self, node: MethodCall, ctx):
-        raise NotImplementedError
+        var = ctx.find_var(node.obj.name)
+        if var == None:
+            LOG.error(f"{node.obj.name} is not declared")
+            raise Exception(f"object {node.obj.name} not found")
+        t = var.type
+        args = [i.accept(self, ctx) for i in node.args]
+        ret = var.name
+
+        if var.rpc:
+            match node.method:
+                case MethodType.GET:
+                    assert len(args) == 1
+                    # snake_case pb field to PascalCase go pb field
+                    split_snake = args[0].strip('"').split('_')
+                    pascal_case = ''.join(w.title() for w in split_snake)
+                    ret += f".{pascal_case}"
+                case MethodType.SET:
+                    raise NotImplementedError
+                case MethodType.DELETE:
+                    raise NotImplementedError
+                case MethodType.SIZE:
+                    pass
+                case MethodType.BYTE_SIZE:
+                    raise NotImplementedError
+                case _:
+                    raise Exception("unknown method", node.method)
+        else:
+            match node.method:
+                case MethodType.GET:
+                    ret += t.gen_get(args, node.obj.name, ctx.element_name)
+                case MethodType.SET:
+                    ret += t.gen_set(
+                        args, node.obj.name, ctx.element_name, ctx.current_procedure
+                    )
+                case MethodType.DELETE:
+                    ret += t.gen_delete(args)
+                case MethodType.SIZE:
+                    ret += t.gen_size()
+                case _:
+                    raise Exception("unknown method", node.method)
+        return ret
 
     def visitSend(self, node: Send, ctx) -> str:
         if isinstance(node.msg, Error):
-            return f"""return status.Error(codes.Aborted, {node.msg.msg.accept(self, ctx)})"""
+            if self.placement == "client":
+                return f"""return status.Error(codes.Aborted, {node.msg.msg.accept(self, ctx)})"""
+            else:
+                assert self.placement == "server"
+                return f"""return nil, status.Error(codes.Aborted, {node.msg.msg.accept(self, ctx)})"""
         else:
             return ""
 

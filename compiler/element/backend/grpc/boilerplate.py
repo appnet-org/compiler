@@ -48,10 +48,11 @@ func FaultServer(optFuncs ...CallOption) grpc.UnaryServerInterceptor {{
 	return func(ctx context.Context, req interface{{}}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{{}}, error) {{
 		{Request}
   
-		h := handler(ctx, req) // deal with this (overlap with user variables)
+		if reply, err := handler(ctx, req); err == nil {
+    	{Response}
+		}
     
-    {Response}
-    return
+    return reply, err
 	}}
 }
 """

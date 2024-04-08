@@ -52,6 +52,25 @@ class GoBasicType(GoType):
             case _:
                 return "0"
 
+class GoMaptype(GoType):
+    def __init__(self, key: GoType, value: GoType) -> None:
+        super().__init__(f"map[{key.name}]{value.name}")
+        self.key = key
+        self.value = value
+
+    def gen_init(self) -> str:
+        return f"make({self.name})"
+
+    def gen_get(self, args: List[str], vname: str, ename: str) -> str:
+        assert len(args) == 1
+        return f"[{args[0]}]"
+
+    def gen_set(
+        self, args: List[str], vname: str, ename: str, current_procedure: str
+    ) -> str:
+        assert len(args) == 2
+        return f"[{args[0]}] = {args[1]}"
+
 
 class GoRpcType(GoType):
     def __init__(self, name: str, fields: List[(str, GoType)]):
