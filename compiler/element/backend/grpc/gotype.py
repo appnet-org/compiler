@@ -51,6 +51,30 @@ class GoBasicType(GoType):
                 return "0.0"
             case _:
                 return "0"
+            
+class GoVecType(GoType):
+    def __init__(self, elem_type: GoType) -> None:
+        super().__init__(f"[]{elem_type.name}")
+        self.elem_type = elem_type
+
+    def gen_init(self) -> str:
+        return f"make({self.name}, 0, 0)"
+
+    def gen_get(self, args: List[str], vname: str, ename: str) -> str:
+        assert len(args) == 1
+        return f"[{args[0]}]"
+
+    def gen_set(
+        self, args: List[str], vname: str, ename: str, current_procedure: str
+    ) -> str:
+        assert len(args) == 2
+        if args[0].startswith("len(") and args[0].endswith(")"):
+            return f"= append({vname}, {args[1]})"
+        else:
+            return f"[{args[0]}] = {args[1]})"
+
+    def gen_delete(self, args):
+        raise NotImplementedError
 
 class GoMaptype(GoType):
     def __init__(self, key: GoType, value: GoType) -> None:
@@ -61,7 +85,7 @@ class GoMaptype(GoType):
     def gen_init(self) -> str:
         return f"make({self.name})"
 
-    def gen_get(self, args: List[str], vname: str, ename: str) -> str:
+    def gen_get(self, args, vname, ename) -> str:
         assert len(args) == 1
         return f"[{args[0]}]"
 
@@ -77,9 +101,20 @@ class GoRpcType(GoType):
         super().__init__(name)
         self.fields = fields
 
-    # def gen_get(self, args: List[str], ename: str) -> str:
-    #     assert len(args) == 1
-    #     return "." + args[0].strip('"')
+    def snake_to_pascal_case (name: str) -> str:
+        # snake_case pb field to PascalCase go pb field
+        split_snake = name.strip('"').split('_')
+        return ''.join(w.title() for w in split_snake)
+
+    def gen_get(self, args: List[str], vname:str, ename: str) -> str:
+        assert len(args) == 1
+        return f".{GoRpcType.snake_to_pascal_case(args[0])}"
+    
+    def gen_set(self, args, vname, ename, current_procedure) -> str:
+        assert len(args) == 1
+        return f".{GoRpcType.snake_to_pascal_case(args[0])}"
+    
+
         
 
 class GoFunctionType(GoType):

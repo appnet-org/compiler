@@ -153,7 +153,7 @@ class GoContext:
     def gen_global_var_def(self) -> str:
         ret = ""
         for v in self.internal_states:
-            ret = v.gen_init()
+            ret += v.gen_init()
         return ret
 
 
@@ -368,7 +368,6 @@ class GoGenerator(Visitor):
             return var.name
 
     def visitType(self, node: Type, ctx: GoContext):
-        # TODO(nikolabo): vectors
         def map_basic_type(type_def: str):
             match type_def:
                 case "float":
@@ -385,6 +384,9 @@ class GoGenerator(Visitor):
                     LOG.warning(f"unknown type: {type_def}")
                 #     return WasmType(type_def)
         type_def: str = node.name
+        if type_def.startswith("Vec<"):
+            vec_type = type_def[4:].split(">")[0].strip()
+            return GoVecType(map_basic_type(vec_type))
         if type_def.startswith("Map<"):
             temp = type_def[4:].split(">")[0]
             key_type = temp.split(",")[0].strip()
@@ -439,13 +441,9 @@ class GoGenerator(Visitor):
         if var.rpc:
             match node.method:
                 case MethodType.GET:
-                    assert len(args) == 1
-                    # snake_case pb field to PascalCase go pb field
-                    split_snake = args[0].strip('"').split('_')
-                    pascal_case = ''.join(w.title() for w in split_snake)
-                    ret += f".{pascal_case}"
+                    ret += t.gen_get(args, var.name, ctx.element_name)
                 case MethodType.SET:
-                    raise NotImplementedError
+                    ret += t.gen_set(args, var.name, ctx.element_name, ctx.current_procedure)
                 case MethodType.DELETE:
                     raise NotImplementedError
                 case MethodType.SIZE:
@@ -457,15 +455,15 @@ class GoGenerator(Visitor):
         else:
             match node.method:
                 case MethodType.GET:
-                    ret += t.gen_get(args, node.obj.name, ctx.element_name)
+                    ret += t.gen_get(args, var.name, ctx.element_name)
                 case MethodType.SET:
                     ret += t.gen_set(
-                        args, node.obj.name, ctx.element_name, ctx.current_procedure
+                        args, var.name, ctx.element_name, ctx.current_procedure
                     )
                 case MethodType.DELETE:
                     ret += t.gen_delete(args)
                 case MethodType.SIZE:
-                    ret += t.gen_size()
+                    ret = f"len({var.name})"
                 case _:
                     raise Exception("unknown method", node.method)
         return ret
