@@ -85,7 +85,7 @@ class GoMaptype(GoType):
     def gen_init(self) -> str:
         return f"make({self.name})"
 
-    def gen_get(self, args, vname, ename) -> str:
+    def gen_get(self, args: List[str], vname: str, ename: str) -> str:
         assert len(args) == 1
         return f"[{args[0]}]"
 
