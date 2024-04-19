@@ -28,6 +28,8 @@ def gen_code(
     output_dir: str,
     backend_name: str,
     placement: str,
+    proto_module_name: str,
+    proto_module_location: str,
     proto_path: str,
     method_name: str,
     server: str,
@@ -99,6 +101,8 @@ def gen_code(
         finalize = GoFinalize
         ctx = GoContext(
             proto=proto,
+            proto_module_name=proto_module_name,
+            proto_module_location=proto_module_location,
             method_name=method_name,
             element_name=output_name,
             request_message_name=request_message_name,

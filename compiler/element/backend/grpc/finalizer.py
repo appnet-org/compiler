@@ -7,7 +7,7 @@ from compiler.element.backend.grpc.gogen import GoContext
 from compiler.element.backend.grpc.gotype import GoGlobalFunctions
 from compiler.element.logger import ELEMENT_LOG as LOG
 
-def retrieve(ctx: GoContext, name: str) -> Dict:
+def retrieve(ctx: GoContext, name: str, placement: str) -> Dict:
     #!todo init
     return {
         "FilterName": name.lower(),
@@ -17,12 +17,17 @@ def retrieve(ctx: GoContext, name: str) -> Dict:
         "Request": "".join(ctx.req_code),
         "Response": "".join(ctx.resp_code),
         "ProtoName": ctx.proto,
+        "ProtoModuleLocation": ctx.proto_module_location,
+        "ProtoModuleName": ctx.proto_module_name,
+        "ClientInterceptor": "clientInterceptor()" if placement == "client" else "", # TODO(nikolabo): client vs server interceptor generation
+        "ServerInterceptor": "serverInterceptor()" if placement == "server" else "",
     }
 
-def codegen_from_template(output_dir: str, snippet: Dict, lib_name: str, placement: str, proto_path: str):
+def codegen_from_template(output_dir: str, snippet: Dict, lib_name: str, placement: str):
     # This method generates the backend code from the template
     os.system(f"rm -rf {output_dir}")
     os.system(f"mkdir -p {output_dir}")
+    os.system(f"mkdir -p {output_dir}/interceptor")
     os.system(f"mkdir -p {output_dir}/pb")
 
     with open(f"{output_dir}/interceptor.go", "w") as f:
@@ -39,8 +44,6 @@ def codegen_from_template(output_dir: str, snippet: Dict, lib_name: str, placeme
         f.write(go_sum.format(**snippet))
     with open(f"{output_dir}/build.sh", "w") as f:
         f.write(build_sh.format(**snippet))
-        
-    os.system(f"cp {proto_path} {output_dir}/pb")
 
     os.system(f"go fmt {output_dir}/interceptor.go")
 
@@ -51,5 +54,5 @@ def codegen_from_template(output_dir: str, snippet: Dict, lib_name: str, placeme
 def finalize(
     name: str, ctx: GoContext, output_dir: str, placement: str, proto_path: str
 ):
-    snippet = retrieve(ctx, name)
-    codegen_from_template(output_dir, snippet, name, placement, proto_path)
+    snippet = retrieve(ctx, name, placement)
+    codegen_from_template(output_dir, snippet, name, placement)

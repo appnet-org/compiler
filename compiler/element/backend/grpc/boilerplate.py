@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-  {ProtoName} "appnet.wiki/{FilterName}/pb"
+  {ProtoName} "{ProtoModuleName}"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"golang.org/x/net/context"
@@ -34,6 +34,11 @@ server_interceptor = """
 package main
 
 import (
+  "math/rand"
+	"sync"
+	"time"
+
+  {ProtoName} "{ProtoModuleName}"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"golang.org/x/net/context"
@@ -68,11 +73,10 @@ import (
 type interceptInit struct{{}}
 
 func (interceptInit) ClientInterceptors() []grpc.UnaryClientInterceptor {{
-	return []grpc.UnaryClientInterceptor{{clientInterceptor()}} // TODO(nikolabo): multiple interceptors 
+	return []grpc.UnaryClientInterceptor{{{ClientInterceptor}}} // TODO(nikolabo): multiple interceptors 
 }}
-
 func (interceptInit) ServerInterceptors() []grpc.UnaryServerInterceptor {{
-	return []grpc.UnaryServerInterceptor{{}}
+	return []grpc.UnaryServerInterceptor{{{ServerInterceptor}}}
 }}
 
 var InterceptInit interceptInit
@@ -84,6 +88,7 @@ module appnet.wiki/{FilterName}
 go 1.22.1
 
 require (
+	{ProtoModuleName} v0.0.0-00010101000000-000000000000
 	golang.org/x/net v0.24.0
 	google.golang.org/grpc v1.63.2
 	google.golang.org/protobuf v1.33.0
@@ -94,6 +99,8 @@ require (
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240227224415-6ceb2ff114de // indirect
 )
+
+replace {ProtoModuleName} => {ProtoModuleLocation}
 
 """
 
@@ -120,7 +127,6 @@ build_sh = """
 WORKDIR=`dirname $(realpath $0)`
 cd $WORKDIR
 
-protoc --go_out="." --go-grpc_out="." --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative  pb/{ProtoName}.proto
 go build  -C . -o interceptor.so -buildmode=plugin .
 cp interceptor.so /tmp/{FilterName}.so
 

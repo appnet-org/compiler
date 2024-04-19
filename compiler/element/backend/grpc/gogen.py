@@ -12,6 +12,8 @@ class GoContext:
     def __init__(
         self,
         proto=None,
+        proto_module_name=None,
+        proto_module_location=None,
         method_name=None,
         request_message_name=None,
         response_message_name=None,
@@ -32,6 +34,8 @@ class GoContext:
         self.req_code: List[str] = []  # Code for request body processing
         self.resp_code: List[str] = []  # Code for response body processing
         self.proto: str = proto
+        self.proto_module_name: str = proto_module_name
+        self.proto_module_location: str = proto_module_location
         self.internal_state_names: Set[str] = [
             "rpc_req",
             "rpc_resp",
