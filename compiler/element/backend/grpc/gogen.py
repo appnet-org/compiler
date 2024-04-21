@@ -36,13 +36,13 @@ class GoContext:
         self.proto: str = proto
         self.proto_module_name: str = proto_module_name
         self.proto_module_location: str = proto_module_location
-        self.internal_state_names: Set[str] = [
+        self.state_names: Set[str] = [
             "rpc_req",
             "rpc_resp",
-        ]  # List of internal state names. Used by AccessAnalyzer
-        self.internal_states: List[
+        ]  # List of state names. Used by AccessAnalyzer
+        self.states: List[
             GoVariable
-        ] = []  # List of internal state variables
+        ] = []  # List of state variables
         self.name2var: Dict[
             str, GoVariable
         ] = {}  # Mapping from names to variables
@@ -83,7 +83,7 @@ class GoContext:
             )
             if atomic:
                 # Only internal states are atomic
-                self.internal_states.append(var)
+                self.states.append(var)
                 self.name2var[name] = var
             elif name == "rpc_request":
                 self.name2var["rpc_req"] = var
@@ -115,7 +115,7 @@ class GoContext:
         suffix = ""
 
         # Generate inners based on operations
-        for v in self.internal_states:
+        for v in self.states:
             if v.name in self.access_ops[self.current_procedure]:
                 access_type = self.access_ops[self.current_procedure][v.name]
                 if access_type == MethodType.GET:
@@ -156,7 +156,7 @@ class GoContext:
 
     def gen_global_var_def(self) -> str:
         ret = ""
-        for v in self.internal_states:
+        for v in self.states:
             ret += v.gen_init()
         return ret
 
@@ -173,15 +173,15 @@ class GoGenerator(Visitor):
     def visitProgram(self, node: Program, ctx: GoContext) -> str:
         node.definition.accept(self, ctx)
         node.init.accept(self, ctx)
-        for v in ctx.internal_states:
+        for v in ctx.states:
             if v.init == "":
                 v.init = v.type.gen_init()
         node.req.accept(self, ctx)
         node.resp.accept(self, ctx)
 
-    def visitInternal(self, node: Internal, ctx: GoContext):
-        # Iterate through all internal state variables and declare them
-        for (i, t, cons, comb, per) in node.internal:
+    def visitState(self, node: State, ctx: GoContext):
+        # Iterate through all state variables and declare them
+        for (i, t, cons, comb, per) in node.state:
             state_name = i.name
             state_go_type = t.accept(self, ctx)
             ctx.declare(
