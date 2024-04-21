@@ -35,7 +35,7 @@ class AccessAnalyzer(
         node.resp.accept(self, ctx)
 
     def visitState(self, node: State, ctx: GoContext):
-        for (var, _, cons, _, _) in node.internal:
+        for (var, _, cons, _, _) in node.state:
             ctx.state_names.append(var.name)
             # if cons.name == "strong":
             #     ctx.strong_access_args[var.name] = ""

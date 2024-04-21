@@ -20,9 +20,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "-e", "--element_path", type=str, help="(Element_path',') *", required=True
     )
-    parser.add_argument(
-        "--path", type=str, help="Path to the element", required=True
-    )
     parser.add_argument("-v", "--verbose", help="Print Debug info", action="store_true")
     # parser.add_argument(
     #     "-d",
@@ -66,7 +63,7 @@ if __name__ == "__main__":
     print(elements)
     backend = args.backend
     verbose = args.verbose
-    deploy = args.deploy
+    # deploy = args.deploy
     placement = args.placement
     proto_path = args.proto
     proto_module_location = args.mod_location

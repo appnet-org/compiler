@@ -37,8 +37,7 @@ class GoContext:
         self.proto_module_name: str = proto_module_name
         self.proto_module_location: str = proto_module_location
         self.state_names: Set[str] = [
-            "rpc_req",
-            "rpc_resp",
+            "rpc",
         ]  # List of state names. Used by AccessAnalyzer
         self.states: List[
             GoVariable
@@ -86,11 +85,11 @@ class GoContext:
                 self.states.append(var)
                 self.name2var[name] = var
             elif name == "rpc_request":
-                self.name2var["rpc_req"] = var
+                self.name2var["rpc"] = var
             elif name == "rpc_response":
-                self.name2var["rpc_resp"] = var
+                self.name2var["rpc"] = var
             else:
-                # temp variable, not rpc_req/resp
+                # temp variable, not rpc
                 self.name2var[name] = var
                 self.temp_var_scope[name] = self.scope[-1]
 
@@ -225,10 +224,10 @@ class GoGenerator(Visitor):
         # If the procedure does not access the RPC message, then we do not need to decode the RPC message
         if ctx.current_procedure != FUNC_INIT:
             if original_procedure == FUNC_REQ:
-                if "rpc_req" in ctx.access_ops[FUNC_REQ]:
+                if "rpc" in ctx.access_ops[FUNC_REQ]:
                     ctx.push_code(prefix_decode_rpc)
             elif original_procedure == FUNC_RESP:
-                if "rpc_resp" in ctx.access_ops[FUNC_RESP]:
+                if "rpc" in ctx.access_ops[FUNC_RESP]:
                     ctx.push_code(prefix_decode_rpc)
 
         prefix_locks, suffix_locks = ("", "")
@@ -251,10 +250,10 @@ class GoGenerator(Visitor):
 
         if ctx.current_procedure != FUNC_INIT:
             if original_procedure == FUNC_REQ:
-                if "rpc_req" in ctx.access_ops[FUNC_REQ]:
+                if "rpc" in ctx.access_ops[FUNC_REQ]:
                     ctx.push_code(suffix_decode_rpc)
             elif original_procedure == FUNC_RESP:
-                if "rpc_resp" in ctx.access_ops[FUNC_RESP]:
+                if "rpc" in ctx.access_ops[FUNC_RESP]:
                     ctx.push_code(suffix_decode_rpc)
 
     def visitStatement(self, node: Statement, ctx):
@@ -473,7 +472,7 @@ class GoGenerator(Visitor):
         return ret
 
     def visitSend(self, node: Send, ctx) -> str:
-        if isinstance(node.msg, Error):
+        if isinstance(node.msg, Error) and node.direction == "Up":
             if self.placement == "client":
                 return f"""return status.Error(codes.Aborted, {node.msg.msg.accept(self, ctx)})"""
             else:
