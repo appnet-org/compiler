@@ -27,8 +27,6 @@ def codegen_from_template(output_dir: str, snippet: Dict, lib_name: str, placeme
     # This method generates the backend code from the template
     os.system(f"rm -rf {output_dir}")
     os.system(f"mkdir -p {output_dir}")
-    os.system(f"mkdir -p {output_dir}/interceptor")
-    os.system(f"mkdir -p {output_dir}/pb")
 
     with open(f"{output_dir}/interceptor.go", "w") as f:
         if placement == "client":

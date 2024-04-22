@@ -28,11 +28,11 @@ def gen_code(
     output_dir: str,
     backend_name: str,
     placement: str,
-    proto_module_name: str,
-    proto_module_location: str,
     proto_path: str,
     method_name: str,
     server: str,
+    proto_module_name: str = "",
+    proto_module_location: str = "",
     verbose: bool = False,
 ) -> str:
     """
@@ -97,6 +97,7 @@ def gen_code(
             message_field_types=message_field_types,
         )
     elif backend_name == "grpc":
+        assert(proto_module_name != "" and proto_module_location != "")
         generator = GoGenerator(placement)
         finalize = GoFinalize
         ctx = GoContext(

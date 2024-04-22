@@ -104,12 +104,12 @@ if __name__ == "__main__":
         os.path.join(str(COMPILER_ROOT), "element", "generated", str(backend)),
         backend,
         placement,
-        proto_module_name,
-        proto_module_location,
         proto_path,
         method_name,
         server,
-        verbose,
+        proto_module_name=proto_module_name,
+        proto_module_location=proto_module_location,
+        verbose=verbose,
     )
     end = datetime.datetime.now()
     LOG.info(f"Code Generation took: {(end-start).microseconds/1000}ms")
