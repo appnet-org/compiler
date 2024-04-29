@@ -42,6 +42,28 @@ def extract_proto_message_names(
 
     return None, None
 
+def extract_proto_service_name(
+    proto_file: str
+) -> str:
+    with open(proto_file, "r") as file:
+        proto_content = file.read()
+
+    # Regular expression to find service definitions
+    services = re.findall(r"service\s+(\w+)\s+{", proto_content)
+    assert len(services) == 1, "Only one service definition is supported"
+
+    return services[0]
+
+def extract_proto_package_name(
+    proto_file: str
+) -> str:
+    with open(proto_file, "r") as file:
+        proto_content = file.read()
+
+    packages = re.findall(r"package\s+(\w+);", proto_content)
+    assert len(packages) == 1, "Only one package definition is supported"
+
+    return packages[0]
 
 def camel_to_snake(name: str) -> str:
     # Insert an underscore before each uppercase letter and convert to lowercase

@@ -2,6 +2,7 @@ import os
 from typing import Dict
 
 from compiler.config import COMPILER_ROOT
+from compiler.element.backend.grpc import FUNC_REQ, FUNC_RESP
 from compiler.element.backend.grpc.boilerplate import *
 from compiler.element.backend.grpc.gogen import GoContext
 from compiler.element.backend.grpc.gotype import GoGlobalFunctions
@@ -10,7 +11,7 @@ from compiler.element.logger import ELEMENT_LOG as LOG
 def retrieve(ctx: GoContext, name: str, placement: str) -> Dict:
     #!todo init
     return {
-        "FilterName": name.lower(),
+        "FilterName": name,
         "GlobalVariables": ctx.gen_global_var_def(),
         "GlobalFuncDef": ";".join([f.definition for f in GoGlobalFunctions.values()]),
         "Init": "".join(ctx.init_code),
@@ -18,6 +19,8 @@ def retrieve(ctx: GoContext, name: str, placement: str) -> Dict:
         "Response": "".join(ctx.resp_code),
         "ProtoName": ctx.proto,
         "ProtoModuleLocation": ctx.proto_module_location,
+        # Import proto module if rpc accessed by element
+        "ProtoImport": f"{ctx.proto} \"{ctx.proto_module_name}\"" if "rpc" in ctx.access_ops[FUNC_REQ] or "rpc" in ctx.access_ops[FUNC_RESP] else "",
         "ProtoModuleName": ctx.proto_module_name,
         "ClientInterceptor": "clientInterceptor()" if placement == "client" else "", # TODO(nikolabo): client vs server interceptor generation
         "ServerInterceptor": "serverInterceptor()" if placement == "server" else "",
@@ -32,7 +35,7 @@ def codegen_from_template(output_dir: str, snippet: Dict, lib_name: str, placeme
         if placement == "client":
             f.write(client_interceptor.format(**snippet))
         else:
-            assert placement == "client"
+            # assert placement == "client"
             f.write(server_interceptor.format(**snippet))
     with open(f"{output_dir}/interceptinit.go", "w") as f:
         f.write(intercept_init.format(**snippet))
