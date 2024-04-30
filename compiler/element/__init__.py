@@ -2,9 +2,12 @@ import os
 from typing import Dict, List
 
 from compiler import *
-from compiler.element.backend.envoy.analyzer import AccessAnalyzer
+from compiler.element.backend.envoy.analyzer import AccessAnalyzer as WasmAccessAnalyzer
+from compiler.element.backend.grpc.analyzer import AccessAnalyzer as GoAccessAnalyzer
 from compiler.element.backend.envoy.finalizer import finalize as WasmFinalize
 from compiler.element.backend.envoy.wasmgen import WasmContext, WasmGenerator
+from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
+from compiler.element.backend.grpc.gogen import GoContext, GoGenerator
 from compiler.element.backend.mrpc.finalizer import finalize as RustFinalize
 from compiler.element.backend.mrpc.rustgen import RustContext, RustGenerator
 from compiler.element.frontend import ElementCompiler
@@ -28,6 +31,8 @@ def gen_code(
     proto_path: str,
     method_name: str,
     server: str,
+    proto_module_name: str = "",
+    proto_module_location: str = "",
     verbose: bool = False,
 ) -> str:
     """
@@ -59,7 +64,7 @@ def gen_code(
     proto = os.path.basename(proto_path).replace(".proto", "")
 
     # Currently, we only support mRPC and Envoy (Proxy WASM) as the backends
-    assert backend_name == "mrpc" or backend_name == "envoy"
+    assert backend_name == "mrpc" or backend_name == "envoy" or backend_name == "grpc"
     compiler = ElementCompiler()
 
     # Find the request and response message names.
@@ -91,6 +96,21 @@ def gen_code(
             response_message_name=response_message_name,
             message_field_types=message_field_types,
         )
+    elif backend_name == "grpc":
+        assert(proto_module_name != "" and proto_module_location != "")
+        generator = GoGenerator(placement)
+        finalize = GoFinalize
+        ctx = GoContext(
+            proto=proto,
+            proto_module_name=proto_module_name,
+            proto_module_location=proto_module_location,
+            method_name=method_name,
+            element_name=output_name,
+            request_message_name=request_message_name,
+            response_message_name=response_message_name,
+            message_field_types=message_field_types,
+        )
+
 
     printer = Printer()
 
@@ -123,7 +143,10 @@ def gen_code(
     if backend_name == "envoy":
         assert isinstance(ctx, WasmContext), "Inconsistent context type"
         # Do a pass to analyze the IR and generate the access operation
-        consolidated.accept(AccessAnalyzer(placement), ctx)
+        consolidated.accept(WasmAccessAnalyzer(placement), ctx)
+    if backend_name == "grpc":
+        assert isinstance(ctx, GoContext), "Inconsistent context type"
+        consolidated.accept(GoAccessAnalyzer(placement), ctx)
 
     # Second pass to generate the code
     consolidated.accept(generator, ctx)

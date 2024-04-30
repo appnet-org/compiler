@@ -51,6 +51,8 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument("-b", "--backend", help="Backend Code Target", required=True)
+    parser.add_argument("-l", "--mod_location", help="Go Protobuf Module Location", type=str, required=False, default=False)
+    parser.add_argument("-n", "--mod_name", help="Go Protobuf Module Name", type=str, required=False, default=False)
     init_logging(True)
 
     # Some preprocessing
@@ -61,9 +63,11 @@ if __name__ == "__main__":
     print(elements)
     backend = args.backend
     verbose = args.verbose
-    deploy = args.deploy
+    # deploy = args.deploy
     placement = args.placement
     proto_path = args.proto
+    proto_module_location = args.mod_location
+    proto_module_name = args.mod_name
     method_name = args.method_name
     server = proto_path.split(".")[0]
     if placement == "c" or placement == "client":
@@ -103,7 +107,9 @@ if __name__ == "__main__":
         proto_path,
         method_name,
         server,
-        verbose,
+        proto_module_name=proto_module_name,
+        proto_module_location=proto_module_location,
+        verbose=verbose,
     )
     end = datetime.datetime.now()
     LOG.info(f"Code Generation took: {(end-start).microseconds/1000}ms")

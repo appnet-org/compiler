@@ -46,7 +46,7 @@ The element compiler convert AppNet program to an IR. From IR, we can infer the 
 ```bash
 python compiler/element_compiler_test.py --element examples/elements/echo_elements/fault.appnet --backend envoy --placement client --proto ping.proto --method_name PingEcho
 
-usage: element_compiler_test.py [-h] -e ELEMENT_PATH [-v] -p PLACEMENT -r PROTO -m METHOD_NAME
+usage: element_compiler_test.py [-h] -e ELEMENT_PATH [-v] [-n MOD_NAME] [-l MOD_LOCATION] -p PLACEMENT -r PROTO -m METHOD_NAME
                                 -b BACKEND
 
 options:
@@ -62,6 +62,10 @@ options:
                         Method Name (must be defined in proto)
   -b BACKEND, --backend BACKEND
                         Backend Code Target
+  -n MOD_NAME, --mod_name MOD_NAME
+                        Go Protobuf Module Name
+  -l MOD_LOCATION, --mod_location MOD_LOCATION
+                        Go Protobuf Module Location
 ```
 
 Note:
@@ -72,8 +76,8 @@ Note:
 - [**mRPC**](https://github.com/phoenix-dataplane/phoenix)
 - [**Envoy**](https://www.envoyproxy.io/) (via [**Proxy WASM**](https://github.com/proxy-wasm/proxy-wasm-rust-sdk))
 - [**gRPC**](https://github.com/grpc/grpc-go) (via [**Interceptors**](https://github.com/grpc-ecosystem/go-grpc-middleware))
-    - In progress
 
+    - Requires user application to provide their Go protobuf code as a module, and use of the `mod_name` and `mod_location` flags.
 <!-- ## Deployment
 
 ### Mrpc

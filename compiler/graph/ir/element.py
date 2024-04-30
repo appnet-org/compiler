@@ -40,6 +40,8 @@ class AbsElement:
             self.position = info["position"] if "position" in info else "C/S"
             self.proto = info["proto"]
             self.method = info["method"]
+            self.proto_mod_name = info["proto_mod_name"] if "proto_mod_name" in info else ""
+            self.proto_mod_location = info["proto_mod_location"] if "proto_mod_location" in info else ""
             self.partner = partner
 
     @property
