@@ -39,7 +39,7 @@ impl Context for {FilterName}Root {{}}
 
 impl RootContext for {FilterName}Root {{
     fn on_vm_start(&mut self, _: usize) -> bool {{
-        log::warn!("executing on_vm_start");
+        // log::warn!("executing on_vm_start");
         {Init}
         true
     }}
@@ -73,7 +73,7 @@ impl Context for {FilterName}Body {{
 
 impl HttpContext for {FilterName}Body {{
     fn on_http_request_headers(&mut self, _num_of_headers: usize, end_of_stream: bool) -> Action {{
-        log::warn!("executing on_http_request_headers, self.context_id: {{}}", self.context_id);
+        // log::warn!("executing on_http_request_headers, self.context_id: {{}}", self.context_id);
         if !end_of_stream {{
             return Action::Continue;
         }}

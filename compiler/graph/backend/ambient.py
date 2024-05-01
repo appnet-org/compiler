@@ -67,6 +67,9 @@ def scriptgen_ambient(
 
     with open(os.path.join(BACKEND_CONFIG_DIR, "webdis_template.yml"), "r") as f:
         webdis_service, webdis_deploy = list(yaml.safe_load_all(f))
+        
+    with open(os.path.join(BACKEND_CONFIG_DIR, "volume_template.yml"), "r") as f:
+        pv, pvc = list(yaml.safe_load_all(f))
 
     # Extract the list of microservices
     services_all = list()
@@ -80,13 +83,27 @@ def scriptgen_ambient(
         )
     )
 
-    # Attach elements to the sidecar pods using volumes
+    pv_service_set = set()
     for gir in girs.values():
         elist = [(e, gir.client) for e in gir.elements["req_client"]] + [
             (e, gir.server) for e in gir.elements["req_server"]
         ]
         for (element, sname) in elist:
-            placement = "C" if sname == gir.client else "S"
+            
+            # Add pv and pvc for this service
+            if sname not in pv_service_set:
+                pv_service_set.add(sname)
+                pv_copy, pvc_copy = deepcopy(pv), deepcopy(pvc)
+                pv_copy["metadata"]["name"] = f"{sname}-pv"
+                pvc_copy["metadata"]["name"] = f"{sname}-pvc"
+                pvc_copy["spec"]["volumeName"] = f"{sname}-pv"
+                yml_list.append(pv_copy)
+                yml_list.append(pvc_copy)
+            
+            
+            # All ambient elements should be placed on the server-side
+            assert sname != gir.client
+            placement = "S"
 
             # If the element is stateful and requires strong consistency, deploy a webdis instance
             if (
@@ -141,7 +158,7 @@ def scriptgen_ambient(
                 "service": service_to_service_account[sname],
                 "bound": "ANY",
                 "vmid": f"vm.sentinel.{e.lib_name}-{placement}",
-                "filename": f"/etc/{e.lib_name}.wasm",
+                "filename": f"/data/{e.lib_name}.wasm",
                 "service_label": service_to_label[sname],
             }
             attach_all_yml += attach_yml_ambient.format(**contents)

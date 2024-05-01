@@ -27,7 +27,7 @@ class GraphParser:
         """
         with open(spec_path, "r") as f:
             spec_dict = yaml.safe_load(f)
-
+            
         # TODO: temporarily disable ingress & egress spec tpye
         for edge in spec_dict["app_structure"]:
             client, server = edge.split("->")
@@ -44,7 +44,6 @@ class GraphParser:
         #     for edge in spec_dict["link"].keys():
         #         client, server = edge.split("->")
         #         self.app_edges.append((client, server))
-
         graphir: Dict[str, GraphIR] = dict()
         for client, server in self.app_edges:
             chain, pair, eid = [], [], f"{client}->{server}"
