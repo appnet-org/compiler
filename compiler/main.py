@@ -57,7 +57,7 @@ def parse_args():
         help="Backend name",
         type=str,
         required=True,
-        choices=["mrpc", "envoy", "grpc"],
+        choices=["mrpc", "envoy", "grpc", "ambient"],
     )
     parser.add_argument(
         "--mrpc_dir",

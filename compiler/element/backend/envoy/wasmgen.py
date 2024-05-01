@@ -17,6 +17,7 @@ class WasmContext:
         request_message_name=None,
         response_message_name=None,
         message_field_types=None,
+        mode: str = "sidecar",
         element_name: str = "",
     ) -> None:
         self.state_names: Set[str] = [
@@ -68,6 +69,8 @@ class WasmContext:
             FUNC_RESP_HEADER: {},
             FUNC_RESP_BODY: {},
         }
+        
+        self.mode = mode
 
     def declare(
         self,
@@ -300,6 +303,7 @@ class WasmGenerator(Visitor):
 
     def visitProcedure(self, node: Procedure, ctx: WasmContext):
         # TODO: Add request and response header processing.
+        
         match node.name:
             case "init":
                 ctx.current_procedure = FUNC_INIT

@@ -229,3 +229,41 @@ spec:
                         port_value: 7379
 ---
 """
+
+
+attach_yml_ambient = """apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: {metadata_name}
+spec:
+  workloadSelector:
+    labels:
+      gateway.networking.k8s.io/gateway-name: {service}
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: {bound}
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+            subFilter:
+              name: "envoy.filters.http.router"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: envoy.filters.http.wasm
+        typed_config:
+          "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
+          config:
+            name: {name}
+            root_id: {name}
+            vm_config:
+              vm_id: {vmid}
+              runtime: envoy.wasm.runtime.v8
+              code:
+                local:
+                  filename: {filename}
+              allow_precompiled: false
+---
+"""

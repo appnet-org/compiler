@@ -24,3 +24,5 @@ Cargo.lock
 .vscode/* 
 
 Python*/
+
+examples/chain/*.yaml

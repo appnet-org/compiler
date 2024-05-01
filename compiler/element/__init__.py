@@ -63,8 +63,7 @@ def gen_code(
             raise ValueError(f"Method {method_name} not found in {proto_path}.")
     proto = os.path.basename(proto_path).replace(".proto", "")
 
-    # Currently, we only support mRPC and Envoy (Proxy WASM) as the backends
-    assert backend_name == "mrpc" or backend_name == "envoy" or backend_name == "grpc"
+    assert backend_name in ("mrpc", "envoy", "grpc", "ambient")
     compiler = ElementCompiler()
 
     # Find the request and response message names.
@@ -84,7 +83,7 @@ def gen_code(
         finalize = RustFinalize
         # TODO(XZ): Add configurable proto for mRPC codegen
         ctx = RustContext()
-    elif backend_name == "envoy":
+    elif backend_name in ("envoy", "ambient"):
         generator = WasmGenerator(placement)
         finalize = WasmFinalize
         # TODO(XZ): We assume there will be only one method being used in an element.
@@ -95,6 +94,7 @@ def gen_code(
             request_message_name=request_message_name,
             response_message_name=response_message_name,
             message_field_types=message_field_types,
+            mode=backend_name,
         )
     elif backend_name == "grpc":
         assert(proto_module_name != "" and proto_module_location != "")
@@ -140,7 +140,7 @@ def gen_code(
 
     LOG.info(f"Generating {backend_name} code")
     # TODO: Extend access analysis to all backends
-    if backend_name == "envoy":
+    if backend_name in ("envoy", "ambient"):
         assert isinstance(ctx, WasmContext), "Inconsistent context type"
         # Do a pass to analyze the IR and generate the access operation
         consolidated.accept(WasmAccessAnalyzer(placement), ctx)

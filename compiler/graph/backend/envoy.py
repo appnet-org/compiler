@@ -27,6 +27,7 @@ def scriptgen_envoy(
     os.makedirs(local_gen_dir, exist_ok=True)
     deploy_dir = os.path.join(local_gen_dir, f"{app_name}-deploy")
     os.makedirs(deploy_dir, exist_ok=True)
+    os.makedirs("/tmp/appnet", exist_ok=True)
 
     # Compile each element
     GRAPH_BACKEND_LOG.info("Compiling elements for Envoy. This might take a while...")
@@ -55,7 +56,7 @@ def scriptgen_envoy(
                             impl_dir,
                             f"target/wasm32-wasi/release/{element.lib_name}.wasm",
                         ),
-                        "/tmp",
+                        "/tmp/appnet",
                     ]
                 )
 
@@ -153,7 +154,7 @@ def scriptgen_envoy(
             # We need to copy to all hosts because we don't know where the service will be scheduled
             nodes = get_node_names(control_plane=False)
             for node in nodes:
-                copy_remote_host(node, f"/tmp/{element.lib_name}.wasm", "/tmp/")
+                copy_remote_host(node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet")
 
             # Find the corresponding service in the manifest
             target_service_yml = find_target_yml(yml_list_istio, sname)
