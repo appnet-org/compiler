@@ -19,7 +19,7 @@ def set_method(name: str, ctx: GoContext, method: MethodType):
 class AccessAnalyzer(
     Visitor
 ):  # AccessAnalyzer is used to analyze the IR and record the access operations.
-    # The operations are then used to avoid unnecessary locks and RPC decode when generating the corresponding WASM code.
+    # The operations are then used to avoid unnecessary locks and RPC decode when generating the corresponding Go code.
     def __init__(self, placement: str):
         self.placement = placement
         if placement != "client" and placement != "server":

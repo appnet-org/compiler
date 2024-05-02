@@ -1,28 +1,28 @@
 app_name: ping-pong
-app_manifest: /users/nik0la/compiler/examples/applications/ping-pong-app/ping-pong-app.yaml
+app_manifest: <COMPILER_DIR>/examples/applications/ping-pong-app/ping-pong-app.yaml
 app_structure:
 - frontend->ping
 edge:
   frontend->ping:
   - method: PingEcho
     name: acl
-    path:  /users/nik0la/compiler/examples/elements/ping_elements/acl.appnet
+    path:  <COMPILER_DIR>/examples/elements/ping_elements/acl.appnet
     position: C
-    proto: /users/nik0la/compiler/examples/proto/ping.proto
-    proto_mod_name: github.com/appnet-org/appnet/ping-pb
-    proto_mod_location: /users/nik0la/appnet/ping_pb
+    proto: <COMPILER_DIR>/examples/proto/ping.proto
+    proto_mod_name: github.com/appnet-org/golib/sample/ping-pb
+    proto_mod_location: <APPNET_GO_LIB_DIR>/sample/ping-pb
   - method: PingEcho
     name: logging
-    path:  /users/nik0la/compiler/examples/elements/ping_elements/logging.appnet
+    path:  <COMPILER_DIR>/examples/elements/ping_elements/logging.appnet
     position: C
-    proto: /users/nik0la/compiler/examples/proto/ping.proto
-    proto_mod_name: github.com/appnet-org/appnet/ping-pb
-    proto_mod_location: /users/nik0la/appnet/ping_pb
+    proto: <COMPILER_DIR>/examples/proto/ping.proto
+    proto_mod_name: github.com/appnet-org/golib/sample/ping-pb
+    proto_mod_location: <APPNET_GO_LIB_DIR>/sample/ping-pb
   - method: PingEcho
     name: fault
-    path:  /users/nik0la/compiler/examples/elements/ping_elements/fault.appnet
+    path:  <COMPILER_DIR>/examples/elements/ping_elements/faulthigh.appnet
     position: S
-    proto: /users/nik0la/compiler/examples/proto/ping.proto
-    proto_mod_name: github.com/appnet-org/appnet/ping-pb
-    proto_mod_location: /users/nik0la/appnet/ping_pb
+    proto: <COMPILER_DIR>/examples/proto/ping.proto
+    proto_mod_name: github.com/appnet-org/golib/sample/ping-pb
+    proto_mod_location: <APPNET_GO_LIB_DIR>/sample/ping-pb
 link: {}
