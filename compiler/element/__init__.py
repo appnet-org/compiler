@@ -3,9 +3,9 @@ from typing import Dict, List
 
 from compiler import *
 from compiler.element.backend.envoy.analyzer import AccessAnalyzer as WasmAccessAnalyzer
-from compiler.element.backend.grpc.analyzer import AccessAnalyzer as GoAccessAnalyzer
 from compiler.element.backend.envoy.finalizer import finalize as WasmFinalize
 from compiler.element.backend.envoy.wasmgen import WasmContext, WasmGenerator
+from compiler.element.backend.grpc.analyzer import AccessAnalyzer as GoAccessAnalyzer
 from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
 from compiler.element.backend.grpc.gogen import GoContext, GoGenerator
 from compiler.element.backend.mrpc.finalizer import finalize as RustFinalize
@@ -49,7 +49,9 @@ def gen_code(
         verbose (bool, optional): If True, provides detailed logging. Defaults to False.
 
     Raises:
-        AssertionError: If the backend_name is not 'mrpc' or 'envoy'.
+        FileNotFoundError: If the proto file deos not exist.
+        ValueError: If the method name does not exist in the proto file.
+        AssertionError: If the backend_name is not in ['mrpc', 'envoy', 'grpc', 'ambient'].
     """
 
     # Check if the proto file and method name exists
@@ -97,7 +99,7 @@ def gen_code(
             mode=backend_name,
         )
     elif backend_name == "grpc":
-        assert(proto_module_name != "" and proto_module_location != "")
+        assert proto_module_name != "" and proto_module_location != ""
         generator = GoGenerator(placement)
         finalize = GoFinalize
         ctx = GoContext(
@@ -110,7 +112,6 @@ def gen_code(
             response_message_name=response_message_name,
             message_field_types=message_field_types,
         )
-
 
     printer = Printer()
 

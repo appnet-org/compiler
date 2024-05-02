@@ -19,15 +19,18 @@ class GraphParser:
         """Parse the user specification file and produce graphirs & service locations.
 
         Args:
-            spec_path: Path to the user specification file.
+            spec_path (str): Path to the user specification file.
 
         Returns:
             * A dictionary mapping edge name to corresponding graphir.
             * Application name.
+
+        Raises:
+            FileNotFoundError: If app manifest file does not exist.
         """
         with open(spec_path, "r") as f:
             spec_dict = yaml.safe_load(f)
-            
+
         # TODO: temporarily disable ingress & egress spec tpye
         for edge in spec_dict["app_structure"]:
             client, server = edge.split("->")
@@ -66,6 +69,7 @@ class GraphParser:
         app_name = spec_dict["app_name"]
         app_manifest_file = spec_dict["app_manifest"]
 
-        assert os.path.exists(app_manifest_file)
+        if not os.path.exists(app_manifest_file):
+            raise FileNotFoundError(app_manifest_file)
 
         return graphir, app_name, app_manifest_file, self.app_edges
