@@ -164,6 +164,23 @@ def scriptgen_ambient(
             attach_all_yml += attach_yml_ambient.format(**contents)
     with open(os.path.join(deploy_dir, "attach_all_elements.yml"), "w") as f:
         f.write(attach_all_yml)
+        
+        
+    # Generate script to create and delete ambient waypoint proxies
+    service_accounts = list(service_to_service_account.values())
+    with open(os.path.join(deploy_dir, "waypoint_create.sh"), "w") as file:
+        # Loop through each service name and write the corresponding shell command
+        file.write("#!/bin/bash\n")
+        for service_account in service_accounts:
+            command = f"istioctl x waypoint apply --service-account {service_account} --wait\n"
+            file.write(command)
+    
+    with open(os.path.join(deploy_dir, "waypoint_delete.sh"), "w") as file:
+        # Loop through each service name and write the corresponding shell command
+        file.write("#!/bin/bash\n")
+        for service_account in service_accounts:
+            command = f"istioctl x waypoint delete --service-account {service_account}\n"
+            file.write(command)
 
     GRAPH_BACKEND_LOG.info(
         "Element compilation and manifest generation complete. The generated files are in the 'generated' directory."
