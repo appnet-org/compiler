@@ -48,7 +48,7 @@ def scriptgen_envoy(
                         "--release",
                     ]
                 )
-                # copy binary to /tmp
+                # copy binary to /tmp/appnet
                 execute_local(
                     [
                         "cp",
@@ -154,7 +154,9 @@ def scriptgen_envoy(
             # We need to copy to all hosts because we don't know where the service will be scheduled
             nodes = get_node_names(control_plane=False)
             for node in nodes:
-                copy_remote_host(node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet")
+                copy_remote_host(
+                    node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet"
+                )
 
             # Find the corresponding service in the manifest
             target_service_yml = find_target_yml(yml_list_istio, sname)
@@ -171,7 +173,7 @@ def scriptgen_envoy(
             target_service_yml["spec"]["template"]["spec"]["volumes"].append(
                 {
                     "hostPath": {
-                        "path": f"/tmp/{element.lib_name}.wasm",
+                        "path": f"/tmp/appnet/{element.lib_name}.wasm",
                         "type": "File",
                     },
                     "name": f"{element.lib_name}-wasm",
