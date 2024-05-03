@@ -70,7 +70,8 @@ def scriptgen_grpc(
                     os.path.join(service_dir, f"{element.lib_name}.go"),
                 ]
             )
-            os.system(f"goimports -w {os.path.join(service_dir, f"{element.lib_name}.go")}")
+            source_path = os.path.join(service_dir, f"{element.lib_name}.go")
+            os.system(f"goimports -w {source_path}")
             proto_modules[element.proto_mod_name] = element.proto_mod_location
 
         proto_module_requires = "  \n".join(f"{name} v0.0.0-00010101000000-000000000000" for name in proto_modules.keys())
@@ -122,6 +123,7 @@ def scriptgen_grpc(
             ]
         )
 
+        execute_local(["mkdir", "-p", "/tmp/interceptors"])
         execute_local(
             [
                 "cp",
@@ -136,6 +138,7 @@ def scriptgen_grpc(
         # Copy to all nodes
         nodes = get_node_names(control_plane=False)
         for node in nodes:
+            execute_remote_host(node, ["mkdir", "-p", "/tmp/interceptors"])
             copy_remote_host(node, f"/tmp/interceptors/{service + timestamp}", "/tmp/interceptors")
 
     GRAPH_BACKEND_LOG.info(
