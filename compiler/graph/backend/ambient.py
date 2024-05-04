@@ -84,6 +84,7 @@ def scriptgen_ambient(
     )
 
     pv_service_set = set()
+    service_account_set = set()
     for gir in girs.values():
         elist = [(e, gir.client) for e in gir.elements["req_client"]] + [
             (e, gir.server) for e in gir.elements["req_server"]
@@ -93,6 +94,7 @@ def scriptgen_ambient(
             # Add pv and pvc for this service
             if sname not in pv_service_set:
                 pv_service_set.add(sname)
+                service_account_set.add(service_to_service_account[sname])
                 pv_copy, pvc_copy = deepcopy(pv), deepcopy(pvc)
                 pv_copy["metadata"]["name"] = f"{sname}-pv"
                 pvc_copy["metadata"]["name"] = f"{sname}-pvc"
@@ -167,18 +169,17 @@ def scriptgen_ambient(
         
         
     # Generate script to create and delete ambient waypoint proxies
-    service_accounts = list(service_to_service_account.values())
     with open(os.path.join(deploy_dir, "waypoint_create.sh"), "w") as file:
         # Loop through each service name and write the corresponding shell command
         file.write("#!/bin/bash\n")
-        for service_account in service_accounts:
+        for service_account in service_account_set:
             command = f"istioctl x waypoint apply --service-account {service_account} --wait\n"
             file.write(command)
     
     with open(os.path.join(deploy_dir, "waypoint_delete.sh"), "w") as file:
         # Loop through each service name and write the corresponding shell command
         file.write("#!/bin/bash\n")
-        for service_account in service_accounts:
+        for service_account in service_account_set:
             command = f"istioctl x waypoint delete --service-account {service_account}\n"
             file.write(command)
 
