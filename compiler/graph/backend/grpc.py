@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from itertools import groupby
 import json
 from operator import attrgetter
@@ -69,7 +70,8 @@ def scriptgen_grpc(
                     os.path.join(service_dir, f"{element.lib_name}.go"),
                 ]
             )
-            os.system(f"goimports -w {os.path.join(service_dir, f"{element.lib_name}.go")}")
+            source_path = os.path.join(service_dir, f"{element.lib_name}.go")
+            os.system(f"goimports -w {source_path}")
             proto_modules[element.proto_mod_name] = element.proto_mod_location
 
         proto_module_requires = "  \n".join(f"{name} v0.0.0-00010101000000-000000000000" for name in proto_modules.keys())
@@ -98,8 +100,9 @@ def scriptgen_grpc(
             method_match = server_method_match.format(MethodName = method, FullMethodName = full_method_name, InterceptorList = interceptor_list)
             init_fields["ServerMethodMatches"] += method_match
 
+        timestamp = str(datetime.now().strftime("%Y%m%d%H%M%S")) # append timestamp to module so Go knows they are different plugins
         with open(f"{service_dir}/go.mod", "w") as f:
-            f.write(go_mod.format(ServiceName = service, ProtoModuleRequires = proto_module_requires, ProtoModuleReplaces = proto_module_replaces))
+            f.write(go_mod.format(ServiceName = service + timestamp, ProtoModuleRequires = proto_module_requires, ProtoModuleReplaces = proto_module_replaces))
         with open(f"{service_dir}/go.sum", "w") as f:
             f.write(go_sum.format())
         with open(f"{service_dir}/interceptinit.go", "w") as f:
@@ -114,18 +117,19 @@ def scriptgen_grpc(
                 "-C",
                 service_dir,
                 "-o",
-                f"{service}",
+                f"{service + timestamp}",
                 "-buildmode=plugin",
                 ".",
             ]
         )
 
+        execute_local(["mkdir", "-p", "/tmp/interceptors"])
         execute_local(
             [
                 "cp",
                 os.path.join(
                     service_dir,
-                    f"{service}",
+                    f"{service + timestamp}",
                 ),
                 "/tmp/interceptors",
             ]
@@ -134,51 +138,8 @@ def scriptgen_grpc(
         # Copy to all nodes
         nodes = get_node_names(control_plane=False)
         for node in nodes:
-            copy_remote_host(node, f"/tmp/interceptors/{service}", "/tmp/interceptors")
-        
-
-        # for element in gir.elements["req_client"] + gir.elements["req_server"]:
-        #     if element.lib_name not in compiled_elements:
-        #         compiled_elements.add(element.lib_name)
-        #         impl_dir = os.path.join(local_gen_dir, f"{element.lib_name}_grpc")
-        #         # Compile
-        #         execute_local(
-        #             [
-        #                 "go",
-        #                 "build",
-        #                 "-C",
-        #                 impl_dir,
-        #                 "-o",
-        #                 f"{element.lib_name}.so",
-        #                 "-buildmode=plugin",
-        #                 ".",
-        #             ]
-        #         )
-        #         # copy binary to /tmp
-        #         execute_local(
-        #             [
-        #                 "cp",
-        #                 os.path.join(
-        #                     impl_dir,
-        #                     f"{element.lib_name}.so",
-        #                 ),
-        #                 "/tmp",
-        #             ]
-        #         )
-
-    # Attach elements to the sidecar pods using volumes
-    # for gir in girs.values():
-    #     elist = [(e, gir.client) for e in gir.elements["req_client"]] + [
-    #         (e, gir.server) for e in gir.elements["req_server"]
-    #     ]
-    #     for (element, sname) in elist:
-    #         placement = "C" if sname == gir.client else "S"
-
-    #         # Copy the interceptor plugin to the remote hosts (except the control plane node)
-    #         # We need to copy to all hosts because we don't know where the service will be scheduled
-    #         nodes = get_node_names(control_plane=False)
-    #         for node in nodes:
-    #             copy_remote_host(node, f"/tmp/{element.lib_name}.so", "/tmp/")
+            execute_remote_host(node, ["mkdir", "-p", "/tmp/interceptors"])
+            copy_remote_host(node, f"/tmp/interceptors/{service + timestamp}", "/tmp/interceptors")
 
     GRAPH_BACKEND_LOG.info(
         "Element compilation complete. The generated element is deployed."
