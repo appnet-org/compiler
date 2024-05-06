@@ -171,7 +171,7 @@ def scriptgen_envoy(
             target_service_yml["spec"]["template"]["spec"]["volumes"].append(
                 {
                     "hostPath": {
-                        "path": f"/tmp/{element.lib_name}.wasm",
+                        "path": f"/tmp/appnet/{element.lib_name}.wasm",
                         "type": "File",
                     },
                     "name": f"{element.lib_name}-wasm",
