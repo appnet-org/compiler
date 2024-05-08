@@ -161,6 +161,7 @@ class AbsElement:
             other: the element to be fused.
         """
         self.name.extend(other.name)
+        self.path.extend(other.path)
         self.config.extend(other.config)
         self.position = (
             self.position

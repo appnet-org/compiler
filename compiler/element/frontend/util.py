@@ -91,18 +91,17 @@ def extract_message_field_types(
     # Process each message block
     for message, fields_block in message_blocks:
         if message == request_message_name:
-            # Find all fields in the message block
+            # Find all fields in the message block......
             fields = field_pattern.findall(fields_block)
 
             # Process each field
             for field_type, field_name in fields:
                 field_mapping["request"][camel_to_snake(field_name)] = field_type
-        elif message == response_message_name:
+        if message == response_message_name:
             # Find all fields in the message block
             fields = field_pattern.findall(fields_block)
 
             # Process each field
             for field_type, field_name in fields:
                 field_mapping["response"][camel_to_snake(field_name)] = field_type
-
     return field_mapping
