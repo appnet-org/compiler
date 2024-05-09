@@ -8,29 +8,34 @@ from compiler.element.visitor import Visitor
 
 
 def consolidate(irs: List[Program]) -> Program:
-    while len(irs) > 1:
-        left = irs.pop(0)
-        right = irs.pop(0)
-        new_prog = Program(
+    new_prog = Program(
             State([]),
             Procedure("init", [], []),
             Procedure("req", [], []),
             Procedure("resp", [], []),
         )
-
+    
+    for ir in irs:
         new_prog.definition.state = deepcopy(
-            left.definition.state + right.definition.state
+            new_prog.definition.state + ir.definition.state
         )
 
-        InitConsolidator().visitProcedure(new_prog.init, (left.init, right.init))
+        InitConsolidator().visitProcedure(new_prog.init, (new_prog.init, ir.init))
         ProcedureConsolidator().visitProcedure(
-            new_prog.req, (deepcopy(left.req), deepcopy(right.req))
+            new_prog.req, (deepcopy(ir.req), deepcopy(new_prog.req))
         )
         ProcedureConsolidator().visitProcedure(
-            new_prog.resp, (deepcopy(right.resp), deepcopy(left.resp))
+            new_prog.resp, (deepcopy(ir.resp), deepcopy(new_prog.resp))
         )
+        
+    # while len(irs) > 1:
+    #     left = irs.pop(0)
+    #     right = irs.pop(0)
 
-        irs.insert(0, new_prog)
+
+
+
+    irs.insert(0, new_prog)
     return irs[0]
 
 
