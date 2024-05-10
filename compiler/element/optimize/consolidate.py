@@ -1,9 +1,9 @@
 from copy import deepcopy
-from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, TypeVar
+from typing import List, Tuple
 
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
-from compiler.element.node import Expr, Identifier, State, MethodCall, Procedure
+from compiler.element.node import State, Procedure
 from compiler.element.visitor import Visitor
 
 
@@ -15,6 +15,7 @@ def consolidate(irs: List[Program]) -> Program:
             Procedure("resp", [], []),
         )
     
+    # Merge all irs into a single ir
     for ir in irs:
         new_prog.definition.state = deepcopy(
             new_prog.definition.state + ir.definition.state
@@ -27,16 +28,8 @@ def consolidate(irs: List[Program]) -> Program:
         ProcedureConsolidator().visitProcedure(
             new_prog.resp, (deepcopy(ir.resp), deepcopy(new_prog.resp))
         )
-        
-    # while len(irs) > 1:
-    #     left = irs.pop(0)
-    #     right = irs.pop(0)
-
-
-
-
-    irs.insert(0, new_prog)
-    return irs[0]
+    
+    return new_prog
 
 
 class InitConsolidator(Visitor):
