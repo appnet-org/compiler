@@ -68,7 +68,7 @@ class GoContext:
             # Check for duplicate variable names
             raise Exception(f"variable {name} already defined")
         else:
-            assert consistency != "weak" and consistency != "strong"    # TODO(nikolabo): synchronized state
+            assert consistency != "weak"    # TODO(nikolabo): synchronized state
             # Create a new GoVariable instance and add it to the name2var mapping
             var = GoVariable(
                 name,
@@ -80,7 +80,9 @@ class GoContext:
                 combiner=combiner,
                 persistence=persistence,
             )
-            if atomic:
+            if consistency == "strong":
+                self.name2var[name] = var
+            elif atomic:
                 # Only internal states are atomic
                 self.states.append(var)
                 self.name2var[name] = var
@@ -389,12 +391,18 @@ class GoGenerator(Visitor):
         type_def: str = node.name
         if type_def.startswith("Vec<"):
             vec_type = type_def[4:].split(">")[0].strip()
+            if node.consistency == "strong": 
+                assert(False, "TODO: implement sync vec")
             return GoVecType(map_basic_type(vec_type))
         if type_def.startswith("Map<"):
             temp = type_def[4:].split(">")[0]
             key_type = temp.split(",")[0].strip()
             value_type = temp.split(",")[1].strip()
-            return GoMaptype(map_basic_type(key_type), map_basic_type(value_type))
+            if node.consistency == "strong":
+                return GoSyncMapType(
+                    map_basic_type(key_type), map_basic_type(value_type)
+                )
+            return GoMapType(map_basic_type(key_type), map_basic_type(value_type))
         else:
             return map_basic_type(type_def)
 
@@ -440,6 +448,9 @@ class GoGenerator(Visitor):
         t = var.type
         args = [i.accept(self, ctx) for i in node.args]
         ret = var.name
+        # For strongly consistent variables we read from external storage
+        if var.consistency == "strong":
+            ret = ""
 
         if var.rpc:
             match node.method:

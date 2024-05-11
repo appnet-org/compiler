@@ -34,10 +34,38 @@ def scriptgen_grpc(
 
     GRAPH_BACKEND_LOG.info("Compiling elements for gRPC. This might take a while...")
 
+    with open(os.path.join(BACKEND_CONFIG_DIR, "webdis_template.yml"), "r") as f:
+        webdis_service, webdis_deploy = list(yaml.safe_load_all(f))
+    yml_list = []
+
     # Map elements to the applications they will be injected into
     client_elements: Dict[str, set[AbsElement]] = {}
     server_elements: Dict[str, set[AbsElement]] = {}
     for gir in girs.values():
+        for element in gir.elements["req_client"] + gir.elements["req_server"]:
+            # If the element is stateful and requires strong consistency, deploy a webdis instance
+            if (
+                # hasattr(element, "_prop") and
+                element.prop[  # The element has no property when no-optimize flag is set
+                    "state"
+                ][
+                    "stateful"
+                ]
+                == True
+                and element.prop["state"]["consistency"] in ["strong", "weak"]
+            ):
+                # Add webdis config
+                webdis_service_copy, webdis_deploy_copy = deepcopy(
+                    webdis_service
+                ), deepcopy(webdis_deploy)
+                webdis_service_copy["metadata"][
+                    "name"
+                ] = f"webdis-service-{element.lib_name}"
+                webdis_deploy_copy["metadata"][
+                    "name"
+                ] = f"webdis-test-{element.lib_name}"
+                yml_list.append(webdis_service_copy)
+                yml_list.append(webdis_deploy_copy)
         # assuming req_client/res_client and req_server/res_server contain same elements
         for element in gir.elements["req_client"]:
             try:
@@ -49,6 +77,11 @@ def scriptgen_grpc(
                 server_elements[gir.server].add(element)
             except KeyError:
                 server_elements[gir.server] = {element}
+
+    # Dump the final manifest file with webdis instances
+    yml_list = [yml for yml in yml_list if yml is not None]
+    with open(os.path.join(deploy_dir, "install.yml"), "w") as f:
+        yaml.dump_all(yml_list, f, default_flow_style=False)
 
     # Service as in application not proto service
     services = set(list(client_elements.keys()) + list(server_elements.keys()))
