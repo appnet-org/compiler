@@ -18,14 +18,14 @@ kind: Deployment
 metadata:
   name: frontend
 spec:
-  replicas: 10
+  replicas: 1
   template:
     metadata:
       name: frontend
       labels:
         app: frontend
     spec:
-      # nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
+      nodeName: h1.adn-frontend.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
       containers:
       - name: frontend
         image: xzhu0027/ping_pong_app
@@ -54,14 +54,14 @@ kind: Deployment
 metadata:
   name: ping
 spec:
-  replicas: 10
+  replicas: 1
   template:
     metadata:
       name: ping
       labels:
         app: ping
     spec:
-      # nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
+      nodeName: h1.adn-frontend.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
       containers:
       - name: ping
         image: xzhu0027/ping_pong_app
@@ -97,7 +97,7 @@ spec:
       labels:
         app: pong
     spec:
-      # nodeName: h2.hotel.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
+      nodeName: h1.adn-frontend.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
       containers:
       - name: pong
         image: xzhu0027/ping_pong_app

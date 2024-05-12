@@ -1,0 +1,77 @@
+appnet: _NEWLINE* state _NEWLINE* init _NEWLINE* req _NEWLINE* resp _NEWLINE*
+
+state: "state" ":" _NEWLINE _INDENT (_NEWLINE | statedef)* _DEDENT
+init: "init" [ parameters ] ":" body
+req: "req" [ parameters ] ":" body
+resp: "resp" [ parameters ] ":" body
+
+parameters: "(" (identifier | identifier ",")* ")"
+
+statedef: decorator* identifier ":" type_ _NEWLINE
+
+decorator: consistency_decorator | combiner_decorator | persistence_decorator
+consistency_decorator: "@consistency" "(" NAME ")"
+combiner_decorator: "@combiner" "(" NAME ")"
+persistence_decorator: "@persistence" "(" bool ")"
+
+type_: single_type
+     | "Vec" "<" single_type ">" -> vec_type
+     | "Map" "<" single_type "," single_type ">" -> map_type
+single_type: NAME
+
+body: _NEWLINE _INDENT (simple_stmt | match_stmt | _NEWLINE)* _DEDENT
+
+simple_stmt: (expr | assign | primitive) _NEWLINE
+
+primitive: "send" "(" (expr | err) "," direction ")"
+direction: "Up" -> dir_up | "Down" -> dir_down
+err: "err" "(" (quoted_string | NAME) ")"
+
+assign: identifier "=" expr
+
+expr: "(" expr ")" | expr op expr | identifier | const | builtin_func | func
+
+const: NAME | quoted_string | NUMBER
+quoted_string: /'[^']*'/
+
+op: "*" -> op_mul
+  | "/" -> op_div
+  | "+" -> op_add
+  | "-" -> op_sub
+  | "and" -> op_land
+  | "or" -> op_lor
+  | "==" -> op_eq
+  | "!=" -> op_neq
+  | "<" -> op_lt
+  | ">" -> op_gt
+  | "<=" -> op_le
+  | ">=" -> op_ge
+
+builtin_func: get_func | set_func | delete_func | byte_size_func | size_func
+get_func: "get" "(" identifier "," expr ")"
+set_func: "set" "(" identifier "," ( expr "," expr | expr ) ")"
+delete_func: "delete" "(" identifier "," expr ")"
+byte_size_func: "byte_size(" identifier ")"
+size_func: "size(" identifier ")"
+
+func: identifier "(" (expr | expr ",")* ")"
+
+match_stmt: "match" expr ":" matchbody
+matchbody: _NEWLINE _INDENT (action_stmt | _NEWLINE)* _DEDENT
+action_stmt: pattern "=>" body
+pattern: const
+       | "None" -> none_pattern
+       | "Some" "(" (identifier |err) ")" -> some_pattern
+
+identifier: NAME
+bool: "true" -> true | "false" -> false
+
+_NEWLINE: ( /\r?\n[\t ]*/ | COMMENT )+
+NAME: /[^\W\d]\w*/
+NUMBER: "1".."9" ("_"?  "0".."9" )* | "0" ("_"?  "0")* /(?![1-9])/
+COMMENT: /#[^\n]*/
+
+%ignore /[\t \f]+/  // WS
+%ignore /\\[\t \f]*\r?\n/   // LINE_CONT
+%ignore COMMENT
+%declare _INDENT _DEDENT

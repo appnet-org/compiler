@@ -118,9 +118,9 @@ class FuncCall(Expr):
 
 
 class MethodCall(Expr):
-    def __init__(self, obj: Identifier, method: MethodType, args: List[Expr]):
-        self.obj = obj
+    def __init__(self, method: MethodType, obj: Identifier, args: List[Expr]):
         self.method = method
+        self.obj = obj
         self.args = args
 
 

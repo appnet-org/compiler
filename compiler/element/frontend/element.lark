@@ -1,6 +1,6 @@
-start: definition procedure procedure procedure
+start: _NEWLINE* definition _NEWLINE* procedure _NEWLINE* procedure _NEWLINE* procedure
 
-definition: "state" "{" declaration* "}"
+definition: "state:" _NEWLINE _INDENT declaration* _DEDENT
 
 declaration: (consistency_decorator | combiner_decorator | persistence_decorator)* identifier ":" type_
 
@@ -43,7 +43,7 @@ pattern: const
 
 expr:  "(" expr ")" | identifier | method | func | const | expr op expr
 
-method: identifier "." (get | set_ | delete | byte_size | size)
+method: get_method | set_method | delete_method | byte_size_method | size_method
 
 func: identifier arguments
 
@@ -53,11 +53,11 @@ const: CNAME | quoted_string | NUMBER
 
 bool: "true" -> true | "false" -> false
 
-get: "get" "(" expr ")"
-set_: "set" ( "(" expr "," expr ")" | "(" expr ")" )
-delete: "delete" "(" expr ")"
-byte_size: "byte_size()"
-size: "size()"
+get_method: "get" "(" identifier "," expr ")"
+set_method: "set" "(" identifier "," ( expr "," expr | expr ) ")"
+delete_method: "delete" "(" identifier "," expr ")"
+byte_size_method: "byte_size(" identifier ")"
+size_method: "size(" identifier ")"
 
 op: "*" -> op_mul
        | "/" -> op_div
@@ -76,9 +76,14 @@ quoted_string: /'[^']*'/
 
 err: "err" "(" (quoted_string | CNAME) ")"
 
+_NEWLINE: ( /\r?\n[\t ]*/ | COMMENT )+
+COMMENT: /#[^\n]*/
+
 %import common.SIGNED_NUMBER -> NUMBER
-%import common.WS
+%import common.WS_INLINE
 %import common.CPP_COMMENT
 %import common.CNAME
-%ignore WS
+%ignore WS_INLINE
 %ignore CPP_COMMENT
+%ignore COMMENT
+%declare _INDENT _DEDENT
