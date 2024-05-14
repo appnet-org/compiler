@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from itertools import groupby
-import json
 from operator import attrgetter
 import os
 from copy import deepcopy
-from pprint import pprint
-from typing import Dict, Iterator, List, Tuple
+from typing import Dict, List, Tuple
 
 import yaml
 
@@ -34,7 +32,7 @@ def scriptgen_grpc(
     deploy_dir = os.path.join(local_gen_dir, f"{app_name}-deploy")
     os.makedirs(deploy_dir, exist_ok=True)
 
-    GRAPH_BACKEND_LOG.info("Compiling elements for GRPC. This might take a while...")
+    GRAPH_BACKEND_LOG.info("Compiling elements for gRPC. This might take a while...")
 
     # Map elements to the applications they will be injected into
     client_elements: Dict[str, set[AbsElement]] = {}
@@ -123,7 +121,7 @@ def scriptgen_grpc(
             ]
         )
 
-        execute_local(["mkdir", "-p", "/tmp/interceptors"])
+        execute_local(["mkdir", "-p", "/tmp/appnet/interceptors"])
         execute_local(
             [
                 "cp",
@@ -131,15 +129,18 @@ def scriptgen_grpc(
                     service_dir,
                     f"{service + timestamp}",
                 ),
-                "/tmp/interceptors",
+                "/tmp/appnet/interceptors",
             ]
         )
 
+        # Create and attach pv/pvcs for services
+        attach_volumes(app_manifest_file, deploy_dir)
+        
         # Copy to all nodes
         nodes = get_node_names(control_plane=False)
         for node in nodes:
-            execute_remote_host(node, ["mkdir", "-p", "/tmp/interceptors"])
-            copy_remote_host(node, f"/tmp/interceptors/{service + timestamp}", "/tmp/interceptors")
+            execute_remote_host(node, ["mkdir", "-p", "/tmp/appnet/interceptors"])
+            copy_remote_host(node, f"/tmp/appnet/interceptors/{service + timestamp}", "/tmp/appnet/interceptors")
 
     GRAPH_BACKEND_LOG.info(
         "Element compilation complete. The generated element is deployed."
@@ -153,3 +154,67 @@ def extract_full_method_name(elements: list[AbsElement]) -> str:
     package_name = extract_proto_package_name(proto)
     service_name = extract_proto_service_name(proto)
     return f"/{package_name}.{service_name}/{first_el.method}"
+
+
+def attach_volumes(app_manifest_file: str, deploy_dir: str):
+    
+    with open(app_manifest_file, "r") as f:
+        yml_list = list(yaml.safe_load_all(f))
+        
+    # Find all services
+    services_all = list()
+    for yml in yml_list:
+        if yml and "kind" in yml and yml["kind"] == "Service":
+            services_all.append(yml["metadata"]["name"])
+    services = list(
+        filter(
+            lambda s: "mongodb" not in s and "memcached" not in s and "jaeger" not in s,
+            services_all,
+        )
+    )
+    
+    # Load pv and pvc template
+    with open(os.path.join(BACKEND_CONFIG_DIR, "volume_template.yml"), "r") as f:
+        pv, pvc = list(yaml.safe_load_all(f))
+    
+    # Create and attach volume
+    for service in services:
+        pv_copy, pvc_copy = deepcopy(pv), deepcopy(pvc)
+        pv_copy["metadata"]["name"] = f"{service}-interceptor-pv"
+        pv_copy["spec"]["hostPath"]["path"] = "/tmp/appnet/interceptors"
+        pvc_copy["metadata"]["name"] = f"{service}-interceptor-pvc"
+        pvc_copy["spec"]["volumeName"] = f"{service}-interceptor-pv"
+        yml_list.append(pv_copy)
+        yml_list.append(pvc_copy)
+        
+        # Find the corresponding service in the manifest
+        target_service_yml = find_target_yml(yml_list, service)
+
+        # Attach the element to the sidecar using volumes
+        if "volumes" not in target_service_yml["spec"]["template"]["spec"]:
+            target_service_yml["spec"]["template"]["spec"]["volumes"] = []
+        
+        if "volumeMounts" not in target_service_yml["spec"]["template"]["spec"]["containers"][0]:
+            target_service_yml["spec"]["template"]["spec"]["containers"][0]["volumeMounts"] = []
+        
+        target_service_yml["spec"]["template"]["spec"]["containers"][0][
+                "volumeMounts"
+            ].append(
+                {
+                    "mountPath": "/interceptors",
+                    "name": f"{service}-interceptor-volume",
+                }
+            )
+        target_service_yml["spec"]["template"]["spec"]["volumes"].append(
+            {
+                "persistentVolumeClaim": {
+                    "claimName": f"{service}-interceptor-pvc"
+                },
+                "name": f"{service}-interceptor-volume",
+            }
+        )
+        
+    # Dump the final manifest file (somehow there is a None)
+    yml_list = [yml for yml in yml_list if yml is not None]
+    with open(os.path.join(deploy_dir, "install.yml"), "w") as f:
+        yaml.dump_all(yml_list, f, default_flow_style=False)
