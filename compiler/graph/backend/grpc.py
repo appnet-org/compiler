@@ -36,7 +36,7 @@ def scriptgen_grpc(
 
     with open(os.path.join(BACKEND_CONFIG_DIR, "webdis_template.yml"), "r") as f:
         webdis_service, webdis_deploy = list(yaml.safe_load_all(f))
-    yml_list = []
+    webdis_yml_list = []
 
     # Map elements to the applications they will be injected into
     client_elements: Dict[str, set[AbsElement]] = {}
@@ -64,8 +64,8 @@ def scriptgen_grpc(
                 webdis_deploy_copy["metadata"][
                     "name"
                 ] = f"webdis-test-{element.lib_name}"
-                yml_list.append(webdis_service_copy)
-                yml_list.append(webdis_deploy_copy)
+                webdis_yml_list.append(webdis_service_copy)
+                webdis_yml_list.append(webdis_deploy_copy)
         # assuming req_client/res_client and req_server/res_server contain same elements
         for element in gir.elements["req_client"]:
             try:
@@ -78,10 +78,8 @@ def scriptgen_grpc(
             except KeyError:
                 server_elements[gir.server] = {element}
 
-    # Dump the final manifest file with webdis instances
-    yml_list = [yml for yml in yml_list if yml is not None]
-    with open(os.path.join(deploy_dir, "install.yml"), "w") as f:
-        yaml.dump_all(yml_list, f, default_flow_style=False)
+    # Produce the manifest file with webdis instances
+    webdis_yml_list = [yml for yml in webdis_yml_list if yml is not None]
 
     # Service as in application not proto service
     services = set(list(client_elements.keys()) + list(server_elements.keys()))
@@ -167,7 +165,11 @@ def scriptgen_grpc(
         )
 
         # Create and attach pv/pvcs for services
-        attach_volumes(app_manifest_file, deploy_dir)
+        webdis_yml_list.extend(attach_volumes(app_manifest_file, deploy_dir))
+        # Dump the final manifest file (somehow there is a None)
+        yml_list = [yml for yml in webdis_yml_list if yml is not None]
+        with open(os.path.join(deploy_dir, "install.yml"), "w") as f:
+            yaml.dump_all(yml_list, f, default_flow_style=False)
         
         # Copy to all nodes
         nodes = get_node_names(control_plane=False)
@@ -189,7 +191,7 @@ def extract_full_method_name(elements: list[AbsElement]) -> str:
     return f"/{package_name}.{service_name}/{first_el.method}"
 
 
-def attach_volumes(app_manifest_file: str, deploy_dir: str):
+def attach_volumes(app_manifest_file: str, deploy_dir: str) -> list[any]:
     
     with open(app_manifest_file, "r") as f:
         yml_list = list(yaml.safe_load_all(f))
@@ -246,8 +248,5 @@ def attach_volumes(app_manifest_file: str, deploy_dir: str):
                 "name": f"{service}-interceptor-volume",
             }
         )
-        
-    # Dump the final manifest file (somehow there is a None)
-    yml_list = [yml for yml in yml_list if yml is not None]
-    with open(os.path.join(deploy_dir, "install.yml"), "w") as f:
-        yaml.dump_all(yml_list, f, default_flow_style=False)
+
+    return yml_list

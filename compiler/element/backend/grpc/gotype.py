@@ -112,7 +112,6 @@ class GoSyncMapType(GoType):
                             body, _ := io.ReadAll(remote_read.Body)
                             remote_read.Body.Close()
                             if remote_read.StatusCode < 300 {{
-                                print("body read")
                                 _ = json.Unmarshal(body, &res)
                                 return res.GET, true
                             }} else {{
