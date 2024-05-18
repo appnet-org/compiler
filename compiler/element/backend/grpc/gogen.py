@@ -39,9 +39,13 @@ class GoContext:
         self.state_names: Set[str] = [
             "rpc",
         ]  # List of state names. Used by AccessAnalyzer
+        self.strong_access_args: Dict[str, Expr] = {}
         self.states: List[
             GoVariable
         ] = []  # List of state variables
+        self.strong_consistency_states: List[
+            GoVariable
+        ] = []  # List of strong consistency variables
         self.name2var: Dict[
             str, GoVariable
         ] = {}  # Mapping from names to variables
@@ -81,6 +85,7 @@ class GoContext:
                 persistence=persistence,
             )
             if consistency == "strong":
+                self.strong_consistency_states.append(var)
                 self.name2var[name] = var
             elif atomic:
                 # Only internal states are atomic
@@ -110,6 +115,10 @@ class GoContext:
                 new_dict[name] = var
         self.name2var = new_dict
         self.scope.pop()
+
+    @property
+    def strong_state_count(self) -> int:
+        return len(self.strong_consistency_states)
 
     def gen_locks(self) -> tuple[str, str]:
         prefix = ""
@@ -190,7 +199,6 @@ class GoGenerator(Visitor):
             )
 
     def visitProcedure(self, node: Procedure, ctx: GoContext):
-        # TODO: Add request and response header processing.
         match node.name:
             case "init":
                 ctx.current_procedure = FUNC_INIT
@@ -214,6 +222,46 @@ class GoGenerator(Visitor):
             ctx.declare(f"rpc_{name}", GoRpcType(f"rpc_{name}", []), True, False)
         original_procedure = ctx.current_procedure
 
+        # Consolidate strong reads into one request (TODO: frontend should check if it's safe to consolidate reads)
+        prefix_strong_read, suffix_strong_read, res_defs_strong_read = "", "", ""
+        if ctx.strong_state_count > 1 and ctx.current_procedure == FUNC_REQ:
+            args, res_reads = "", ""
+            for i, (sname, arg) in enumerate(ctx.strong_access_args.items()):
+                var_type = ctx.name2var[sname].type
+                assert type(var_type) is GoSyncMapType, "only synchronized maps supported"
+                res_defs_strong_read += f"var {sname}_read struct{{{var_type.value.name}; bool}} \n"
+                args += (
+                    f' + "/" + {arg.accept(self, ctx)} + "_{sname}"'
+                )  # Append the sname to avoid key collision
+                res_reads += f"""if remote_values[{i}] != nil {{
+                                    {sname}_read = struct {{string; bool}}{{*remote_values[{i}], true}}
+                                }} else {{
+                                    {sname}_read = struct {{string; bool}}{{"", false}}
+                                }}\n""" # assumes one key read per map
+
+            prefix_strong_read =    f"""if remote_values, ok := func() ([]*{var_type.value.name}, bool) {{
+                                            remote_read, err := http.Get("http://webdis-service-{ctx.element_name}:7379/MGET" {args})
+                                            var res struct {{
+                                                MGET []*{var_type.value.name}
+                                            }}
+                                            if err == nil {{
+                                                body, _ := io.ReadAll(remote_read.Body)
+                                                remote_read.Body.Close()
+                                                if remote_read.StatusCode < 300 {{
+                                                    _ = json.Unmarshal(body, &res)
+                                                    return res.MGET, true
+                                                }} else {{
+                                                    log.Println(remote_read.StatusCode)
+                                                }}
+                                            }}
+                                            return res.MGET, false
+                                        }}(); ok {{
+                                            if len(remote_values) == {len(ctx.strong_access_args.items())} {{
+                                                {res_reads}"""
+            suffix_strong_read = "}}"
+
+        ctx.push_code(res_defs_strong_read)
+
         # Boilerplate code for decoding the RPC message
         message_name, message = ctx.response_message_name, "reply"
         if procedure_type == "Request":
@@ -232,6 +280,8 @@ class GoGenerator(Visitor):
                 if "rpc" in ctx.access_ops[FUNC_RESP]:
                     ctx.push_code(prefix_decode_rpc)
 
+        ctx.push_code(prefix_strong_read)
+
         prefix_locks, suffix_locks = ("", "")
         if (ctx.current_procedure != FUNC_INIT): 
             # No need for locks in init, nobody else has access to the closure
@@ -249,6 +299,7 @@ class GoGenerator(Visitor):
             ctx.push_code(code)
 
         ctx.push_code(suffix_locks)
+        ctx.push_code(suffix_strong_read)
 
         if ctx.current_procedure != FUNC_INIT:
             if original_procedure == FUNC_REQ:
@@ -273,11 +324,9 @@ class GoGenerator(Visitor):
             assert isinstance(first_pattern.value, Identifier)
             assert len(node.actions) == 2
             name = first_pattern.value.name
-            if ctx.find_var(name) != None:
-                LOG.error("variable already defined should not appear in Some")
-                raise Exception(f"variable {name} already defined")
-            # TODO: infer the correct type for the temp variable
-            ctx.declare(name, GoBasicType("String"), True, False)  # declare temp
+            if ctx.find_var(name) == None:
+                # TODO: infer the correct type for the temp variable
+                ctx.declare(name, GoBasicType("String"), True, False)  # declare temp
 
             # Grab the statements for some and none branches
             some_statements = none_statements = ""
@@ -392,7 +441,7 @@ class GoGenerator(Visitor):
         if type_def.startswith("Vec<"):
             vec_type = type_def[4:].split(">")[0].strip()
             if node.consistency == "strong": 
-                assert(False, "TODO: implement sync vec")
+                assert False, "TODO: implement sync vec"
             return GoVecType(map_basic_type(vec_type))
         if type_def.startswith("Map<"):
             temp = type_def[4:].split(">")[0]
@@ -442,6 +491,9 @@ class GoGenerator(Visitor):
 
     def visitMethodCall(self, node: MethodCall, ctx):
         var = ctx.find_var(node.obj.name)
+        if ctx.strong_state_count > 1 and var.consistency == "strong" and node.method == MethodType.GET:
+            assert type(var.type) is GoSyncMapType
+            return f"{var.name}_read.{var.type.value.name}, {var.name}_read.bool"
         if var == None:
             LOG.error(f"{node.obj.name} is not declared")
             raise Exception(f"object {node.obj.name} not found")
