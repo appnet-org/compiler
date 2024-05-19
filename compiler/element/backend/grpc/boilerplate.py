@@ -73,9 +73,9 @@ func {FilterName}ServerInterceptor() grpc.UnaryServerInterceptor {{
 
 on_tick_wrapper = """
 go func() {{
-	for {{
+	for !killed {{
 		var res struct{{ MGET []*string }}
-    {StateOnTick}
+		{StateOnTick}
 		time.Sleep(2 * time.Second)
 	}}
 }}()

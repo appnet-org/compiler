@@ -49,6 +49,7 @@ import (
 )
 
 {GlobalFuncDef}
+var killed bool
 
 type interceptInit struct{{}}
 
@@ -69,6 +70,9 @@ func (interceptInit) ServerInterceptor() grpc.UnaryServerInterceptor {{
 
 		return handler(ctx, req)
 	}}
+}}
+func (interceptInit) Kill() {{
+	killed = true
 }}
 
 var InterceptInit interceptInit

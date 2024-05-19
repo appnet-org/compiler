@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: webdis-service
 spec:
-  clusterIP: 10.96.99.99
+  # clusterIP: 10.96.99.99
   ports:
   - port: 7379
     targetPort: 7379
