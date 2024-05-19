@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Set
 
 from compiler.element.backend.grpc import *
 from compiler.element.backend.grpc.gotype import *
+from compiler.element.backend.grpc.boilerplate import *
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.visitor import Visitor
@@ -28,6 +29,7 @@ class GoContext:
         self.scope: List[Optional[Node]] = [None]
         self.temp_var_scope: Dict[str, Optional[Node]] = {}
         self.current_procedure: str = "unknown"  # Name of the current procedure (i.e., init/req/resp) being processed
+        self.on_tick_code: List[str] = []
         self.init_code: List[str] = []  # Code for initialization
         self.req_code: List[str] = []  # Code for request header processing
         self.resp_code: List[str] = []  # Code for response header processing
@@ -46,6 +48,9 @@ class GoContext:
         self.strong_consistency_states: List[
             GoVariable
         ] = []  # List of strong consistency variables
+        self.weak_consistency_states: List[
+            GoVariable
+        ] = []  # List of weak consistency variables
         self.name2var: Dict[
             str, GoVariable
         ] = {}  # Mapping from names to variables
@@ -72,7 +77,6 @@ class GoContext:
             # Check for duplicate variable names
             raise Exception(f"variable {name} already defined")
         else:
-            assert consistency != "weak"    # TODO(nikolabo): synchronized state
             # Create a new GoVariable instance and add it to the name2var mapping
             var = GoVariable(
                 name,
@@ -84,6 +88,8 @@ class GoContext:
                 combiner=combiner,
                 persistence=persistence,
             )
+            if consistency == "weak":
+                self.weak_consistency_states.append(var)
             if consistency == "strong":
                 self.strong_consistency_states.append(var)
                 self.name2var[name] = var
@@ -119,6 +125,10 @@ class GoContext:
     @property
     def strong_state_count(self) -> int:
         return len(self.strong_consistency_states)
+    
+    @property
+    def weak_state_count(self) -> int:
+        return len(self.weak_consistency_states)
 
     def gen_locks(self) -> tuple[str, str]:
         prefix = ""
@@ -197,6 +207,12 @@ class GoGenerator(Visitor):
             ctx.declare(
                 state_name, state_go_type, False, True, cons.name, comb.name, per.name
             )
+        for var in ctx.weak_consistency_states:
+            contents = {
+                "state_name": var.name,
+                "element_name": ctx.element_name,
+            }
+            ctx.on_tick_code.append(on_tick_template.format(**contents))
 
     def visitProcedure(self, node: Procedure, ctx: GoContext):
         match node.name:

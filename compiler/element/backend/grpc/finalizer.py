@@ -15,6 +15,7 @@ def retrieve(ctx: GoContext, name: str, placement: str) -> Dict:
         "GlobalVariables": ctx.gen_global_var_def(),
         "GlobalFuncDef": ";".join([f.definition for f in GoGlobalFunctions.values()]),
         "Init": "".join(ctx.init_code),
+        "OnTick": on_tick_wrapper.format(**{"StateOnTick": "\n".join(ctx.on_tick_code)}) if ctx.weak_state_count > 0 else "",
         "Request": "".join(ctx.req_code),
         "Response": "".join(ctx.resp_code),
         "ProtoName": ctx.proto,

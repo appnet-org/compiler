@@ -21,6 +21,7 @@ import (
 func {FilterName}ClientInterceptor() grpc.UnaryClientInterceptor {{
   {GlobalVariables}
   {Init}
+  {OnTick}
 	return func(ctx context.Context, method string, req, reply interface{{}}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {{
     {Request}
 		
@@ -55,6 +56,7 @@ import (
 func {FilterName}ServerInterceptor() grpc.UnaryServerInterceptor {{
 	{GlobalVariables}
   {Init}
+  {OnTick}
 	return func(ctx context.Context, req interface{{}}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{{}}, error) {{
 		{Request}
   
@@ -65,6 +67,45 @@ func {FilterName}ServerInterceptor() grpc.UnaryServerInterceptor {{
 		}}
     
     return reply, err
+	}}
+}}
+"""
+
+on_tick_wrapper = """
+go func() {{
+	for {{
+		var res struct{{ MGET []*string }}
+    {StateOnTick}
+		time.Sleep(2 * time.Second)
+	}}
+}}()
+"""
+
+on_tick_template = """
+mset_args_{state_name} := ""
+for key, value := range {state_name} {{
+	mset_args_{state_name} += fmt.Sprint("/", key, "_{state_name}", "/", value)
+}}
+http.Get("http://webdis-service-{element_name}:7379/MSET" + mset_args_{state_name})
+mget_args_{state_name} := ""
+for key := range {state_name} {{
+	mget_args_{state_name} += fmt.Sprint("/", key, "_{state_name}")
+}}
+remote_read, err := http.Get("http://webdis-service-{element_name}:7379/MGET" + mset_args_{state_name})
+if err == nil {{
+	body, _ := io.ReadAll(remote_read.Body)
+	remote_read.Body.Close()
+	if remote_read.StatusCode < 300 {{
+		_ = json.Unmarshal(body, &res)
+		i := 0
+		for key := range {state_name} {{
+			if res.MGET[i] != nil {{
+				{state_name}[fmt.Sprint(key, "_{state_name}")] = *res.MGET[i]
+			}}
+      i++
+		}}
+	}} else {{
+		log.Println(remote_read.StatusCode)
 	}}
 }}
 """
