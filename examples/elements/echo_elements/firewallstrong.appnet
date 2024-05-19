@@ -1,0 +1,33 @@
+state
+{
+  @consistency(strong) @combiner(LWW) @persistence(true)
+	firewall: Map<string, string>
+}
+
+fn init() {
+	firewall.set('test', 'No');
+}
+
+fn req(rpc) {
+	match (firewall.get(rpc.get('body'))) {
+		Some(permission) => {
+			match (permission) {
+				'Yes' => {
+					send(rpc, Down);
+				}
+				'No' => {
+					send(err('blocked by firewall'), Up);
+				}
+				_ => {
+				}
+			};
+		}
+		None => {
+			send(rpc, Down);
+		}
+	};
+}
+
+fn resp(rpc) {
+    send(rpc, Up);
+}

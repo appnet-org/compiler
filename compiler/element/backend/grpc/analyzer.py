@@ -37,8 +37,8 @@ class AccessAnalyzer(
     def visitState(self, node: State, ctx: GoContext):
         for (var, _, cons, _, _) in node.state:
             ctx.state_names.append(var.name)
-            # if cons.name == "strong":
-            #     ctx.strong_access_args[var.name] = ""
+            if cons.name == "strong":
+                ctx.strong_access_args[var.name] = ""
 
     def visitProcedure(self, node: Procedure, ctx: GoContext):
         match node.name:
@@ -104,6 +104,9 @@ class AccessAnalyzer(
         # Add access operations to the corresponding function.
         # If there are multiple operations on the same object, the set takes priority.
         set_method(node.obj.name, ctx, node.method)
+        if node.obj.name in ctx.strong_access_args and node.method == MethodType.GET:
+            assert len(node.args) == 1, "invalid #arg"
+            ctx.strong_access_args[node.obj.name] = node.args[0]
 
         # Handle nested method calls
         for arg in node.args:

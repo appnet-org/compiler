@@ -76,7 +76,7 @@ class GoVecType(GoType):
     def gen_delete(self, args):
         raise NotImplementedError
 
-class GoMaptype(GoType):
+class GoMapType(GoType):
     def __init__(self, key: GoType, value: GoType) -> None:
         super().__init__(f"map[{key.name}]{value.name}")
         self.key = key
@@ -94,7 +94,46 @@ class GoMaptype(GoType):
     ) -> str:
         assert len(args) == 2
         return f"[{args[0]}] = {args[1]}"
+    
+class GoSyncMapType(GoType):
+    # Calls external storage for every read/write
+    def __init__(self, key: GoType, value: GoType) -> None:
+        self.key = key
+        self.value = value
 
+    def gen_get(self, args: List[str], vname: str, ename: str) -> str:
+        assert len(args) == 1
+        return f"""func() (string, bool) {{
+                        remote_read, err := http.Get("http://webdis-service-{ename}:7379/GET/" + {args[0]} + "_{vname}")
+                        var res struct {{
+                            GET {self.value}
+                        }}
+                        if err == nil {{
+                            body, _ := io.ReadAll(remote_read.Body)
+                            remote_read.Body.Close()
+                            if remote_read.StatusCode < 300 {{
+                                _ = json.Unmarshal(body, &res)
+                                return res.GET, true
+                            }} else {{
+                                log.Println(remote_read.StatusCode)
+                            }}
+                        }}
+                        return res.GET, false
+                    }}()"""
+
+    def gen_set(
+        self, args: List[str], vname: str, ename: str, current_procedure: str
+    ) -> str:
+        assert len(args) == 2
+        return f"""func() {{
+			        remote_write, err := http.Get("http://webdis-service-{ename}:7379/SET/" + {args[0]} + "_{vname}/" + {args[1]})
+			        if err == nil {{
+				        remote_write.Body.Close()
+                        if remote_write.StatusCode > 299 {{
+                            log.Println(remote_write.StatusCode)
+                        }}
+	        		}}
+		        }}()"""
 
 class GoRpcType(GoType):
     def __init__(self, name: str, fields: List[(str, GoType)]):
