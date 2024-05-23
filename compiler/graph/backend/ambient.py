@@ -167,20 +167,23 @@ def scriptgen_ambient(
     with open(os.path.join(deploy_dir, "attach_all_elements.yml"), "w") as f:
         f.write(attach_all_yml)
         
-        
     # Generate script to create and delete ambient waypoint proxies
+    service_to_delete = [service for service, service_account in service_to_service_account.items() if service_account not in service_account_set]
+    for service in service_to_delete:
+        del service_to_service_account[service]
     with open(os.path.join(deploy_dir, "waypoint_create.sh"), "w") as file:
         # Loop through each service name and write the corresponding shell command
         file.write("#!/bin/bash\n")
-        for service_account in service_account_set:
-            command = f"istioctl x waypoint apply --service-account {service_account} --wait\n"
+        for service, service_account in service_to_service_account.items():
+            command = f"istioctl experimental waypoint apply -n default --name {service_account}-waypoint\n"
+            command += f"kubectl label service {service} istio.io/use-waypoint={service_account}-waypoint --overwrite\n"
             file.write(command)
     
     with open(os.path.join(deploy_dir, "waypoint_delete.sh"), "w") as file:
         # Loop through each service name and write the corresponding shell command
         file.write("#!/bin/bash\n")
         for service_account in service_account_set:
-            command = f"istioctl x waypoint delete --service-account {service_account}\n"
+            command = f"istioctl x waypoint delete {service_account}-waypoint\n"
             file.write(command)
 
     GRAPH_BACKEND_LOG.info(

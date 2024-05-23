@@ -242,7 +242,7 @@ metadata:
 spec:
   workloadSelector:
     labels:
-      gateway.networking.k8s.io/gateway-name: {service}
+      gateway.networking.k8s.io/gateway-name: {service}-waypoint
   configPatches:
   - applyTo: HTTP_FILTER
     match:
