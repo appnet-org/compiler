@@ -51,8 +51,22 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument("-b", "--backend", help="Backend Code Target", required=True)
-    parser.add_argument("-l", "--mod_location", help="Go Protobuf Module Location", type=str, required=False, default=False)
-    parser.add_argument("-n", "--mod_name", help="Go Protobuf Module Name", type=str, required=False, default=False)
+    parser.add_argument(
+        "-l",
+        "--mod_location",
+        help="Go Protobuf Module Location",
+        type=str,
+        required=False,
+        default=False,
+    )
+    parser.add_argument(
+        "-n",
+        "--mod_name",
+        help="Go Protobuf Module Name",
+        type=str,
+        required=False,
+        default=False,
+    )
     init_logging(True)
 
     # Some preprocessing
@@ -80,7 +94,9 @@ if __name__ == "__main__":
 
     # Generate the element properties.
     start = datetime.datetime.now()
-    ret = compile_element_property(elements, element_paths, verbose=verbose, server=server)
+    ret = compile_element_property(
+        elements, element_paths, verbose=verbose, server=server
+    )
     end = datetime.datetime.now()
     LOG.info(f"Element properties: {ret}")
     LOG.info(f"Property Analysis took: {(end-start).microseconds/1000}ms")

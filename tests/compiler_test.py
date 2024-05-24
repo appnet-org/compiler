@@ -8,7 +8,8 @@ import os
 import logging
 
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
-APPNET_ROOT = Path(__file__).parent.parent
+APPNET_COMPILER_ROOT = Path(__file__).parent.parent
+APPNET_ROOT = APPNET_COMPILER_ROOT.parent
 
 from tests import *
 
@@ -45,6 +46,8 @@ apps = {
     "ping": {
         "proto_file": os.path.join(proto_base_dir, "ping.proto"),   
         "method_name": "PingEcho",
+        "mod_name": "github.com/appnet-org/golib/sample/echo-pb",
+        "mod_location": os.path.join(APPNET_ROOT, "go-lib/sample/ping-pb"),
     },
     # "reservation": {
     #     "proto_file": os.path.join(proto_base_dir, "reservation.proto"),   
@@ -68,59 +71,65 @@ apps = {
     # },
 }
 
-backend = "envoy"
-
+backends = ["envoy", "grpc"]
+# backends = ["grpc"]
 
 class CompilerTestCase(unittest.TestCase):
-    def generate_element_code(self, ename: str, p: str, proto_file: str, method_name: str):
+    def generate_element_code(self, ename: str, backend: str, p: str, proto_file: str, method_name: str, mod_name: str = None, mod_location: str = None):
         command = [
             "python3.10", os.path.join(ROOT_DIR, "compiler/element_compiler_test.py"),
             "--element", ename,
-            "--backend", "envoy",
+            "--backend", backend,
             "--placement", p,
             "--proto", proto_file,
             "--method_name", method_name,
         ]
+        if backend == "grpc":
+            command.extend([ "--mod_name", mod_name, "--mod_location", mod_location])
+
+        # print(" ".join(command))
 
         result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return result
 
-    def compile_elements(self):
+    def compile_elements(self, backend):
         command = [
-            "bash", os.path.join(ROOT_DIR, "compiler/element/generated/envoy/build.sh"),
+            "bash", os.path.join(ROOT_DIR, f"compiler/element/generated/{backend}/build.sh"),
         ]
 
         result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return result
 
     # Dynamically create a test method for each element
-    def create_test_method(app, element, proto_file, method_name):
+    def create_test_method(app, element, backend, proto_file, method_name, mod_name, mod_location):
         def test_method(self):
             # os.environ['ELEMENT_SPEC_BASE_DIR'] = os.path.join(ROOT_DIR, f"experiments/elements/{app}_elements")
             position_pool = ["client"] if backend == "envoy" else ["client", "server"]
             for position in position_pool:
-                TEST_LOG.info(f"Testing {app} element: {element} at position: {position}")
+                TEST_LOG.info(f"Testing {backend} backend: {app} element: {element} at position: {position}")
                 
                 # Generate element code
-                result = self.generate_element_code(element, position, proto_file, method_name)
+                result = self.generate_element_code(element, backend, position, proto_file, method_name, mod_name, mod_location)
                 self.assertEqual(result.returncode, 0)
                 self.assertIn('Code Generation took:', result.stderr)
                 
                 # Compile elements
-                result = self.compile_elements()
+                result = self.compile_elements(backend)
                 self.assertEqual(result.returncode, 0)
-                self.assertIn("Finished release [optimized] target(s) in", result.stderr)
+                if backend == "envoy": self.assertIn("Finished", result.stderr)
         
         return test_method
     
 
 # Dynamically add test methods to CompilerTestCase
-for app in apps.keys():
-    for element in element_pool:
-        test_method_name = f"test_{app}_{element}_element_compilation"
-        element_path = os.path.join(APPNET_ROOT, f"examples/elements/{app}_elements/{element}.appnet")
-        test_method = CompilerTestCase.create_test_method(app, element_path, apps[app]["proto_file"], apps[app]["method_name"])
-        setattr(CompilerTestCase, test_method_name, test_method)
+for backend in backends:
+    for app_name in apps.keys():
+        for element in element_pool:
+            test_method_name = f"test_{backend}_{app_name}_{element}_element_compilation"
+            element_path = os.path.join(APPNET_COMPILER_ROOT, f"examples/elements/{app_name}_elements/{element}.appnet")
+            app = apps[app_name]
+            test_method = CompilerTestCase.create_test_method(app_name, element_path, backend, app["proto_file"], app["method_name"], app["mod_name"], app["mod_location"])
+            setattr(CompilerTestCase, test_method_name, test_method)
 
 if __name__ == "__main__":
     unittest.main()

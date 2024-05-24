@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import List, Optional
 
 from compiler.element.logger import ELEMENT_LOG as LOG
@@ -44,14 +45,27 @@ class GoBasicType(GoType):
     def gen_init(self) -> str:
         match self.name:
             case "string":
-                return "\"\""
+                return '""'
             case "float32":
                 return "0.0"
             case "float64":
                 return "0.0"
             case _:
                 return "0"
-            
+
+    def string_conversion(self, expression) -> str:
+        match self.name:
+            case "string":
+                return expression
+            case "uint32":
+                return f"strconv.FormatUint(uint64({expression}), 10)"
+            case "int":
+                return f"strconv.FormatInt(int64({expression}), 10)"
+            case "float64":
+                return f"strconv.FormatFloat({expression}, 'f', -1, 64)"
+        assert False, "unsupported key type"
+
+
 class GoVecType(GoType):
     def __init__(self, elem_type: GoType) -> None:
         super().__init__(f"[]{elem_type.name}")
@@ -76,6 +90,7 @@ class GoVecType(GoType):
     def gen_delete(self, args):
         raise NotImplementedError
 
+
 class GoMapType(GoType):
     def __init__(self, key: GoType, value: GoType) -> None:
         super().__init__(f"map[{key.name}]{value.name}")
@@ -87,14 +102,19 @@ class GoMapType(GoType):
 
     def gen_get(self, args: List[str], vname: str, ename: str) -> str:
         assert len(args) == 1
-        return f"[{args[0]}]"
+        return f""" func() struct{{value {self.value.name}; ok bool}} {{
+                        val, ok := {vname}[{args[0]}]
+                        return struct{{value {self.value.name}; ok bool}} {{val, ok}}
+                    }}()
+                """
 
     def gen_set(
         self, args: List[str], vname: str, ename: str, current_procedure: str
     ) -> str:
         assert len(args) == 2
         return f"[{args[0]}] = {args[1]}"
-    
+
+
 class GoSyncMapType(GoType):
     # Calls external storage for every read/write
     def __init__(self, key: GoType, value: GoType) -> None:
@@ -103,22 +123,22 @@ class GoSyncMapType(GoType):
 
     def gen_get(self, args: List[str], vname: str, ename: str) -> str:
         assert len(args) == 1
-        return f"""func() (string, bool) {{
-                        remote_read, err := http.Get("http://webdis-service-{ename}:7379/GET/" + {args[0]} + "_{vname}")
+        return f"""func() struct{{value {self.value.name}; ok bool}} {{
+                        remote_read, err := http.Get("http://webdis-service-{ename}:7379/GET/" + {self.key.string_conversion(args[0])} + "_{vname}")
                         var res struct {{
-                            GET {self.value}
+                            GET {self.value.name}
                         }}
                         if err == nil {{
                             body, _ := io.ReadAll(remote_read.Body)
                             remote_read.Body.Close()
                             if remote_read.StatusCode < 300 {{
                                 _ = json.Unmarshal(body, &res)
-                                return res.GET, true
+                                return struct{{value {self.value.name}; ok bool}} {{res.GET, true}}
                             }} else {{
                                 log.Println(remote_read.StatusCode)
                             }}
                         }}
-                        return res.GET, false
+                        return struct{{value {self.value.name}; ok bool}} {{res.GET, false}}
                     }}()"""
 
     def gen_set(
@@ -126,7 +146,7 @@ class GoSyncMapType(GoType):
     ) -> str:
         assert len(args) == 2
         return f"""func() {{
-			        remote_write, err := http.Get("http://webdis-service-{ename}:7379/SET/" + {args[0]} + "_{vname}/" + {args[1]})
+			        remote_write, err := http.Get("http://webdis-service-{ename}:7379/SET/" + {self.key.string_conversion(args[0])} + "_{vname}/" + {self.key.string_conversion(args[1])})
 			        if err == nil {{
 				        remote_write.Body.Close()
                         if remote_write.StatusCode > 299 {{
@@ -135,26 +155,25 @@ class GoSyncMapType(GoType):
 	        		}}
 		        }}()"""
 
+
 class GoRpcType(GoType):
     def __init__(self, name: str, fields: List[(str, GoType)]):
         super().__init__(name)
         self.fields = fields
 
-    def snake_to_pascal_case (name: str) -> str:
+    def snake_to_pascal_case(name: str) -> str:
         # snake_case pb field to PascalCase go pb field
-        split_snake = name.strip('"').split('_')
-        return ''.join(w.title() for w in split_snake)
+        split_snake = name.strip('"').split("_")
+        return "".join(w.title() for w in split_snake)
 
-    def gen_get(self, args: List[str], vname:str, ename: str) -> str:
+    def gen_get(self, args: List[str], vname: str, ename: str) -> str:
         assert len(args) == 1
         return f".{GoRpcType.snake_to_pascal_case(args[0])}"
-    
+
     def gen_set(self, args, vname, ename, current_procedure) -> str:
-        assert len(args) == 1
-        return f".{GoRpcType.snake_to_pascal_case(args[0])}"
-    
+        assert len(args) == 2
+        return f".{GoRpcType.snake_to_pascal_case(args[0])} = {args[1]}"
 
-        
 
 class GoFunctionType(GoType):
     def __init__(
@@ -215,7 +234,8 @@ class GoVariable:
 
     def gen_init(self) -> str:
         lock = ""
-        if (self.atomic): lock = f"; var {self.name}_mutex sync.RWMutex;"
+        if self.atomic:
+            lock = f"; var {self.name}_mutex sync.RWMutex;"
         return f"var {self.name} {self.type} = {self.init}{lock}"
 
 

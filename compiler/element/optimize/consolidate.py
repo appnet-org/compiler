@@ -3,18 +3,18 @@ from typing import List, Tuple
 
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
-from compiler.element.node import State, Procedure
+from compiler.element.node import Procedure, State
 from compiler.element.visitor import Visitor
 
 
 def consolidate(irs: List[Program]) -> Program:
     new_prog = Program(
-            State([]),
-            Procedure("init", [], []),
-            Procedure("req", [], []),
-            Procedure("resp", [], []),
-        )
-    
+        State([]),
+        Procedure("init", [], []),
+        Procedure("req", [], []),
+        Procedure("resp", [], []),
+    )
+
     # Merge all irs into a single ir
     for ir in irs:
         new_prog.definition.state = deepcopy(
@@ -28,7 +28,7 @@ def consolidate(irs: List[Program]) -> Program:
         ProcedureConsolidator().visitProcedure(
             new_prog.resp, (deepcopy(ir.resp), deepcopy(new_prog.resp))
         )
-    
+
     return new_prog
 
 

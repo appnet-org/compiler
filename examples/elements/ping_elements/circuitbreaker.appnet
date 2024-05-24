@@ -23,6 +23,6 @@ fn req(rpc) {
 }
 
 fn resp(rpc) {
-	result := rpc.get('meta_response');
+	pending_req := pending_req - 1;
     send(rpc, Up);
 }

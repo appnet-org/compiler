@@ -23,8 +23,11 @@ func {FilterName}ClientInterceptor() grpc.UnaryClientInterceptor {{
   {Init}
   {OnTick}
 	return func(ctx context.Context, method string, req, reply interface{{}}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {{
+		md, _ := metadata.FromOutgoingContext(ctx)
+		rpc_id, _ := strconv.ParseUint(md.Get("appnet-rpc-id")[0], 10, 32)
+		_ = rpc_id
     {Request}
-		
+
 		err := invoker(ctx, method, req, reply, cc, opts...)
 
     {Response}
@@ -58,14 +61,17 @@ func {FilterName}ServerInterceptor() grpc.UnaryServerInterceptor {{
   {Init}
   {OnTick}
 	return func(ctx context.Context, req interface{{}}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{{}}, error) {{
-		{Request}
-  
+		md, _ := metadata.FromIncomingContext(ctx)
+		rpc_id, _ := strconv.ParseUint(md.Get("appnet-rpc-id")[0], 10, 32)
+    _ = rpc_id
+    {Request}
+
 		var reply any
     var err error
 		if reply, err = handler(ctx, req); err == nil {{
     	{Response}
 		}}
-    
+
     return reply, err
 	}}
 }}
@@ -117,10 +123,13 @@ import (
 	"google.golang.org/grpc"
 )
 
+{GlobalFuncDef}
+var killed bool
+
 type interceptInit struct{{}}
 
 func (interceptInit) ClientInterceptors() []grpc.UnaryClientInterceptor {{
-	return []grpc.UnaryClientInterceptor{{{ClientInterceptor}}} // TODO(nikolabo): multiple interceptors 
+	return []grpc.UnaryClientInterceptor{{{ClientInterceptor}}}
 }}
 func (interceptInit) ServerInterceptors() []grpc.UnaryServerInterceptor {{
 	return []grpc.UnaryServerInterceptor{{{ServerInterceptor}}}
@@ -175,6 +184,5 @@ WORKDIR=`dirname $(realpath $0)`
 cd $WORKDIR
 
 go build  -C . -o interceptor.so -buildmode=plugin .
-cp interceptor.so /tmp/{FilterName}.so
 
 """

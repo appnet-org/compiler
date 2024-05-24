@@ -90,6 +90,7 @@ def extract_service_label(yml_list: List[Dict]) -> Dict[str, str]:
 
     return service_labels
 
+
 def extract_service_account_mapping(yaml_list: List[Dict]) -> Dict[str, str]:
     """
     Extract the deployment name to service account mapping from a list of deployment YAML definitions.
@@ -104,7 +105,9 @@ def extract_service_account_mapping(yaml_list: List[Dict]) -> Dict[str, str]:
     for yml in yaml_list:
         if yml.get("kind", "") == "Deployment":
             deployment_name = yml["metadata"]["name"]
-            service_account_name = yml["spec"]["template"]["spec"].get("serviceAccountName", "")
+            service_account_name = yml["spec"]["template"]["spec"].get(
+                "serviceAccountName", ""
+            )
             if service_account_name:
                 mapping[deployment_name] = service_account_name
 
