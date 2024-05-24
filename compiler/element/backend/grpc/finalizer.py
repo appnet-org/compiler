@@ -8,6 +8,7 @@ from compiler.element.backend.grpc.gogen import GoContext
 from compiler.element.backend.grpc.gotype import GoGlobalFunctions
 from compiler.element.logger import ELEMENT_LOG as LOG
 
+
 def retrieve(ctx: GoContext, name: str, placement: str) -> Dict:
     #!todo init
     return {
@@ -15,19 +16,30 @@ def retrieve(ctx: GoContext, name: str, placement: str) -> Dict:
         "GlobalVariables": ctx.gen_global_var_def(),
         "GlobalFuncDef": ";".join([f.definition for f in GoGlobalFunctions.values()]),
         "Init": "".join(ctx.init_code),
-        "OnTick": on_tick_wrapper.format(**{"StateOnTick": "\n".join(ctx.on_tick_code)}) if ctx.weak_state_count > 0 else "",
+        "OnTick": on_tick_wrapper.format(**{"StateOnTick": "\n".join(ctx.on_tick_code)})
+        if ctx.weak_state_count > 0
+        else "",
         "Request": "".join(ctx.req_code),
         "Response": "".join(ctx.resp_code),
         "ProtoName": ctx.proto,
         "ProtoModuleLocation": ctx.proto_module_location,
         # Import proto module if rpc accessed by element
-        "ProtoImport": f"{ctx.proto} \"{ctx.proto_module_name}\"" if "rpc" in ctx.access_ops[FUNC_REQ] or "rpc" in ctx.access_ops[FUNC_RESP] else "",
+        "ProtoImport": f'{ctx.proto} "{ctx.proto_module_name}"'
+        if "rpc" in ctx.access_ops[FUNC_REQ] or "rpc" in ctx.access_ops[FUNC_RESP]
+        else "",
         "ProtoModuleName": ctx.proto_module_name,
-        "ClientInterceptor": f"{name}ClientInterceptor()" if placement == "client" else "",
-        "ServerInterceptor": f"{name}ServerInterceptor()" if placement == "server" else "",
+        "ClientInterceptor": f"{name}ClientInterceptor()"
+        if placement == "client"
+        else "",
+        "ServerInterceptor": f"{name}ServerInterceptor()"
+        if placement == "server"
+        else "",
     }
 
-def codegen_from_template(output_dir: str, snippet: Dict, lib_name: str, placement: str):
+
+def codegen_from_template(
+    output_dir: str, snippet: Dict, lib_name: str, placement: str
+):
     # This method generates the backend code from the template
     os.system(f"rm -rf {output_dir}")
     os.system(f"mkdir -p {output_dir}")
@@ -52,6 +64,7 @@ def codegen_from_template(output_dir: str, snippet: Dict, lib_name: str, placeme
     LOG.info(
         f"Backend code for {lib_name} generated. You can find the source code at {output_dir}"
     )
+
 
 def finalize(
     name: str, ctx: GoContext, output_dir: str, placement: str, proto_path: str

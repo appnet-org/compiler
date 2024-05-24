@@ -1,6 +1,6 @@
+from compiler.element.backend.grpc import *
 from compiler.element.backend.grpc.gogen import GoContext
 from compiler.element.node import *
-from compiler.element.backend.grpc import *
 from compiler.element.visitor import Visitor
 
 
@@ -106,7 +106,11 @@ class AccessAnalyzer(
         # ensures we don't try to interpret rpc if only checking status
         if node.method == MethodType.GET:
             arg = node.args[0]
-            if not (node.obj.name == "rpc" and type(arg) is Literal and "meta_status" in arg.value):
+            if not (
+                node.obj.name == "rpc"
+                and type(arg) is Literal
+                and "meta_status" in arg.value
+            ):
                 set_method(node.obj.name, ctx, node.method)
         else:
             set_method(node.obj.name, ctx, node.method)

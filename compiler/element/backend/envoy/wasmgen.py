@@ -24,9 +24,7 @@ class WasmContext:
             "rpc",
         ]  # List of state names. Used by AccessAnalyzer
         self.strong_access_args: Dict[str, Expr] = {}
-        self.states: List[
-            WasmVariable
-        ] = []  # List of state variables
+        self.states: List[WasmVariable] = []  # List of state variables
         self.strong_consistency_states: List[
             WasmVariable
         ] = []  # List of strong consistency variables
@@ -69,7 +67,7 @@ class WasmContext:
             FUNC_RESP_HEADER: {},
             FUNC_RESP_BODY: {},
         }
-        
+
         self.mode = mode
 
     def declare(
@@ -303,7 +301,7 @@ class WasmGenerator(Visitor):
 
     def visitProcedure(self, node: Procedure, ctx: WasmContext):
         # TODO: Add request and response header processing.
-        
+
         match node.name:
             case "init":
                 ctx.current_procedure = FUNC_INIT

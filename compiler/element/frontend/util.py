@@ -42,9 +42,8 @@ def extract_proto_message_names(
 
     return None, None
 
-def extract_proto_service_name(
-    proto_file: str
-) -> str:
+
+def extract_proto_service_name(proto_file: str) -> str:
     with open(proto_file, "r") as file:
         proto_content = file.read()
 
@@ -54,9 +53,8 @@ def extract_proto_service_name(
 
     return services[0]
 
-def extract_proto_package_name(
-    proto_file: str
-) -> str:
+
+def extract_proto_package_name(proto_file: str) -> str:
     with open(proto_file, "r") as file:
         proto_content = file.read()
 
@@ -64,6 +62,7 @@ def extract_proto_package_name(
     assert len(packages) == 1, "Only one package definition is supported"
 
     return packages[0]
+
 
 def camel_to_snake(name: str) -> str:
     # Insert an underscore before each uppercase letter and convert to lowercase

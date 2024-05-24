@@ -27,7 +27,7 @@ func {FilterName}ClientInterceptor() grpc.UnaryClientInterceptor {{
 		rpc_id, _ := strconv.ParseUint(md.Get("appnet-rpc-id")[0], 10, 32)
 		_ = rpc_id
     {Request}
-		
+
 		err := invoker(ctx, method, req, reply, cc, opts...)
 
     {Response}
@@ -65,13 +65,13 @@ func {FilterName}ServerInterceptor() grpc.UnaryServerInterceptor {{
 		rpc_id, _ := strconv.ParseUint(md.Get("appnet-rpc-id")[0], 10, 32)
     _ = rpc_id
     {Request}
-  
+
 		var reply any
     var err error
 		if reply, err = handler(ctx, req); err == nil {{
     	{Response}
 		}}
-    
+
     return reply, err
 	}}
 }}
