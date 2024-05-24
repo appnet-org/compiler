@@ -23,8 +23,8 @@ def retrieve(ctx: GoContext, name: str, placement: str) -> Dict:
         # Import proto module if rpc accessed by element
         "ProtoImport": f"{ctx.proto} \"{ctx.proto_module_name}\"" if "rpc" in ctx.access_ops[FUNC_REQ] or "rpc" in ctx.access_ops[FUNC_RESP] else "",
         "ProtoModuleName": ctx.proto_module_name,
-        "ClientInterceptor": "clientInterceptor()" if placement == "client" else "", # TODO(nikolabo): client vs server interceptor generation
-        "ServerInterceptor": "serverInterceptor()" if placement == "server" else "",
+        "ClientInterceptor": f"{name}ClientInterceptor()" if placement == "client" else "",
+        "ServerInterceptor": f"{name}ServerInterceptor()" if placement == "server" else "",
     }
 
 def codegen_from_template(output_dir: str, snippet: Dict, lib_name: str, placement: str):
@@ -47,7 +47,7 @@ def codegen_from_template(output_dir: str, snippet: Dict, lib_name: str, placeme
     with open(f"{output_dir}/build.sh", "w") as f:
         f.write(build_sh.format(**snippet))
 
-    os.system(f"go fmt {output_dir}/interceptor.go")
+    os.system(f"goimports -w {output_dir}")
 
     LOG.info(
         f"Backend code for {lib_name} generated. You can find the source code at {output_dir}"

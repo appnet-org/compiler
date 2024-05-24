@@ -103,7 +103,13 @@ class AccessAnalyzer(
     def visitMethodCall(self, node: MethodCall, ctx: GoContext):
         # Add access operations to the corresponding function.
         # If there are multiple operations on the same object, the set takes priority.
-        set_method(node.obj.name, ctx, node.method)
+        # ensures we don't try to interpret rpc if only checking status
+        if node.method == MethodType.GET:
+            arg = node.args[0]
+            if not (node.obj.name == "rpc" and type(arg) is Literal and "meta_status" in arg.value):
+                set_method(node.obj.name, ctx, node.method)
+        else:
+            set_method(node.obj.name, ctx, node.method)
         if node.obj.name in ctx.strong_access_args and node.method == MethodType.GET:
             assert len(node.args) == 1, "invalid #arg"
             ctx.strong_access_args[node.obj.name] = node.args[0]
