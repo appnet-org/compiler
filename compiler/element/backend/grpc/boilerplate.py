@@ -183,6 +183,6 @@ build_sh = """
 WORKDIR=`dirname $(realpath $0)`
 cd $WORKDIR
 
-go build  -C . -o interceptor.so -buildmode=plugin .
+go build -trimpath -o interceptor.so -buildmode=plugin .
 
 """
