@@ -57,7 +57,7 @@ def scriptgen_ambient(
                         "/tmp/appnet",
                     ]
                 )
-                
+
     with open(app_manifest_file, "r") as f:
         yml_list = list(yaml.safe_load_all(f))
 
@@ -67,7 +67,7 @@ def scriptgen_ambient(
 
     with open(os.path.join(BACKEND_CONFIG_DIR, "webdis_template.yml"), "r") as f:
         webdis_service, webdis_deploy = list(yaml.safe_load_all(f))
-        
+
     with open(os.path.join(BACKEND_CONFIG_DIR, "volume_template.yml"), "r") as f:
         pv, pvc = list(yaml.safe_load_all(f))
 
@@ -84,23 +84,24 @@ def scriptgen_ambient(
     )
 
     pv_service_set = set()
+    service_account_set = set()
     for gir in girs.values():
         elist = [(e, gir.client) for e in gir.elements["req_client"]] + [
             (e, gir.server) for e in gir.elements["req_server"]
         ]
         for (element, sname) in elist:
-            
+
             # Add pv and pvc for this service
             if sname not in pv_service_set:
                 pv_service_set.add(sname)
+                service_account_set.add(service_to_service_account[sname])
                 pv_copy, pvc_copy = deepcopy(pv), deepcopy(pvc)
                 pv_copy["metadata"]["name"] = f"{sname}-pv"
                 pvc_copy["metadata"]["name"] = f"{sname}-pvc"
                 pvc_copy["spec"]["volumeName"] = f"{sname}-pv"
                 yml_list.append(pv_copy)
                 yml_list.append(pvc_copy)
-            
-            
+
             # All ambient elements should be placed on the server-side
             assert sname != gir.client
             placement = "S"
@@ -136,8 +137,9 @@ def scriptgen_ambient(
             # We need to copy to all hosts because we don't know where the service will be scheduled
             nodes = get_node_names(control_plane=False)
             for node in nodes:
-                copy_remote_host(node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet")
-
+                copy_remote_host(
+                    node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet"
+                )
 
     # Dump the final manifest file (somehow there is a None)
     yml_list = [yml for yml in yml_list if yml is not None]
@@ -164,6 +166,29 @@ def scriptgen_ambient(
             attach_all_yml += attach_yml_ambient.format(**contents)
     with open(os.path.join(deploy_dir, "attach_all_elements.yml"), "w") as f:
         f.write(attach_all_yml)
+
+    # Generate script to create and delete ambient waypoint proxies
+    service_to_delete = [
+        service
+        for service, service_account in service_to_service_account.items()
+        if service_account not in service_account_set
+    ]
+    for service in service_to_delete:
+        del service_to_service_account[service]
+    with open(os.path.join(deploy_dir, "waypoint_create.sh"), "w") as file:
+        # Loop through each service name and write the corresponding shell command
+        file.write("#!/bin/bash\n")
+        for service, service_account in service_to_service_account.items():
+            command = f"istioctl experimental waypoint apply -n default --name {service_account}-waypoint\n"
+            command += f"kubectl label service {service} istio.io/use-waypoint={service_account}-waypoint --overwrite\n"
+            file.write(command)
+
+    with open(os.path.join(deploy_dir, "waypoint_delete.sh"), "w") as file:
+        # Loop through each service name and write the corresponding shell command
+        file.write("#!/bin/bash\n")
+        for service_account in service_account_set:
+            command = f"istioctl x waypoint delete {service_account}-waypoint\n"
+            file.write(command)
 
     GRAPH_BACKEND_LOG.info(
         "Element compilation and manifest generation complete. The generated files are in the 'generated' directory."

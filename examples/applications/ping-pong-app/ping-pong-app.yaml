@@ -28,12 +28,46 @@ spec:
       nodeName: h1.adn-frontend.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
       containers:
       - name: frontend
-        image: xzhu0027/ping_pong_app
+        image: nikolabo/ping_pong_app
+        volumeMounts:
+        - mountPath: /interceptors
+          name: interceptor
         command: ["/app/ping-pong"]  # Command to run within the container
         args: ["frontend"] 
+      volumes:
+      - name: interceptor
+        persistentVolumeClaim:
+          claimName: frontend-interceptor-pvc
   selector:
     matchLabels:
       app: frontend
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: frontend-interceptor-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: /tmp/interceptors
+    type: Directory
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: frontend-interceptor-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-storage
 ---
 apiVersion: v1
 kind: Service
@@ -64,12 +98,46 @@ spec:
       nodeName: h1.adn-frontend.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
       containers:
       - name: ping
-        image: xzhu0027/ping_pong_app
+        image: nikolabo/ping_pong_app
+        volumeMounts:
+        - mountPath: /interceptors
+          name: interceptor
         command: ["/app/ping-pong"]  # Command to run within the container
-        args: ["ping"] 
+        args: ["ping"]
+      volumes:
+      - name: interceptor
+        persistentVolumeClaim:
+          claimName: ping-interceptor-pvc 
   selector:
     matchLabels:
       app: ping
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ping-interceptor-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: /tmp/interceptors
+    type: Directory
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ping-interceptor-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-storage
 ---
 apiVersion: v1
 kind: Service
@@ -100,9 +168,44 @@ spec:
       nodeName: h1.adn-frontend.meshbench-pg0.clemson.cloudlab.us # Change Placement if needed
       containers:
       - name: pong
-        image: xzhu0027/ping_pong_app
+        image: nikolabo/ping_pong_app
+        volumeMounts:
+        - mountPath: /interceptors
+          name: interceptor
         command: ["/app/ping-pong"]  # Command to run within the container
-        args: ["pong"] 
+        args: ["pong"]
+      volumes:
+      - name: interceptor
+        persistentVolumeClaim:
+          claimName: pong-interceptor-pvc 
   selector:
     matchLabels:
       app: pong
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pong-interceptor-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: /tmp/interceptors
+    type: Directory
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pong-interceptor-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: local-storage
+---

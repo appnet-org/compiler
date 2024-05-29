@@ -1,37 +1,35 @@
 from copy import deepcopy
-from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, TypeVar
+from typing import List, Tuple
 
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
-from compiler.element.node import Expr, Identifier, State, MethodCall, Procedure
+from compiler.element.node import Procedure, State
 from compiler.element.visitor import Visitor
 
 
 def consolidate(irs: List[Program]) -> Program:
-    while len(irs) > 1:
-        left = irs.pop(0)
-        right = irs.pop(0)
-        new_prog = Program(
-            State([]),
-            Procedure("init", [], []),
-            Procedure("req", [], []),
-            Procedure("resp", [], []),
-        )
+    new_prog = Program(
+        State([]),
+        Procedure("init", [], []),
+        Procedure("req", [], []),
+        Procedure("resp", [], []),
+    )
 
+    # Merge all irs into a single ir
+    for ir in irs:
         new_prog.definition.state = deepcopy(
-            left.definition.state + right.definition.state
+            new_prog.definition.state + ir.definition.state
         )
 
-        InitConsolidator().visitProcedure(new_prog.init, (left.init, right.init))
+        InitConsolidator().visitProcedure(new_prog.init, (new_prog.init, ir.init))
         ProcedureConsolidator().visitProcedure(
-            new_prog.req, (deepcopy(left.req), deepcopy(right.req))
+            new_prog.req, (deepcopy(ir.req), deepcopy(new_prog.req))
         )
         ProcedureConsolidator().visitProcedure(
-            new_prog.resp, (deepcopy(right.resp), deepcopy(left.resp))
+            new_prog.resp, (deepcopy(ir.resp), deepcopy(new_prog.resp))
         )
 
-        irs.insert(0, new_prog)
-    return irs[0]
+    return new_prog
 
 
 class InitConsolidator(Visitor):

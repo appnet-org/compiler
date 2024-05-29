@@ -2,7 +2,7 @@ from typing import Callable, Dict, List, Optional, Protocol, Sequence, Tuple, Ty
 
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
-from compiler.element.node import Expr, Identifier, State, MethodCall, Procedure
+from compiler.element.node import Expr, Identifier, MethodCall, Procedure, State
 from compiler.element.visitor import Visitor
 
 

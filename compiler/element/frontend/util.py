@@ -42,9 +42,8 @@ def extract_proto_message_names(
 
     return None, None
 
-def extract_proto_service_name(
-    proto_file: str
-) -> str:
+
+def extract_proto_service_name(proto_file: str) -> str:
     with open(proto_file, "r") as file:
         proto_content = file.read()
 
@@ -54,9 +53,8 @@ def extract_proto_service_name(
 
     return services[0]
 
-def extract_proto_package_name(
-    proto_file: str
-) -> str:
+
+def extract_proto_package_name(proto_file: str) -> str:
     with open(proto_file, "r") as file:
         proto_content = file.read()
 
@@ -64,6 +62,7 @@ def extract_proto_package_name(
     assert len(packages) == 1, "Only one package definition is supported"
 
     return packages[0]
+
 
 def camel_to_snake(name: str) -> str:
     # Insert an underscore before each uppercase letter and convert to lowercase
@@ -91,18 +90,17 @@ def extract_message_field_types(
     # Process each message block
     for message, fields_block in message_blocks:
         if message == request_message_name:
-            # Find all fields in the message block
+            # Find all fields in the message block......
             fields = field_pattern.findall(fields_block)
 
             # Process each field
             for field_type, field_name in fields:
                 field_mapping["request"][camel_to_snake(field_name)] = field_type
-        elif message == response_message_name:
+        if message == response_message_name:
             # Find all fields in the message block
             fields = field_pattern.findall(fields_block)
 
             # Process each field
             for field_type, field_name in fields:
                 field_mapping["response"][camel_to_snake(field_name)] = field_type
-
     return field_mapping

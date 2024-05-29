@@ -50,14 +50,11 @@ def retrieve_info(ctx: RustContext):
         "StatesDeclaration": "\n".join(
             [f"use crate::engine::{i};" for i in ctx.gen_struct_names()]
         ),
-        "StatesOnBuild": "\n".join(ctx.gen_init_localvar())
-        + "\n".join(ctx.init_code),
+        "StatesOnBuild": "\n".join(ctx.gen_init_localvar()) + "\n".join(ctx.init_code),
         "StatesOnRestore": "\n".join(ctx.gen_init_localvar())
         + "\n".join(ctx.init_code),
         "StatesOnDecompose": "",
-        "StatesInConstructor": "\n".join(
-            [f"{i}," for i in ctx.gen_state_names()]
-        ),
+        "StatesInConstructor": "\n".join([f"{i}," for i in ctx.gen_state_names()]),
         "StatesInStructDefinition": "\n".join(
             [f"pub(crate) {i}," for i in ctx.gen_struct_declaration()]
         ),

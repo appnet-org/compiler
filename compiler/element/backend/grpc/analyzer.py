@@ -1,6 +1,6 @@
+from compiler.element.backend.grpc import *
 from compiler.element.backend.grpc.gogen import GoContext
 from compiler.element.node import *
-from compiler.element.backend.grpc import *
 from compiler.element.visitor import Visitor
 
 
@@ -19,7 +19,7 @@ def set_method(name: str, ctx: GoContext, method: MethodType):
 class AccessAnalyzer(
     Visitor
 ):  # AccessAnalyzer is used to analyze the IR and record the access operations.
-    # The operations are then used to avoid unnecessary locks and RPC decode when generating the corresponding WASM code.
+    # The operations are then used to avoid unnecessary locks and RPC decode when generating the corresponding Go code.
     def __init__(self, placement: str):
         self.placement = placement
         if placement != "client" and placement != "server":
@@ -37,8 +37,8 @@ class AccessAnalyzer(
     def visitState(self, node: State, ctx: GoContext):
         for (var, _, cons, _, _) in node.state:
             ctx.state_names.append(var.name)
-            # if cons.name == "strong":
-            #     ctx.strong_access_args[var.name] = ""
+            if cons.name == "strong":
+                ctx.strong_access_args[var.name] = ""
 
     def visitProcedure(self, node: Procedure, ctx: GoContext):
         match node.name:
@@ -103,7 +103,20 @@ class AccessAnalyzer(
     def visitMethodCall(self, node: MethodCall, ctx: GoContext):
         # Add access operations to the corresponding function.
         # If there are multiple operations on the same object, the set takes priority.
-        set_method(node.obj.name, ctx, node.method)
+        # ensures we don't try to interpret rpc if only checking status
+        if node.method == MethodType.GET:
+            arg = node.args[0]
+            if not (
+                node.obj.name == "rpc"
+                and type(arg) is Literal
+                and "meta_status" in arg.value
+            ):
+                set_method(node.obj.name, ctx, node.method)
+        else:
+            set_method(node.obj.name, ctx, node.method)
+        if node.obj.name in ctx.strong_access_args and node.method == MethodType.GET:
+            assert len(node.args) == 1, "invalid #arg"
+            ctx.strong_access_args[node.obj.name] = node.args[0]
 
         # Handle nested method calls
         for arg in node.args:

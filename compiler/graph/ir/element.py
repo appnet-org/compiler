@@ -40,8 +40,12 @@ class AbsElement:
             self.position = info["position"] if "position" in info else "C/S"
             self.proto = info["proto"]
             self.method = info["method"]
-            self.proto_mod_name = info["proto_mod_name"] if "proto_mod_name" in info else ""
-            self.proto_mod_location = info["proto_mod_location"] if "proto_mod_location" in info else ""
+            self.proto_mod_name = (
+                info["proto_mod_name"] if "proto_mod_name" in info else ""
+            )
+            self.proto_mod_location = (
+                info["proto_mod_location"] if "proto_mod_location" in info else ""
+            )
             self.partner = partner
 
     @property
@@ -161,6 +165,7 @@ class AbsElement:
             other: the element to be fused.
         """
         self.name.extend(other.name)
+        self.path.extend(other.path)
         self.config.extend(other.config)
         self.position = (
             self.position

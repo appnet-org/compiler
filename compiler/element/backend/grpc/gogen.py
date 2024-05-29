@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import Dict, List, Optional, Set
 
 from compiler.element.backend.grpc import *
+from compiler.element.backend.grpc.boilerplate import *
 from compiler.element.backend.grpc.gotype import *
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
@@ -28,6 +29,7 @@ class GoContext:
         self.scope: List[Optional[Node]] = [None]
         self.temp_var_scope: Dict[str, Optional[Node]] = {}
         self.current_procedure: str = "unknown"  # Name of the current procedure (i.e., init/req/resp) being processed
+        self.on_tick_code: List[str] = []
         self.init_code: List[str] = []  # Code for initialization
         self.req_code: List[str] = []  # Code for request header processing
         self.resp_code: List[str] = []  # Code for response header processing
@@ -39,12 +41,15 @@ class GoContext:
         self.state_names: Set[str] = [
             "rpc",
         ]  # List of state names. Used by AccessAnalyzer
-        self.states: List[
+        self.strong_access_args: Dict[str, Expr] = {}
+        self.states: List[GoVariable] = []  # List of state variables
+        self.strong_consistency_states: List[
             GoVariable
-        ] = []  # List of state variables
-        self.name2var: Dict[
-            str, GoVariable
-        ] = {}  # Mapping from names to variables
+        ] = []  # List of strong consistency variables
+        self.weak_consistency_states: List[
+            GoVariable
+        ] = []  # List of weak consistency variables
+        self.name2var: Dict[str, GoVariable] = {}  # Mapping from names to variables
 
         # Maps to store the state (incl. RPC) operations on request/response headers and bodies
         self.access_ops: Dict[str, Dict[str, MethodType]] = {
@@ -68,7 +73,6 @@ class GoContext:
             # Check for duplicate variable names
             raise Exception(f"variable {name} already defined")
         else:
-            assert consistency != "weak" and consistency != "strong"    # TODO(nikolabo): synchronized state
             # Create a new GoVariable instance and add it to the name2var mapping
             var = GoVariable(
                 name,
@@ -80,7 +84,12 @@ class GoContext:
                 combiner=combiner,
                 persistence=persistence,
             )
-            if atomic:
+            if consistency == "weak":
+                self.weak_consistency_states.append(var)
+            if consistency == "strong":
+                self.strong_consistency_states.append(var)
+                self.name2var[name] = var
+            elif atomic:
                 # Only internal states are atomic
                 self.states.append(var)
                 self.name2var[name] = var
@@ -108,6 +117,14 @@ class GoContext:
                 new_dict[name] = var
         self.name2var = new_dict
         self.scope.pop()
+
+    @property
+    def strong_state_count(self) -> int:
+        return len(self.strong_consistency_states)
+
+    @property
+    def weak_state_count(self) -> int:
+        return len(self.weak_consistency_states)
 
     def gen_locks(self) -> tuple[str, str]:
         prefix = ""
@@ -186,9 +203,14 @@ class GoGenerator(Visitor):
             ctx.declare(
                 state_name, state_go_type, False, True, cons.name, comb.name, per.name
             )
+        for var in ctx.weak_consistency_states:
+            contents = {
+                "state_name": var.name,
+                "element_name": ctx.element_name,
+            }
+            ctx.on_tick_code.append(on_tick_template.format(**contents))
 
     def visitProcedure(self, node: Procedure, ctx: GoContext):
-        # TODO: Add request and response header processing.
         match node.name:
             case "init":
                 ctx.current_procedure = FUNC_INIT
@@ -212,7 +234,51 @@ class GoGenerator(Visitor):
             ctx.declare(f"rpc_{name}", GoRpcType(f"rpc_{name}", []), True, False)
         original_procedure = ctx.current_procedure
 
+        # Consolidate strong reads into one request (TODO: frontend should check if it's safe to consolidate reads)
+        prefix_strong_read, suffix_strong_read, res_defs_strong_read = "", "", ""
+        if ctx.strong_state_count > 1 and ctx.current_procedure == FUNC_REQ:
+            args, res_reads = "", ""
+            for i, (sname, arg) in enumerate(ctx.strong_access_args.items()):
+                var_type = ctx.name2var[sname].type
+                assert (
+                    type(var_type) is GoSyncMapType
+                ), "only synchronized maps supported"
+                res_defs_strong_read += f"var {sname}_read struct{{value {var_type.value.name}; ok bool}} \n"
+                args += f' + "/" + {var_type.key.string_conversion(arg.accept(self, ctx))} + "_{sname}"'  # Append the sname to avoid key collision
+                res_reads += f"""if remote_values[{i}] != nil {{
+                                    {sname}_read = struct {{value {var_type.value.name}; ok bool}}{{*remote_values[{i}], true}}
+                                }} else {{
+                                    var zero {var_type.value.name}
+                                    {sname}_read = struct {{value {var_type.value.name}; ok bool}}{{zero, false}}
+                                }}\n"""  # assumes one key read per map
+
+            # TODO(nikolabo): support consolidated sync read with different value types
+            prefix_strong_read = f"""if remote_values, ok := func() ([]*{var_type.value.name}, bool) {{
+                                            remote_read, err := http.Get("http://webdis-service-{ctx.element_name}:7379/MGET" {args})
+                                            var res struct {{
+                                                MGET []*{var_type.value.name}
+                                            }}
+                                            if err == nil {{
+                                                body, _ := io.ReadAll(remote_read.Body)
+                                                remote_read.Body.Close()
+                                                if remote_read.StatusCode < 300 {{
+                                                    _ = json.Unmarshal(body, &res)
+                                                    return res.MGET, true
+                                                }} else {{
+                                                    log.Println(remote_read.StatusCode)
+                                                }}
+                                            }}
+                                            return res.MGET, false
+                                        }}(); ok {{
+                                            if len(remote_values) == {len(ctx.strong_access_args.items())} {{
+                                                {res_reads}"""
+            suffix_strong_read = "}}"
+
+        ctx.push_code(res_defs_strong_read)
+
         # Boilerplate code for decoding the RPC message
+        # TODO: RPC should only be decoded at the time of first real access
+        # (not including rpc status check)
         message_name, message = ctx.response_message_name, "reply"
         if procedure_type == "Request":
             message_name, message = ctx.request_message_name, "req"
@@ -230,8 +296,10 @@ class GoGenerator(Visitor):
                 if "rpc" in ctx.access_ops[FUNC_RESP]:
                     ctx.push_code(prefix_decode_rpc)
 
+        ctx.push_code(prefix_strong_read)
+
         prefix_locks, suffix_locks = ("", "")
-        if (ctx.current_procedure != FUNC_INIT): 
+        if ctx.current_procedure != FUNC_INIT:
             # No need for locks in init, nobody else has access to the closure
             prefix_locks, suffix_locks = ctx.gen_locks()
 
@@ -247,6 +315,7 @@ class GoGenerator(Visitor):
             ctx.push_code(code)
 
         ctx.push_code(suffix_locks)
+        ctx.push_code(suffix_strong_read)
 
         if ctx.current_procedure != FUNC_INIT:
             if original_procedure == FUNC_REQ:
@@ -265,17 +334,15 @@ class GoGenerator(Visitor):
             else:
                 return node.stmt.accept(self, ctx) + ";"
 
-    def visitMatch(self, node: Match, ctx):
+    def visitMatch(self, node: Match, ctx: GoContext):
         first_pattern = node.actions[0][0]
-        if first_pattern.some: 
+        if first_pattern.some:
             assert isinstance(first_pattern.value, Identifier)
             assert len(node.actions) == 2
             name = first_pattern.value.name
-            if ctx.find_var(name) != None:
-                LOG.error("variable already defined should not appear in Some")
-                raise Exception(f"variable {name} already defined")
-            # TODO: infer the correct type for the temp variable
-            ctx.declare(name, GoBasicType("String"), True, False)  # declare temp
+            if ctx.find_var(name) == None:
+                # TODO: infer the correct type for the temp variable
+                ctx.declare(name, GoBasicType("String"), True, False)  # declare temp
 
             # Grab the statements for some and none branches
             some_statements = none_statements = ""
@@ -286,7 +353,9 @@ class GoGenerator(Visitor):
 
             # Idiomatic check if key present in go
             # TODO(nikolabo): avoid clashing with user vars named ok?
-            ret =   f"""if {name}, ok := {node.expr.accept(self, ctx)}; ok {{
+            ret = f"""expr_eval := {node.expr.accept(self, ctx)}
+                        if {name}, ok := expr_eval.value, expr_eval.ok; ok {{
+                            _ = {name} // allow unused some() vars
                             {some_statements}
                         }} else {{
                             {none_statements}
@@ -310,14 +379,11 @@ class GoGenerator(Visitor):
     def visitAssign(self, node: Assign, ctx: GoContext):
         value = node.right.accept(self, ctx)
         var = ctx.find_var(node.left.name)
-        if ctx.current_procedure != FUNC_INIT and var == None: # TODO(nikolabo): temp vars
-            raise NotImplementedError
-            ctx.declare(
-                node.left.name,
-                GoType("unknown"),
-                True,
-                False
-            )
+        if (
+            ctx.current_procedure != FUNC_INIT and var == None
+        ):  # TODO(nikolabo): temp vars
+            # raise NotImplementedError
+            ctx.declare(node.left.name, GoType("unknown"), True, False)
             return f"{node.left.accept(self, ctx)} := {node.right.accept(self, ctx)}"
         else:
             return f"{node.left.accept(self, ctx)} = {node.right.accept(self, ctx)}"
@@ -327,10 +393,8 @@ class GoGenerator(Visitor):
         return node.value.accept(self, ctx)
 
     def visitExpr(self, node: Expr, ctx):
-        return (
-            f"{node.lhs.accept(self, ctx)} {node.op.accept(self, ctx)} {node.rhs.accept(self, ctx)}"
-        )
-    
+        return f"{node.lhs.accept(self, ctx)} {node.op.accept(self, ctx)} {node.rhs.accept(self, ctx)}"
+
     def visitOperator(self, node: Operator, ctx):
         match node:
             case Operator.ADD:
@@ -385,16 +449,23 @@ class GoGenerator(Visitor):
                     return GoBasicType("float64")
                 case _:
                     LOG.warning(f"unknown type: {type_def}")
-                #     return WasmType(type_def)
+                    return GoType(type_def)
+
         type_def: str = node.name
         if type_def.startswith("Vec<"):
             vec_type = type_def[4:].split(">")[0].strip()
+            if node.consistency == "strong":
+                assert False, "TODO: implement sync vec"
             return GoVecType(map_basic_type(vec_type))
         if type_def.startswith("Map<"):
             temp = type_def[4:].split(">")[0]
             key_type = temp.split(",")[0].strip()
             value_type = temp.split(",")[1].strip()
-            return GoMaptype(map_basic_type(key_type), map_basic_type(value_type))
+            if node.consistency == "strong":
+                return GoSyncMapType(
+                    map_basic_type(key_type), map_basic_type(value_type)
+                )
+            return GoMapType(map_basic_type(key_type), map_basic_type(value_type))
         else:
             return map_basic_type(type_def)
 
@@ -422,8 +493,10 @@ class GoGenerator(Visitor):
                 case _:
                     LOG.error(f"unknown global function: {fname} in func_mapping")
                     raise Exception("unknown global function:", fname)
-        
+
         fn_name = node.name.name
+        if fn_name == "rpc_id":
+            return "uint32(rpc_id)"
         fn: GoFunctionType = func_mapping(fn_name)
         types = fn.args
         args = [f"{i.accept(self, ctx)}" for i in node.args if i is not None]
@@ -434,30 +507,47 @@ class GoGenerator(Visitor):
 
     def visitMethodCall(self, node: MethodCall, ctx):
         var = ctx.find_var(node.obj.name)
+        if (
+            ctx.strong_state_count > 1
+            and var.consistency == "strong"
+            and node.method == MethodType.GET
+        ):
+            assert type(var.type) is GoSyncMapType
+            return f"{var.name}_read"
         if var == None:
             LOG.error(f"{node.obj.name} is not declared")
             raise Exception(f"object {node.obj.name} not found")
         t = var.type
         args = [i.accept(self, ctx) for i in node.args]
         ret = var.name
+        # For strongly consistent variables we read from external storage
+        if var.consistency == "strong":
+            ret = ""
 
         if var.rpc:
             match node.method:
                 case MethodType.GET:
-                    ret += t.gen_get(args, var.name, ctx.element_name)
+                    if args[0].strip('"').startswith("meta_status"):
+                        ret = 'func() string {if err == nil{ return "success"} else {return "failure"}}()'
+                    else:
+                        ret += t.gen_get(args, var.name, ctx.element_name)
                 case MethodType.SET:
-                    ret += t.gen_set(args, var.name, ctx.element_name, ctx.current_procedure)
+                    ret += t.gen_set(
+                        args, var.name, ctx.element_name, ctx.current_procedure
+                    )
                 case MethodType.DELETE:
                     raise NotImplementedError
                 case MethodType.SIZE:
                     pass
                 case MethodType.BYTE_SIZE:
-                    raise NotImplementedError
+                    ret = f"float64(proto.Size({var.name}))"
                 case _:
                     raise Exception("unknown method", node.method)
         else:
             match node.method:
                 case MethodType.GET:
+                    if type(t) is GoMapType:
+                        ret = ""
                     ret += t.gen_get(args, var.name, ctx.element_name)
                 case MethodType.SET:
                     ret += t.gen_set(
