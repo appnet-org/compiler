@@ -105,7 +105,6 @@ class ElementTransformer(Transformer):
         return b
 
     def simple_stmt(self, s):
-        print(s)
         return Statement(s[0])
 
     def match_stmt(self, m) -> Match:
@@ -195,7 +194,7 @@ class ElementTransformer(Transformer):
     # TODO: remove this function as err(xxx) will be recognized as a function
     # and handled in def func().
     def err(self, e) -> Error:
-        return Error(e[0])
+        return Error(Literal(e[0]))
 
     def get_func(self, g):
         return MethodType.GET, g

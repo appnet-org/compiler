@@ -60,14 +60,12 @@ class AccessAnalyzer(
 
     def visitStatement(self, node: Statement, ctx: WasmContext):
         if node.stmt != None:
-            print(node.stmt)
             node.stmt.accept(self, ctx)
 
     def visitMatch(self, node: Match, ctx: WasmContext):
         node.expr.accept(self, ctx)
         for p, s in node.actions:
             for st in s:
-                print(p, s)
                 st.accept(self, ctx)
 
     def visitAssign(self, node: Assign, ctx: WasmContext):
