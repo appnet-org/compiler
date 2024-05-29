@@ -72,7 +72,6 @@ apps = {
 }
 
 backends = ["envoy", "grpc"]
-# backends = ["grpc"]
 
 class CompilerTestCase(unittest.TestCase):
     def generate_element_code(self, ename: str, backend: str, p: str, proto_file: str, method_name: str, mod_name: str = None, mod_location: str = None):

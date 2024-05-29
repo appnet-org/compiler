@@ -194,6 +194,7 @@ def scriptgen_grpc(
                 "-o",
                 f"{service + timestamp}",
                 "-buildmode=plugin",
+                "-trimpath",
                 ".",
             ]
         )
