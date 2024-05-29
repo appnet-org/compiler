@@ -7,7 +7,7 @@ resp: "resp" [ parameters ] ":" body
 
 parameters: "(" (identifier | identifier ",")* ")"
 
-statedef: decorator* identifier ":" type_ _NEWLINE
+statedef: (decorator+ _NEWLINE)? identifier ":" type_ _NEWLINE
 
 decorator: consistency_decorator | combiner_decorator | persistence_decorator
 consistency_decorator: "@consistency" "(" NAME ")"
