@@ -513,6 +513,9 @@ class WasmGenerator(Visitor):
             leg += "}"
             template += leg
             ctx.pop_scope()
+
+        # Append a wildcard matching statement to pass Rust compiler checking
+        template += "_ => {}"
         template += "}"
 
         return template
@@ -775,7 +778,7 @@ class WasmGenerator(Visitor):
         # TODO: The status code should be configurable
         # TODO: Better error checking (e.g., check if the message is an Error message and direction is down)
         if isinstance(node.msg, Error) and node.direction == "Up":
-            # If the Error message is numeral, we will consider it as
+            # TODO: If the Error message is numeral, we will consider it as
             # the status code
             if (
                 node.msg.msg.type == DataType.STR
