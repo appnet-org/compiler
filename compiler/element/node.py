@@ -145,7 +145,7 @@ class Literal(Node):
         # currently only String and Bool are supported.
         if value.startswith("'") and value.endswith("'"):
             self.type = DataType.STR
-        elif value in ["True", "False"]:
+        elif value in ["true", "false"]:
             self.type = DataType.BOOL
         else:
             self.type = DataType.NONE

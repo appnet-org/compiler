@@ -173,7 +173,6 @@ class ElementTransformer(Transformer):
         # TODO: check function name is valid
         # TODO: change send to Send primitive
         # TODO: maybe we should have a global function list first
-        assert len(f) == 2
         assert isinstance(f[0], Identifier)
         assert f[0].name != "send" and f[0].name != "err"
         if f[0].name == "send":
@@ -187,6 +186,9 @@ class ElementTransformer(Transformer):
             return Error(f[1][0])
         else:
             return FuncCall(f[0], f[1])
+
+    def arguments(self, a):
+        return a
 
     def const(self, c) -> Literal:
         return Literal(c[0])
@@ -257,7 +259,7 @@ class ElementTransformer(Transformer):
         return n.value
 
     def true(self, _):
-        return True
+        return "true"
 
     def false(self, _):
-        return False
+        return "false"
