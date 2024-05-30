@@ -74,9 +74,9 @@ impl Context for {FilterName}Body {{
 impl HttpContext for {FilterName}Body {{
     fn on_http_request_headers(&mut self, _num_of_headers: usize, end_of_stream: bool) -> Action {{
         // log::warn!("executing on_http_request_headers, self.context_id: {{}}", self.context_id);
-        if !end_of_stream {{
-            return Action::Continue;
-        }}
+        // if !end_of_stream {{
+        //     return Action::Continue;
+        // }}
 
         match self.get_http_request_header(":path") {{
             Some(path)  => {{
@@ -91,27 +91,27 @@ impl HttpContext for {FilterName}Body {{
 
     fn on_http_request_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {{
         // log::warn!("executing on_http_request_body, self.context_id: {{}}", self.context_id);
-        if !end_of_stream {{
-            return Action::Continue;
-        }}
+        // if !end_of_stream {{
+        //     return Action::Continue;
+        // }}
         {RequestBody}
         Action::Continue
     }}
 
     fn on_http_response_headers(&mut self, _num_headers: usize, end_of_stream: bool) -> Action {{
         // log::warn!("executing on_http_response_headers, self.context_id: {{}}", self.context_id);
-        if !end_of_stream {{
-           return Action::Continue;
-        }}
+        // if !end_of_stream {{
+        //    return Action::Continue;
+        // }}
         {ResponseHeaders}
         Action::Continue
     }}
 
     fn on_http_response_body(&mut self, body_size: usize, end_of_stream: bool) -> Action {{
         // log::warn!("executing on_http_response_body, self.context_id: {{}}", self.context_id);
-        if !end_of_stream {{
-           return Action::Continue;
-        }}
+        // if !end_of_stream {{
+        //    return Action::Continue;
+        // }}
         {ResponseBody}
         Action::Continue
     }}
