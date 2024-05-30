@@ -31,7 +31,7 @@ assign: identifier "=" expr
 
 expr: "(" expr ")" | expr op expr | identifier | const | builtin_func | func
 
-const: NAME | quoted_string | NUMBER
+const: NAME | quoted_string | INT | FLOAT | bool
 quoted_string: /'[^']*'/
 
 op: "*" -> op_mul
@@ -54,7 +54,8 @@ delete_func: "delete" "(" identifier "," expr ")"
 byte_size_func: "byte_size(" identifier ")"
 size_func: "size(" identifier ")"
 
-func: identifier "(" (expr | expr ",")* ")"
+func: identifier arguments
+arguments: "(" (expr | (expr ","))*  ")"
 
 match_stmt: "match" expr ":" matchbody
 matchbody: _NEWLINE _INDENT (action_stmt | _NEWLINE)* _DEDENT
@@ -68,7 +69,13 @@ bool: "true" -> true | "false" -> false
 
 _NEWLINE: ( /\r?\n[\t ]*/ | COMMENT )+
 NAME: /[^\W\d]\w*/
-NUMBER: "1".."9" ("_"?  "0".."9" )* | "0" ("_"?  "0")* /(?![1-9])/
+INT: "1".."9" ("_"?  "0".."9" )* | "0" ("_"?  "0")* /(?![1-9])/
+
+_SPECIAL_DEC: "0".."9" ("_"?  "0".."9" )*
+_EXP: ("e"|"E") ["+" | "-"] _SPECIAL_DEC
+DECIMAL: "." _SPECIAL_DEC | _SPECIAL_DEC "." _SPECIAL_DEC?
+FLOAT: _SPECIAL_DEC _EXP | DECIMAL _EXP?
+
 COMMENT: /#[^\n]*/
 
 %ignore /[\t \f]+/  // WS
