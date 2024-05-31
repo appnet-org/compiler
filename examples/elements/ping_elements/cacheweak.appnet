@@ -1,34 +1,23 @@
-state
-{
-	@consistency(weak) @combiner(sum) @persistence(true)
+state:
+    @consistency(weak) @combiner(sum) @persistence(true)
 	cache: Map<string, string>
-}
 
-fn init() {
-}
+init():
+    set(cache, 'bomb', 'bomb')
 
+req(rpc):
+    res = get(cache, get(rpc, 'body'))
+	match res:
+		Some(name) =>
+            match name:
+                'cached' =>
+                    send(err('cache'), Up)
+                _ =>
+                    send(err('bomb'), Up)
+		None =>
+			send(rpc, Down)
 
-fn req(rpc) {
-    res := cache.get(rpc.get('body'));
-	match (res) {
-		Some(name) => {
-            match (name) {
-                'cached' => {
-                    send(err('200'), Up);
-                }
-                _ => {
-                    send(err('403'), Up);
-                }
-            };
-		}
-		None => {
-			send(rpc, Down);
-		}
-	};
-}
-
-fn resp(rpc) {
-    key := rpc.get('body');
-	cache.set(key, 'cached');
-	send(rpc, Up);
-}
+resp(rpc):
+    key = get(rpc, 'body')
+	set(cache, key, 'cached')
+	send(rpc, Up)
