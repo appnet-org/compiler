@@ -197,7 +197,7 @@ spec:
             subFilter:
               name: "envoy.filters.http.router"
     patch:
-      operation: INSERT_BEFORE
+      operation: INSERT_FIRST
       value:
         name: envoy.filters.http.wasm
         typed_config:
@@ -254,7 +254,7 @@ spec:
             subFilter:
               name: "envoy.filters.http.router"
     patch:
-      operation: INSERT_BEFORE
+      operation: INSERT_FIRST
       value:
         name: envoy.filters.http.wasm
         typed_config:
