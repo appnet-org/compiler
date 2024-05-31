@@ -93,6 +93,7 @@ class GraphIR:
                 "position": "C",
                 "proto": pdict["proto"],
                 "method": pdict["method"],
+                "path": pdict["path1"],
             }
             edict2 = {
                 "name": pdict["name2"],
@@ -100,6 +101,7 @@ class GraphIR:
                 "position": "S",
                 "proto": pdict["proto"],
                 "method": pdict["method"],
+                "path": pdict["path2"],
             }
             self.elements["req_client"].append(
                 AbsElement(edict1, partner=pdict["name2"], server=server)
