@@ -21,7 +21,7 @@ single_type: NAME
 
 body: _NEWLINE _INDENT (simple_stmt | match_stmt | _NEWLINE)* _DEDENT
 
-simple_stmt: (expr | assign | primitive) _NEWLINE
+simple_stmt: (expr | assign | primitive | "pass" ) _NEWLINE
 
 primitive: "send" "(" (expr | err) "," direction ")"
 direction: "Up" -> dir_up | "Down" -> dir_down

@@ -105,7 +105,11 @@ class ElementTransformer(Transformer):
         return b
 
     def simple_stmt(self, s):
-        return Statement(s[0])
+        if len(s) == 0:
+            # pass statement
+            return Statement(None)
+        else:
+            return Statement(s[0])
 
     def match_stmt(self, m) -> Match:
         """
