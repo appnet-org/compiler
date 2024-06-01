@@ -17,7 +17,7 @@ class AppNetIndenter(Indenter):
 class ElementParser:
     def __init__(self):
         cwd = pathlib.Path(__file__).parent
-        grammar = open(os.path.join(cwd, "tmp.lark"), "r").read()
+        grammar = open(os.path.join(cwd, "python_style_grammar.lark"), "r").read()
         # grammar = open(os.path.join(cwd, "new.lark"), "r").read()
         self.lark_parser = Lark(grammar, start="appnet", postlex=AppNetIndenter())
 
