@@ -1,6 +1,6 @@
 appnet: _NEWLINE* state _NEWLINE* init _NEWLINE* req _NEWLINE* resp _NEWLINE*
 
-state: "state" ":" _NEWLINE _INDENT (_NEWLINE | statedef)* _DEDENT
+state: "state" ":" _NEWLINE _INDENT (_NEWLINE | statedef | "pass")* _DEDENT
 init: "init" [ parameters ] ":" body
 req: "req" [ parameters ] ":" body
 resp: "resp" [ parameters ] ":" body
