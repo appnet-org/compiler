@@ -1,25 +1,17 @@
-state {
+state:
 	@consistency(weak) @combiner(sum) @persistence(true)
     lb_tab: Map<string, string>
-}
 
-fn init() {
+init():
+	pass
 
-}
+req(rpc):
+    match get(lb_tab, get(rpc, 'body')):
+		Some(dst) =>
+			pass
+		None =>
+            set(lb_tab, get(rpc, 'body'), '1')
+	send(rpc, Down)
 
-fn req(rpc) {
-    match (lb_tab.get(rpc.get('body'))) {
-		Some(dst) => {
-            // do nothing
-		}
-		None => {
-            lb_tab.set(rpc.get('body'), '1');
-		}
-	};
-
-	send(rpc, Down);
-}
-
-fn resp(rpc) {
-	send(rpc, Up);
-}
+resp(rpc):
+	send(rpc, Up)
