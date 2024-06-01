@@ -6,9 +6,9 @@ state:
 
 init():
 	last_bw = current_time()
-	limit_bw = 50.0
-	token_bw = 50.0
-	per_sec_bw = 50.0
+	limit_bw = 100000.0
+	token_bw = 100000.0
+	per_sec_bw = 100000.0
 
 req(rpc):
 	token_bw = min(limit_bw, token_bw + (per_sec_bw * time_diff(current_time(), last_bw)))
