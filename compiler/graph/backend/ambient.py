@@ -178,6 +178,7 @@ def scriptgen_ambient(
     with open(os.path.join(deploy_dir, "waypoint_create.sh"), "w") as file:
         # Loop through each service name and write the corresponding shell command
         file.write("#!/bin/bash\n")
+        file.write("kubectl label namespace default istio.io/dataplane-mode=ambient\n")
         for service, service_account in service_to_service_account.items():
             command = f"istioctl experimental waypoint apply -n default --name {service_account}-waypoint\n"
             command += f"kubectl label service {service} istio.io/use-waypoint={service_account}-waypoint --overwrite\n"

@@ -239,6 +239,7 @@ attach_yml_ambient = """apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
   name: {metadata_name}
+  namespace: default
 spec:
   workloadSelector:
     labels:
