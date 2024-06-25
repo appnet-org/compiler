@@ -1,84 +1,84 @@
-start: definition procedure procedure procedure
+appnet: _NEWLINE* state _NEWLINE* init _NEWLINE* req _NEWLINE* resp _NEWLINE*
 
-definition: "state" "{" declaration* "}"
+state: "state" ":" _NEWLINE _INDENT (_NEWLINE | statedef | "pass")* _DEDENT
+init: "init" [ parameters ] ":" body
+req: "req" [ parameters ] ":" body
+resp: "resp" [ parameters ] ":" body
 
-declaration: (consistency_decorator | combiner_decorator | persistence_decorator)* identifier ":" type_
+parameters: "(" (identifier | identifier ",")* ")"
 
-consistency_decorator: "@consistency" "(" CNAME ")"
-combiner_decorator: "@combiner" "(" CNAME ")"
+statedef: (decorator+ _NEWLINE)? identifier ":" type_ _NEWLINE
+
+decorator: consistency_decorator | combiner_decorator | persistence_decorator
+consistency_decorator: "@consistency" "(" NAME ")"
+combiner_decorator: "@combiner" "(" NAME ")"
 persistence_decorator: "@persistence" "(" bool ")"
 
-identifier: CNAME
-
 type_: single_type
-       | "Vec" "<" single_type ">"  -> vec_type
-       | "Map" "<" single_type "," single_type ">" -> map_type
+     | "Vec" "<" single_type ">" -> vec_type
+     | "Map" "<" single_type "," single_type ">" -> map_type
+single_type: NAME
 
-single_type: CNAME
+body: _NEWLINE _INDENT (simple_stmt | match_stmt | _NEWLINE)* _DEDENT
 
-procedure: "fn" name parameters body
+simple_stmt: (expr | assign | primitive | "pass" ) _NEWLINE
 
-name: CNAME
+primitive: "send" "(" (expr | err) "," direction ")"
+direction: "Up" -> dir_up | "Down" -> dir_down
+err: "err" "(" (quoted_string | NAME) ")"
 
-parameters: "(" (parameter | parameter ",") *  ")"
+assign: identifier "=" expr
 
-parameter: "rpc" | identifier
+expr: "(" expr ")" | expr op expr | identifier | const | builtin_func | func
 
-body: "{" statement* "}"
-
-statement: (expr | assign | primitive | match) ";"
-
-primitive: "send" "(" (expr | err) "," ("Up" | "Down") ")"
-
-assign: identifier ":=" expr
-
-match: "match" "(" expr ")" "{" action* "}"
-
-action: pattern "=>" "{" statement* "}"
-
-pattern: const
-        | "None" -> none_pattern
-        | "Some" "(" (identifier | err) ")" -> some_pattern
-
-
-expr:  "(" expr ")" | identifier | method | func | const | expr op expr
-
-method: identifier "." (get | set_ | delete | byte_size | size)
-
-func: identifier arguments
-
-arguments: "(" (expr | (expr ","))*  ")"
-
-const: CNAME | quoted_string | NUMBER
-
-bool: "true" -> true | "false" -> false
-
-get: "get" "(" expr ")"
-set_: "set" ( "(" expr "," expr ")" | "(" expr ")" )
-delete: "delete" "(" expr ")"
-byte_size: "byte_size()"
-size: "size()"
-
-op: "*" -> op_mul
-       | "/" -> op_div
-       | "+" -> op_add
-       | "-" -> op_sub
-       | "&&" -> op_land
-       | "||" -> op_lor
-       | "==" -> op_eq
-       | "!=" -> op_neq
-       | "<" -> op_lt
-       | ">" -> op_gt
-       | "<=" -> op_le
-       | ">=" -> op_ge
-
+const: NAME | quoted_string | INT | FLOAT | bool
 quoted_string: /'[^']*'/
 
-err: "err" "(" (quoted_string | CNAME) ")"
+op: "*" -> op_mul
+  | "/" -> op_div
+  | "+" -> op_add
+  | "-" -> op_sub
+  | "and" -> op_land
+  | "or" -> op_lor
+  | "==" -> op_eq
+  | "!=" -> op_neq
+  | "<" -> op_lt
+  | ">" -> op_gt
+  | "<=" -> op_le
+  | ">=" -> op_ge
 
-%import common.SIGNED_NUMBER -> NUMBER
-%import common.WS
-%import common.CPP_COMMENT
-%import common.CNAME
-%ignore WS
-%ignore CPP_COMMENT
+builtin_func: get_func | set_func | delete_func | byte_size_func | size_func
+get_func: "get" "(" identifier "," expr ")"
+set_func: "set" "(" identifier "," ( expr "," expr | expr ) ")"
+delete_func: "delete" "(" identifier "," expr ")"
+byte_size_func: "byte_size" "(" identifier ")"
+size_func: "size" "(" identifier ")"
+
+func: identifier arguments
+arguments: "(" (expr | (expr ","))*  ")"
+
+match_stmt: "match" expr ":" matchbody
+matchbody: _NEWLINE _INDENT (action_stmt | _NEWLINE)* _DEDENT
+action_stmt: pattern "=>" body
+pattern: const
+       | "None" -> none_pattern
+       | "Some" "(" (identifier |err) ")" -> some_pattern
+
+identifier: NAME
+bool: "true" -> true | "false" -> false
+
+_NEWLINE: ( /\r?\n[\t ]*/ | COMMENT )+
+NAME: /[^\W\d]\w*/
+INT: "1".."9" ("_"?  "0".."9" )* | "0" ("_"?  "0")* /(?![1-9])/
+
+_SPECIAL_DEC: "0".."9" ("_"?  "0".."9" )*
+_EXP: ("e"|"E") ["+" | "-"] _SPECIAL_DEC
+DECIMAL: "." _SPECIAL_DEC | _SPECIAL_DEC "." _SPECIAL_DEC?
+FLOAT: _SPECIAL_DEC _EXP | DECIMAL _EXP?
+
+COMMENT: /#[^\n]*/
+
+%ignore /[\t \f]+/  // WS
+%ignore /\\[\t \f]*\r?\n/   // LINE_CONT
+%ignore COMMENT
+%declare _INDENT _DEDENT

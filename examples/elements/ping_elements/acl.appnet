@@ -1,32 +1,20 @@
-state
-{
-	acl: Map<string, string>
-}
+state:
+    acl: Map<string, string>
 
-fn init() {
-	acl.set('test', 'No');
-}
+init():
+    set(acl, 'apple', 'Yes')
+    set(acl, 'test', 'No')
+ 
+req(rpc):
+    match get(acl, get(rpc, 'body')):
+        Some(permission) =>
+            match permission:
+                'Yes' =>
+                    send(rpc, Down)
+                'No' =>
+                    send(err('acl'), Up)
+        None =>
+            send(rpc, Down)
 
-fn req(rpc) {
-	match (acl.get(rpc.get('body'))) {
-		Some(permission) => {
-			match (permission) {
-				'Yes' => {
-					send(rpc, Down);
-				}
-				'No' => {
-					send(err('acl'), Up);
-				}
-				_ => {
-				}
-			};
-		}
-		None => {
-			send(rpc, Down);
-		}
-	};
-}
-
-fn resp(rpc) {
-    send(rpc, Up);
-}
+resp(rpc):
+    send(rpc, Up)

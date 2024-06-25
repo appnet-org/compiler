@@ -8,28 +8,20 @@ class ElementTransformer(Transformer):
     def __init__(self):
         pass
 
-    def start(self, n):
-        assert len(n) == 4
-        return Program(n[0], n[1], n[2], n[3])
+    def appnet(self, a):
+        return Program(a[0], a[1], a[2], a[3])
 
-    def definition(self, d) -> State:
-        return State(d)
+    def state(self, s):
+        return State(s)
 
-    def declaration(
+    def statedef(
         self, d
     ) -> Tuple[
         Identifier, Type, ConsistencyDecorator, CombinerDecorator, PersistenceDecorator
     ]:
         """
-        Processes a list to create a declaration tuple consisting of an Identifier, Type, and optional decorators.
-
-        Parameters:
-        d : list
-            A list containing an Identifier, Type, and optional decorator instances.
-
-        Returns:
-        Tuple[Identifier, Type, ConsistencyDecorator, CombinerDecorator, PersistenceDecorator]
-            A tuple containing the Identifier, Type, and instances of the optional decorators.
+        Args:
+            d (list): [decorator*, identifier, type]
         """
         result = [d[-2], d[-1]]
 
@@ -48,21 +40,20 @@ class ElementTransformer(Transformer):
         result[1] = Type(result[1].name, result[2].name, result[3].name, result[4].name)
         return tuple(result)
 
+    def decorator(self, d):
+        return d[0]
+
     def consistency_decorator(self, d) -> ConsistencyDecorator:
-        d = d[0]
-        return ConsistencyDecorator(d)
+        return ConsistencyDecorator(d[0])
 
     def combiner_decorator(self, d) -> CombinerDecorator:
-        d = d[0]
-        return CombinerDecorator(d)
+        return CombinerDecorator(d[0])
 
     def persistence_decorator(self, d) -> PersistenceDecorator:
-        d = d[0]
-        return PersistenceDecorator(d)
+        return PersistenceDecorator(d[0])
 
     def identifier(self, i) -> Identifier:
-        i = i[0]
-        return Identifier(i)
+        return Identifier(i[0])
 
     def type_(self, t):
         return Type(t[0].name, None, None, False)
@@ -76,12 +67,26 @@ class ElementTransformer(Transformer):
     def single_type(self, d) -> Type:
         return Type(d[0], None, None, False)
 
-    def procedure(self, p) -> Procedure:
-        return Procedure(p[0], p[1], p[2])
+    def init(self, i):
+        """
+        Args:
+            i (list): [parameters, body]
+        """
+        return Procedure("init", i[0], i[1])
 
-    def name(self, n) -> str:
-        n = n[0]
-        return n
+    def req(self, r):
+        """
+        Args:
+            r (list): [parameters, body]
+        """
+        return Procedure("req", r[0], r[1])
+
+    def resp(self, r):
+        """
+        Args:
+            r (list): [parameters, body]
+        """
+        return Procedure("resp", r[0], r[1])
 
     def parameters(self, p) -> List[Identifier]:
         ret = []
@@ -99,24 +104,33 @@ class ElementTransformer(Transformer):
     def body(self, b) -> List[Statement]:
         return b
 
-    def stage(self, s) -> Union[Match, Statement]:
-        return s[0]
-
-    def statement(self, s):
-        if isinstance(s[0], Expr) or isinstance(s[0], Assign) or isinstance(s[0], Send):
-            return Statement(s[0])
+    def simple_stmt(self, s):
+        if len(s) == 0:
+            # pass statement
+            return Statement(None)
         else:
-            return s[0]
+            return Statement(s[0])
 
-    def assign(self, a) -> Assign:
-        return Assign(a[0], a[1])
+    def match_stmt(self, m) -> Match:
+        """
+        Args:
+            m (list): [expr, action_stmt*]
+        """
+        return Match(m[0], m[1])
 
-    def match(self, m) -> Match:
-        return Match(m[0], m[1:])
+    def matchbody(self, m) -> List[Tuple[Pattern, List[Statement]]]:
+        """
+        Args:
+            m (list): [action_stmt*]
+        """
+        return m
 
-    def action(self, a) -> Tuple[Pattern, List[Statement]]:
-        p = a[0]
-        return (p, a[1:])
+    def action_stmt(self, a) -> Tuple[Pattern, List[Statement]]:
+        """
+        Args:
+            a (list): [pattern, body]
+        """
+        return (a[0], a[1])
 
     def pattern(self, p) -> Pattern:
         return Pattern(p[0], False)
@@ -135,15 +149,36 @@ class ElementTransformer(Transformer):
         else:
             raise Exception("Invalid expression: " + str(e))
 
-    def method(self, m) -> MethodCall:
-        return MethodCall(m[0], m[1][0], m[1][1])
+    def assign(self, a) -> Assign:
+        return Assign(a[0], a[1])
+
+    def primitive(self, p):
+        """
+        Args:
+            p (list): [expr|err, "Up"|"Down"]
+        """
+        return Send(p[1], p[0])
+
+    def dir_up(self, _):
+        return "Up"
+
+    def dir_down(self, _):
+        return "Down"
+
+    def builtin_func(self, f):
+        """
+        Args:
+            f (list): [method_type, [identifier, ...]]
+        """
+        f = f[0]
+        return MethodCall(f[0], f[1][0], f[1][1:])
 
     def func(self, f) -> FuncCall:
         # TODO: check function name is valid
         # TODO: change send to Send primitive
         # TODO: maybe we should have a global function list first
-        assert len(f) == 2
         assert isinstance(f[0], Identifier)
+        assert f[0].name != "send" and f[0].name != "err"
         if f[0].name == "send":
             assert len(f[1]) == 2
             assert f[1][1].name == "Up" or f[1][1].name == "Down"
@@ -156,33 +191,31 @@ class ElementTransformer(Transformer):
         else:
             return FuncCall(f[0], f[1])
 
-    def arguments(self, a) -> List[Expr]:
+    def arguments(self, a):
         return a
 
     def const(self, c) -> Literal:
-        c = c[0]
-        return Literal(c)
+        return Literal(c[0])
 
     # TODO: remove this function as err(xxx) will be recognized as a function
     # and handled in def func().
     def err(self, e) -> Error:
-        e = e[0]
-        return Error(e)
+        return Error(Literal(e[0]))
 
-    def get(self, g):
+    def get_func(self, g):
         return MethodType.GET, g
 
-    def set_(self, s):
+    def set_func(self, s):
         return MethodType.SET, s
 
-    def delete(self, d):
+    def delete_func(self, d):
         return MethodType.DELETE, d
 
-    def size(self, s):
-        return MethodType.SIZE, []
+    def byte_size_func(self, b):
+        return MethodType.BYTE_SIZE, b
 
-    def byte_size(self, l):
-        return MethodType.BYTE_SIZE, []
+    def size_func(self, s):
+        return MethodType.SIZE, s
 
     def op(self, o) -> Operator:
         return o[0]
@@ -224,14 +257,13 @@ class ElementTransformer(Transformer):
         return Operator.GE
 
     def quoted_string(self, s):
-        s = s[0]
-        return str(s)
+        return str(s[0])
 
-    def CNAME(self, c):
-        return c.value
+    def NAME(self, n):
+        return n.value
 
     def true(self, _):
-        return True
+        return "true"
 
     def false(self, _):
-        return False
+        return "false"

@@ -118,9 +118,9 @@ class FuncCall(Expr):
 
 
 class MethodCall(Expr):
-    def __init__(self, obj: Identifier, method: MethodType, args: List[Expr]):
-        self.obj = obj
+    def __init__(self, method: MethodType, obj: Identifier, args: List[Expr]):
         self.method = method
+        self.obj = obj
         self.args = args
 
 
@@ -145,7 +145,7 @@ class Literal(Node):
         # currently only String and Bool are supported.
         if value.startswith("'") and value.endswith("'"):
             self.type = DataType.STR
-        elif value in ["True", "False"]:
+        elif value in ["true", "false"]:
             self.type = DataType.BOOL
         else:
             self.type = DataType.NONE

@@ -49,7 +49,9 @@ def gen_code(
         verbose (bool, optional): If True, provides detailed logging. Defaults to False.
 
     Raises:
-        AssertionError: If the backend_name is not 'mrpc' or 'envoy'.
+        FileNotFoundError: If the proto file deos not exist.
+        ValueError: If the method name does not exist in the proto file.
+        AssertionError: If the backend_name is not in ['mrpc', 'envoy', 'grpc', 'ambient'].
     """
 
     # Check if the proto file and method name exists

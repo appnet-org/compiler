@@ -8,28 +8,55 @@ from compiler.element.visitor import Visitor
 
 
 def consolidate(irs: List[Program]) -> Program:
-    new_prog = Program(
-        State([]),
-        Procedure("init", [], []),
-        Procedure("req", [], []),
-        Procedure("resp", [], []),
-    )
+    # Roll back to original version
+    # TODO: figure out why the modified version cannot work
+    while len(irs) > 1:
+        left = irs.pop(0)
+        right = irs.pop(0)
+        new_prog = Program(
+            State([]),
+            Procedure("init", [], []),
+            Procedure("req", [], []),
+            Procedure("resp", [], []),
+        )
 
-    # Merge all irs into a single ir
-    for ir in irs:
         new_prog.definition.state = deepcopy(
-            new_prog.definition.state + ir.definition.state
+            left.definition.state + right.definition.state
         )
 
-        InitConsolidator().visitProcedure(new_prog.init, (new_prog.init, ir.init))
+        InitConsolidator().visitProcedure(new_prog.init, (left.init, right.init))
         ProcedureConsolidator().visitProcedure(
-            new_prog.req, (deepcopy(ir.req), deepcopy(new_prog.req))
+            new_prog.req, (deepcopy(left.req), deepcopy(right.req))
         )
         ProcedureConsolidator().visitProcedure(
-            new_prog.resp, (deepcopy(ir.resp), deepcopy(new_prog.resp))
+            new_prog.resp, (deepcopy(right.resp), deepcopy(left.resp))
         )
 
-    return new_prog
+        irs.insert(0, new_prog)
+
+    return irs[0]
+    # new_prog = Program(
+    #     State([]),
+    #     Procedure("init", [], []),
+    #     Procedure("req", [], []),
+    #     Procedure("resp", [], []),
+    # )
+
+    # # Merge all irs into a single ir
+    # for ir in irs:
+    #     new_prog.definition.state = deepcopy(
+    #         new_prog.definition.state + ir.definition.state
+    #     )
+
+    #     InitConsolidator().visitProcedure(new_prog.init, (new_prog.init, ir.init))
+    #     ProcedureConsolidator().visitProcedure(
+    #         new_prog.req, (deepcopy(ir.req), deepcopy(new_prog.req))
+    #     )
+    #     ProcedureConsolidator().visitProcedure(
+    #         new_prog.resp, (deepcopy(ir.resp), deepcopy(new_prog.resp))
+    #     )
+
+    # return new_prog
 
 
 class InitConsolidator(Visitor):

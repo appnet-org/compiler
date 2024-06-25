@@ -48,7 +48,7 @@ def scriptgen_envoy(
                         "--release",
                     ]
                 )
-                # copy binary to /tmp
+                # copy binary to /tmp/appnet
                 execute_local(
                     [
                         "cp",
