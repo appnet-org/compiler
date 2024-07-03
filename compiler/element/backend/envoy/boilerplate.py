@@ -19,6 +19,19 @@ lazy_static! {{
     static ref RPC_TAG: RwLock<HashMap<u32, String>> = RwLock::new(HashMap::new());
 }}
 
+pub fn tag_check(context_id: u32) -> bool {{
+    let rpc_tag_inner = RPC_TAG.read().unwrap();
+    match rpc_tag_inner.get(&context_id) {{
+        Some(tag) => {{
+            if tag == "{Tag}" {{
+                return true;
+            }}
+        }}
+        _ => {{}}
+    }}
+    false
+}}
+
 {GlobalVariables}
 
 {GlobalFuncDef}
@@ -107,14 +120,9 @@ impl HttpContext for {FilterName}Body {{
         // if !end_of_stream {{
         //     return Action::Continue;
         // }}
-        let rpc_tag_inner = RPC_TAG.read().unwrap();
-        match rpc_tag_inner.get(&self.context_id) {{
-            Some(tag) => {{
-                if tag != "{Tag}" {{
-                    return Action::Continue;
-                }}
-            }}
-            _ => log::warn!("no tag value found for rpc {{}}", self.context_id),
+        if !tag_check(self.context_id) {{
+            log::warn!("Tag missing or mismatch, skip");
+            return Action::Continue;
         }}
         {RequestBody}
         Action::Continue
@@ -125,14 +133,9 @@ impl HttpContext for {FilterName}Body {{
         // if !end_of_stream {{
         //    return Action::Continue;
         // }}
-        let rpc_tag_inner = RPC_TAG.read().unwrap();
-        match rpc_tag_inner.get(&self.context_id) {{
-            Some(tag) => {{
-                if tag != "{Tag}" {{
-                    return Action::Continue;
-                }}
-            }}
-            _ => log::warn!("no tag value found for rpc {{}}", self.context_id),
+        if !tag_check(self.context_id) {{
+            log::warn!("Tag missing or mismatch, skip");
+            return Action::Continue;
         }}
         {ResponseHeaders}
         Action::Continue
@@ -143,14 +146,9 @@ impl HttpContext for {FilterName}Body {{
         // if !end_of_stream {{
         //    return Action::Continue;
         // }}
-        let rpc_tag_inner = RPC_TAG.read().unwrap();
-        match rpc_tag_inner.get(&self.context_id) {{
-            Some(tag) => {{
-                if tag != "{Tag}" {{
-                    return Action::Continue;
-                }}
-            }}
-            _ => log::warn!("no tag value found for rpc {{}}", self.context_id),
+        if !tag_check(self.context_id) {{
+            log::warn!("Tag missing or mismatch, skip");
+            return Action::Continue;
         }}
         {ResponseBody}
         Action::Continue
