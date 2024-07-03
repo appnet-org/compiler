@@ -102,7 +102,7 @@ impl HttpContext for {FilterName}Body {{
             _ => log::warn!("No path header found!"),
         }}
 
-        match self.get_http_request_header(":appnet-rpc-id") {{
+        match self.get_http_request_header(":appnet-rpc-tag") {{
             Some(tag) => {{
                 log::warn!("rpc tag: {{}}", tag);
                 let mut rpc_tag_inner = RPC_TAG.write().unwrap();
