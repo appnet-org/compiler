@@ -15,6 +15,10 @@ pub mod {ProtoName} {{
     include!(concat!(env!("OUT_DIR"), "/{ProtoName}.rs"));
 }}
 
+lazy_static! {{
+    static ref RPC_TAG: RwLock<HashMap<u32, String>> = RwLock::new(HashMap::new());
+}}
+
 {GlobalVariables}
 
 {GlobalFuncDef}
@@ -85,6 +89,15 @@ impl HttpContext for {FilterName}Body {{
             _ => log::warn!("No path header found!"),
         }}
 
+        match self.get_http_request_header(":appnet-rpc-id") {{
+            Some(tag) => {{
+                log::warn!("rpc tag: {{}}", tag);
+                let mut rpc_tag_inner = RPC_TAG.write().unwrap();
+                rpc_tag_inner.insert(self.context_id, tag);
+            }}
+            _ => log::warn!("No tag header found!"),
+        }}
+
         {RequestHeaders}
         Action::Continue
     }}
@@ -94,6 +107,15 @@ impl HttpContext for {FilterName}Body {{
         // if !end_of_stream {{
         //     return Action::Continue;
         // }}
+        let rpc_tag_inner = RPC_TAG.read().unwrap();
+        match rpc_tag_inner.get(&self.context_id) {{
+            Some(tag) => {{
+                if tag != "{Tag}" {{
+                    return Action::Continue;
+                }}
+            }}
+            _ => log::warn!("no tag value found for rpc {{}}", self.context_id),
+        }}
         {RequestBody}
         Action::Continue
     }}
@@ -103,6 +125,15 @@ impl HttpContext for {FilterName}Body {{
         // if !end_of_stream {{
         //    return Action::Continue;
         // }}
+        let rpc_tag_inner = RPC_TAG.read().unwrap();
+        match rpc_tag_inner.get(&self.context_id) {{
+            Some(tag) => {{
+                if tag != "{Tag}" {{
+                    return Action::Continue;
+                }}
+            }}
+            _ => log::warn!("no tag value found for rpc {{}}", self.context_id),
+        }}
         {ResponseHeaders}
         Action::Continue
     }}
@@ -112,6 +143,15 @@ impl HttpContext for {FilterName}Body {{
         // if !end_of_stream {{
         //    return Action::Continue;
         // }}
+        let rpc_tag_inner = RPC_TAG.read().unwrap();
+        match rpc_tag_inner.get(&self.context_id) {{
+            Some(tag) => {{
+                if tag != "{Tag}" {{
+                    return Action::Continue;
+                }}
+            }}
+            _ => log::warn!("no tag value found for rpc {{}}", self.context_id),
+        }}
         {ResponseBody}
         Action::Continue
     }}
