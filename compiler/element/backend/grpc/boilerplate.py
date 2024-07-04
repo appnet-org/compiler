@@ -27,11 +27,11 @@ func {FilterName}ClientInterceptor() grpc.UnaryClientInterceptor {{
 		rpc_id, _ := strconv.ParseUint(md.Get("appnet-rpc-id")[0], 10, 32)
 		_ = rpc_id
 
-        // tag := md.Get("appnet-config-version")[0]
-        // if tag != "{Tag}" {{
-		// 	// version mismatch, skip
-		// 	return invoker(ctx, method, req, reply, cc, opts...)
-		// }}
+        tag := md.Get("appnet-config-version")[0]
+        if tag != "{Tag}" {{
+			// version mismatch, skip
+			return invoker(ctx, method, req, reply, cc, opts...)
+		}}
 
     {Request}
 
@@ -72,11 +72,11 @@ func {FilterName}ServerInterceptor() grpc.UnaryServerInterceptor {{
 		rpc_id, _ := strconv.ParseUint(md.Get("appnet-rpc-id")[0], 10, 32)
     	_ = rpc_id
 
-        // tag := md.Get("appnet-config-version")[0]
-        // if tag != "{Tag}" {{
-		// 	// version mismatch, skip
-		// 	return handler(ctx, req);
-		// }}
+        tag := md.Get("appnet-config-version")[0]
+        if tag != "{Tag}" {{
+			// version mismatch, skip
+			return handler(ctx, req);
+		}}
 
     {Request}
 
