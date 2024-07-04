@@ -19,6 +19,7 @@ class WasmContext:
         message_field_types=None,
         mode: str = "sidecar",
         element_name: str = "",
+        tag: str = "0",
     ) -> None:
         self.state_names: Set[str] = [
             "rpc",
@@ -69,6 +70,7 @@ class WasmContext:
         }
 
         self.mode = mode
+        self.tag = tag
 
     def declare(
         self,

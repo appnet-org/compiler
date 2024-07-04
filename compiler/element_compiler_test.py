@@ -126,6 +126,7 @@ if __name__ == "__main__":
         proto_module_name=proto_module_name,
         proto_module_location=proto_module_location,
         verbose=verbose,
+        tag="0",
     )
     end = datetime.datetime.now()
     LOG.info(f"Code Generation took: {(end-start).microseconds/1000}ms")

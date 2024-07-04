@@ -36,6 +36,13 @@ def parse_args():
         required=True,
     )
     parser.add_argument(
+        "-t",
+        "--tag",
+        help="Tag number for the current version",
+        type=str,
+        default="1",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         help="If added, request graphs (i.e., element chains) on each edge will be printed on the terminal",
@@ -108,6 +115,7 @@ def compile_impl(
     proto_path: str,
     method: str,
     server: str,
+    tag: str,
     proto_module_name: str = "",
     proto_module_location: str = "",
 ):
@@ -129,6 +137,7 @@ def compile_impl(
         proto_path,
         method,
         server,
+        tag,
         proto_module_name=proto_module_name,
         proto_module_location=proto_module_location,
     )
@@ -158,6 +167,7 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
                         element.proto,
                         element.method,
                         gir.server,
+                        args.tag,
                         proto_module_name=element.proto_mod_name,
                         proto_module_location=element.proto_mod_location,
                     )

@@ -34,6 +34,7 @@ def retrieve(ctx: GoContext, name: str, placement: str) -> Dict:
         "ServerInterceptor": f"{name}ServerInterceptor()"
         if placement == "server"
         else "",
+        "Tag": ctx.tag,
     }
 
 

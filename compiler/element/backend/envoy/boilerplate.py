@@ -15,6 +15,23 @@ pub mod {ProtoName} {{
     include!(concat!(env!("OUT_DIR"), "/{ProtoName}.rs"));
 }}
 
+lazy_static! {{
+    static ref RPC_TAG: RwLock<HashMap<u32, String>> = RwLock::new(HashMap::new());
+}}
+
+pub fn tag_check(context_id: u32) -> bool {{
+    let rpc_tag_inner = RPC_TAG.read().unwrap();
+    match rpc_tag_inner.get(&context_id) {{
+        Some(tag) => {{
+            if tag == "{Tag}" {{
+                return true;
+            }}
+        }}
+        _ => {{}}
+    }}
+    false
+}}
+
 {GlobalVariables}
 
 {GlobalFuncDef}
@@ -85,6 +102,14 @@ impl HttpContext for {FilterName}Body {{
             _ => log::warn!("No path header found!"),
         }}
 
+        match self.get_http_request_header("appnet-config-version") {{
+            Some(tag) => {{
+                let mut rpc_tag_inner = RPC_TAG.write().unwrap();
+                rpc_tag_inner.insert(self.context_id, tag);
+            }}
+            _ => log::warn!("No tag header found!"),
+        }}
+
         {RequestHeaders}
         Action::Continue
     }}
@@ -94,6 +119,10 @@ impl HttpContext for {FilterName}Body {{
         // if !end_of_stream {{
         //     return Action::Continue;
         // }}
+        if !tag_check(self.context_id) {{
+            log::warn!("Tag missing or mismatch, skip");
+            return Action::Continue;
+        }}
         {RequestBody}
         Action::Continue
     }}
@@ -103,6 +132,10 @@ impl HttpContext for {FilterName}Body {{
         // if !end_of_stream {{
         //    return Action::Continue;
         // }}
+        if !tag_check(self.context_id) {{
+            log::warn!("Tag missing or mismatch, skip");
+            return Action::Continue;
+        }}
         {ResponseHeaders}
         Action::Continue
     }}
@@ -112,6 +145,10 @@ impl HttpContext for {FilterName}Body {{
         // if !end_of_stream {{
         //    return Action::Continue;
         // }}
+        if !tag_check(self.context_id) {{
+            log::warn!("Tag missing or mismatch, skip");
+            return Action::Continue;
+        }}
         {ResponseBody}
         Action::Continue
     }}

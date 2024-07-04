@@ -31,6 +31,7 @@ def gen_code(
     proto_path: str,
     method_name: str,
     server: str,
+    tag: str,
     proto_module_name: str = "",
     proto_module_location: str = "",
     verbose: bool = False,
@@ -47,6 +48,7 @@ def gen_code(
         proto_path: (str):  The path to the proto file (e.g., hello.proto).
         method_name: (str): The name of the method to be used in the proto file.
         verbose (bool, optional): If True, provides detailed logging. Defaults to False.
+        tag (str): The tag number for the current version.
 
     Raises:
         FileNotFoundError: If the proto file deos not exist.
@@ -97,6 +99,7 @@ def gen_code(
             response_message_name=response_message_name,
             message_field_types=message_field_types,
             mode=backend_name,
+            tag=tag,
         )
     elif backend_name == "grpc":
         assert proto_module_name != "" and proto_module_location != ""
@@ -111,6 +114,7 @@ def gen_code(
             request_message_name=request_message_name,
             response_message_name=response_message_name,
             message_field_types=message_field_types,
+            tag=tag,
         )
 
     printer = Printer()
