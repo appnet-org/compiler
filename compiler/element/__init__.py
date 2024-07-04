@@ -114,6 +114,7 @@ def gen_code(
             request_message_name=request_message_name,
             response_message_name=response_message_name,
             message_field_types=message_field_types,
+            tag=tag,
         )
 
     printer = Printer()

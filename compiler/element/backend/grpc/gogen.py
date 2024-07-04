@@ -20,8 +20,10 @@ class GoContext:
         response_message_name=None,
         message_field_types=None,
         element_name: str = "",
+        tag: str = "0",
     ) -> None:
         self.element_name: str = element_name  # Name of the generated element
+        self.tag: str = tag  # version number, used for seamless migration
         self.method_name: str = method_name  # Name of the RPC method
         self.request_message_name: str = request_message_name
         self.response_message_name: str = response_message_name

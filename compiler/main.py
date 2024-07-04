@@ -40,7 +40,7 @@ def parse_args():
         "--tag",
         help="Tag number for the current version",
         type=str,
-        default="0",
+        default="1",
     )
     parser.add_argument(
         "-v",
