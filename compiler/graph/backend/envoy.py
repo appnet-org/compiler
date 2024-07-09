@@ -106,6 +106,31 @@ def scriptgen_envoy(
             services_all,
         )
     )
+    
+    # Attach the version number config file
+    for service in services:
+        target_service_yml = find_target_yml(yml_list_istio, service)
+        
+        if "volumeMounts" not in target_service_yml["spec"]["template"]["spec"]["containers"][0]:
+            target_service_yml["spec"]["template"]["spec"]["containers"][0]["volumeMounts"] = []
+        
+        target_service_yml["spec"]["template"]["spec"]["containers"][0][
+            "volumeMounts"
+        ].append(
+            {
+                "mountPath": f"/etc/config-version",
+                "name": f"config-version",
+            }
+        )
+        target_service_yml["spec"]["template"]["spec"]["volumes"].append(
+            {
+                "hostPath": {
+                    "path": f"/tmp/appnet/config-version",
+                    "type": "File",
+                },
+                "name": f"config-version",
+            }
+        )
 
     whitelist_port, blacklist_port = {}, {}
     for sname in services_all:

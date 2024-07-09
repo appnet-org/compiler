@@ -82,6 +82,34 @@ def scriptgen_ambient(
             services_all,
         )
     )
+    
+    # Attach the version number config file
+    for service in services:
+        target_service_yml = find_target_yml(yml_list, service)
+        
+        if "volumeMounts" not in target_service_yml["spec"]["template"]["spec"]["containers"][0]:
+            target_service_yml["spec"]["template"]["spec"]["containers"][0]["volumeMounts"] = []
+        
+        target_service_yml["spec"]["template"]["spec"]["containers"][0][
+            "volumeMounts"
+        ].append(
+            {
+                "mountPath": f"/etc/config-version",
+                "name": f"config-version",
+            }
+        )
+        
+        if "volumes" not in target_service_yml["spec"]["template"]["spec"]:
+            target_service_yml["spec"]["template"]["spec"]["volumes"] = []
+        target_service_yml["spec"]["template"]["spec"]["volumes"].append(
+            {
+                "hostPath": {
+                    "path": f"/tmp/appnet/config-version",
+                    "type": "File",
+                },
+                "name": f"config-version",
+            }
+        )
 
     pv_service_set = set()
     service_account_set = set()

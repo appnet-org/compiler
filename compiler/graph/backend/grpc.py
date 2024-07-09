@@ -305,5 +305,24 @@ def attach_volumes(app_manifest_file: str, deploy_dir: str) -> list[any]:
                 "name": f"{service}-interceptor-volume",
             }
         )
+        
+        target_service_yml["spec"]["template"]["spec"]["containers"][0][
+            "volumeMounts"
+        ].append(
+            {
+                "mountPath": f"/etc/config-version",
+                "name": f"config-version",
+            }
+        )
+
+        target_service_yml["spec"]["template"]["spec"]["volumes"].append(
+            {
+                "hostPath": {
+                    "path": f"/tmp/appnet/config-version",
+                    "type": "File",
+                },
+                "name": f"config-version",
+            }
+        )
 
     return yml_list
