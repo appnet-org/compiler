@@ -107,6 +107,10 @@ def scriptgen_envoy(
         )
     )
     
+    # Load pv and pvc template
+    with open(os.path.join(BACKEND_CONFIG_DIR, "volume_template.yml"), "r") as f:
+        pv, pvc = list(yaml.safe_load_all(f))
+    
     # Attach the version number config file
     for service in services:
         target_service_yml = find_target_yml(yml_list_istio, service)
@@ -129,6 +133,30 @@ def scriptgen_envoy(
                     "type": "File",
                 },
                 "name": f"config-version",
+            }
+        )
+        
+        pv_copy, pvc_copy = deepcopy(pv), deepcopy(pvc)
+        pv_copy["metadata"]["name"] = f"{service}-pv"
+        pv_copy["spec"]["hostPath"]["path"] = "/tmp/appnet"
+        pvc_copy["metadata"]["name"] = f"{service}-pvc"
+        pvc_copy["spec"]["volumeName"] = f"{service}-pv"
+        yml_list_istio.append(pv_copy)
+        yml_list_istio.append(pvc_copy)
+        
+        target_service_yml["spec"]["template"]["spec"]["containers"][1][
+            "volumeMounts"
+        ].append(
+            {
+                "mountPath": "/etc/appnet",
+                "name": f"{service}-volume",
+            }
+        )
+        
+        target_service_yml["spec"]["template"]["spec"]["volumes"].append(
+            {
+                "persistentVolumeClaim": {"claimName": f"{service}-pvc"},
+                "name": f"{service}-volume",
             }
         )
 
@@ -182,28 +210,6 @@ def scriptgen_envoy(
                 copy_remote_host(
                     node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet"
                 )
-
-            # Find the corresponding service in the manifest
-            target_service_yml = find_target_yml(yml_list_istio, sname)
-
-            # Attach the element to the sidecar using volumes
-            target_service_yml["spec"]["template"]["spec"]["containers"][1][
-                "volumeMounts"
-            ].append(
-                {
-                    "mountPath": f"/etc/{element.lib_name}.wasm",
-                    "name": f"{element.lib_name}-wasm",
-                }
-            )
-            target_service_yml["spec"]["template"]["spec"]["volumes"].append(
-                {
-                    "hostPath": {
-                        "path": f"/tmp/appnet/{element.lib_name}.wasm",
-                        "type": "File",
-                    },
-                    "name": f"{element.lib_name}-wasm",
-                }
-            )
 
     if os.getenv("APPNET_NO_OPTIMIZE") != "1":
         # has optimization: exclude ports that has no element attached to
@@ -276,7 +282,7 @@ def scriptgen_envoy(
                 else "SIDECAR_INBOUND",
                 "port": service_to_port_number[gir.server],
                 "vmid": f"vm.sentinel.{e.lib_name}-{placement}",
-                "filename": f"/etc/{e.lib_name}.wasm",
+                "filename": f"/etc/appnet/{e.lib_name}.wasm",
                 "service_label": service_to_label[sname],
             }
             attach_all_yml += attach_yml.format(**contents)
