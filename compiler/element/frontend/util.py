@@ -34,9 +34,10 @@ def extract_proto_message_names(
     services = re.findall(r"service\s+\w+\s+{[^}]+}", proto_content)
     assert len(services) == 1, "Only one service definition is supported"
 
-    rpcs = re.findall(r"rpc\s+(\w+)\s*\((\w+)\)\s*returns\s*\((\w+)\)", services[0])
+    # Regular expression to find rpc definitions, including stream
+    rpcs = re.findall(r"rpc\s+(\w+)\s*\((stream\s+)?(\w+)\)\s*returns\s*\((stream\s+)?(\w+)\)", services[0])
     for rpc in rpcs:
-        method_name, request_message_name, response_message_name = rpc
+        method_name, _, request_message_name, _, response_message_name = rpc
         if method_name == target_method_name:
             return request_message_name, response_message_name
 
