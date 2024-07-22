@@ -1,0 +1,14 @@
+state:
+	password: string
+
+init():
+    password = '123456'
+
+req(rpc):
+	ori = get(rpc, 'body')
+    encrypted = encrypt(ori, password)
+    set(rpc, 'body', encrypted)
+    send(rpc, Down)
+
+resp(rpc):
+    send(rpc, Up)

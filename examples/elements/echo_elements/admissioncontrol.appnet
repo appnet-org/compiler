@@ -1,0 +1,28 @@
+state:
+	# Agression. Increasing the multiplier will make throttling less aggressive
+	multiplier: float
+	success: float
+	total: float
+
+init():
+	multiplier = 0.95
+	success = 0.0
+	total = 0.0
+
+req(rpc):
+	prob = 1.0 - max(0, (total - (multiplier * success)) / (total + 1.0))
+	total = total + 1.0
+
+	match randomf(0, 1) < prob:
+		true =>
+			send(rpc, Down)
+		false =>
+			send(err('admission control'), Up)
+
+resp(rpc):
+	match get(rpc, 'meta_status') == 'success':
+		true =>
+			success = success + 1.0
+			send(rpc, Up)
+		false =>
+			send(rpc, Up)

@@ -1,0 +1,17 @@
+state:
+	@consistency(strong) @combiner(sum) @persistence(true)
+    lb_tab: Map<string, string>
+
+init():
+	pass
+
+req(rpc):
+    match get(lb_tab, get(rpc, 'body')):
+		Some(dst) =>
+			pass
+		None =>
+            set(lb_tab, get(rpc, 'body'), '1')
+	send(rpc, Down)
+
+resp(rpc):
+	send(rpc, Up)
