@@ -199,19 +199,10 @@ spec:
     patch:
       operation: INSERT_FIRST
       value:
-        name: envoy.filters.http.wasm
+        name: sample
         typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.http.wasm.v3.Wasm
-          config:
-            name: {name}
-            root_id: {name}
-            vm_config:
-              vm_id: {vmid}
-              runtime: envoy.wasm.runtime.v8
-              code:
-                local:
-                  filename: {filename}
-              allow_precompiled: false
+          "@type": "type.googleapis.com/xds.type.v3.TypedStruct"
+          type_url: "type.googleapis.com/sample.FilterConfig"
   - applyTo: CLUSTER
     match:
         context: SIDECAR_OUTBOUND

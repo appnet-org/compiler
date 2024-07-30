@@ -82,6 +82,35 @@ def scriptgen_envoy(
             os.path.join(local_gen_dir, app_name + "_istio.yml"),
         ]
     )
+
+    # ===== Dirty Hack ====== 
+    # Use custom istio-proxy image in the generated manifest file
+    istio_injected_file = os.path.join(local_gen_dir, app_name + "_istio.yml")
+    with open(istio_injected_file, "r") as f:
+        content = f.read()
+        content = content.replace(
+            "docker.io/istio/proxyv2:1.22.3", "docker.io/jokerwyt/istio-proxy-1.22:latest"
+        )
+    with open(istio_injected_file, "w") as f:
+        f.write(content)
+
+    # set pull policy always
+    with open(istio_injected_file, "r") as f:
+        yml_list = list(yaml.safe_load_all(f))
+        for obj_yml in yml_list:
+            if obj_yml and "kind" in obj_yml and obj_yml["kind"] == "Deployment":
+                for container_yaml in obj_yml["spec"]["template"]["spec"]["containers"] + obj_yml["spec"]["template"]["spec"]["initContainers"]:
+                    # if the image is docker.io/jokerwyt/istio-proxy-1.22:latest
+                    # quite dirty, but it works
+                    if "jokerwyt" in container_yaml["image"]:
+                        container_yaml["imagePullPolicy"] = "Always"
+
+    # Dump back
+    with open(istio_injected_file, "w") as f:
+        yaml.dump_all(yml_list, f, default_flow_style=False)
+
+
+
     GRAPH_BACKEND_LOG.info("Generating the istio manifest file for the application...")
     with open(app_manifest_file, "r") as f:
         yml_list_plain = list(yaml.safe_load_all(f))
