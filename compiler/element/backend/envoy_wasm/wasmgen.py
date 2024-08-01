@@ -1,9 +1,9 @@
 from copy import deepcopy
 from typing import Dict, List, Optional, Set
 
-from compiler.element.backend.envoy import *
-from compiler.element.backend.envoy.boilerplate import on_tick_template
-from compiler.element.backend.envoy.wasmtype import *
+from compiler.element.backend.envoy_wasm import *
+from compiler.element.backend.envoy_wasm.boilerplate import on_tick_template
+from compiler.element.backend.envoy_wasm.wasmtype import *
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.visitor import Visitor
