@@ -2,9 +2,9 @@ import os
 from typing import Dict, List
 
 from compiler import *
-from compiler.element.backend.envoy.analyzer import AccessAnalyzer as WasmAccessAnalyzer
-from compiler.element.backend.envoy.finalizer import finalize as WasmFinalize
-from compiler.element.backend.envoy.wasmgen import WasmContext, WasmGenerator
+from compiler.element.backend.envoy_wasm.analyzer import AccessAnalyzer as WasmAccessAnalyzer
+from compiler.element.backend.envoy_wasm.finalizer import finalize as WasmFinalize
+from compiler.element.backend.envoy_wasm.wasmgen import WasmContext, WasmGenerator
 from compiler.element.backend.grpc.analyzer import AccessAnalyzer as GoAccessAnalyzer
 from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
 from compiler.element.backend.grpc.gogen import GoContext, GoGenerator

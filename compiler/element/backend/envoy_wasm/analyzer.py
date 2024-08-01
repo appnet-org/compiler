@@ -1,4 +1,4 @@
-from compiler.element.backend.envoy.wasmgen import WasmContext
+from compiler.element.backend.envoy_wasm.wasmgen import WasmContext
 from compiler.element.node import *
 from compiler.element.visitor import Visitor
 
