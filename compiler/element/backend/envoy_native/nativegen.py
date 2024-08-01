@@ -1,0 +1,740 @@
+from copy import deepcopy
+from typing import Dict, List, Optional, Set
+
+from compiler.element.backend.envoy_native import *
+from compiler.element.backend.envoy_native.nativetype import *
+from compiler.element.logger import ELEMENT_LOG as LOG
+from compiler.element.node import *
+from compiler.element.visitor import Visitor
+
+
+class NativeContext:
+    def __init__(
+        self,
+        proto=None,
+        method_name=None,
+        request_message_name = None,
+        response_message_name = None,
+        message_field_types = None,
+        mode: str = "sidecar",
+        element_name: str = "",
+        tag: str = "0",
+    ) -> None:
+        self.states: List[NativeVariable] = []
+        self.name2var: Dict[str, NativeVariable] = {}
+
+
+    # This method declares a new variable in the Native context and add it to the name2var mapping
+    def declare(
+        self,
+        name: str,
+        rtype: NativeType,
+        temp_var: bool,
+        atomic: bool,
+        consistency: str = None, # type: ignore
+        combiner: str = None, # type: ignore
+        persistence: bool = False,
+    ) -> None:
+        if name in self.name2var:
+            # Check for duplicate variable names
+            raise Exception(f"variable {name} already defined")
+        else:
+            # Create a new WasmVariable instance and add it to the name2var mapping
+            var = NativeVariable(
+                name,
+                rtype,
+                temp_var,
+                # name == "rpc_request" or name == "rpc_response",
+                atomic,
+                inner=False,
+                consistency=consistency,
+                combiner=combiner,
+                persistence=persistence,
+            )
+            if consistency == "weak":
+                # weak consistency states will be treated like local states, except that
+                # we periodically sync the states in the background
+                self.weak_consistency_states.append(var)
+            if consistency == "strong":
+                self.strong_consistency_states.append(var)
+                self.name2var[name] = var
+            elif not temp_var and not var.rpc and atomic:
+                # If it's not a temp variable and does not belong to RPC request or response processing.
+                var.init = rtype.gen_init()
+                self.states.append(var)
+                # Create an inner variable for the declared variable
+                v_inner = WasmVariable(
+                    name + "_inner", rtype, False, False, False, inner=True
+                )
+                self.inners.append(v_inner)
+                self.name2var[name] = v_inner
+            elif name == "rpc_request":
+                self.name2var["rpc"] = var
+            elif name == "rpc_response":
+                self.name2var["rpc"] = var
+            else:
+                # temp variable, not rpc_req/resp
+                self.name2var[name] = var
+                self.temp_var_scope[name] = self.scope[-1]
+
+
+
+class NativeGenerator(Visitor):
+    def __init__(self, placement: str) -> None:
+        self.placement = placement
+        if placement != "client" and placement != "server":
+            raise Exception("placement should be sender or receiver")
+
+    def visitNode(self, node: Node, ctx: NativeContext):
+        return node.__class__.__name__
+
+    def visitProgram(self, node: Program, ctx: NativeContext) -> None:
+        node.definition.accept(self, ctx)
+        node.init.accept(self, ctx)
+        for v in ctx.states:
+            if v.init == "":
+                v.init = v.type.gen_init()
+        node.req.accept(self, ctx)
+        node.resp.accept(self, ctx)
+
+    def visitState(self, node: State, ctx: NativeContext) -> None:
+        # Iterate through all state variables and declare them
+        for (identifier, type, cons, comb, per) in node.state:
+            state_name = identifier.name
+            state_native_type = type.accept(self, ctx)
+            ctx.declare(
+                state_name, state_native_type, False, True, cons.name, comb.name, per.name
+            )
+        # For each eventual consistent state, add synchronization logic into on_tick()
+        for var in ctx.weak_consistency_states:
+            contents = {
+                "state_name": var.name,
+                "element_name": ctx.element_name,
+            }
+            ctx.on_tick_code.append(on_tick_template.format(**contents))
+
+    def visitProcedure(self, node: Procedure, ctx: NativeContext):
+        # TODO: Add request and response header processing.
+
+        match node.name:
+            case "init":
+                ctx.current_procedure = FUNC_INIT
+                procedure_type = "init"  # unused, make python happy
+            case "req":
+                ctx.current_procedure = FUNC_REQ_BODY
+                procedure_type = "Request"
+            case "resp":
+                ctx.current_procedure = FUNC_RESP_BODY
+                procedure_type = "Response"
+            case _:
+                raise Exception("unknown function")
+        ctx.clear_temps()
+        if node.name == "req":
+            name = "request"
+        elif node.name == "resp":
+            name = "response"
+        else:
+            name = node.name
+        if name != "init":
+            ctx.declare(f"rpc_{name}", WasmRpcType(f"rpc_{name}", []), True, False)
+        inners = ctx.gen_inners()
+        original_procedure = ctx.current_procedure
+
+        # Boilerplate code for decoding the RPC message
+        message_name = (
+            ctx.request_message_name
+            if procedure_type == "Request"
+            else ctx.response_message_name
+        )
+        prefix_decode_rpc = f"""
+        if let Some(body) = self.get_http_{name}_body(0, body_size) {{
+
+            match {ctx.proto}::{message_name}::decode(&body[5..]) {{
+                Ok(mut rpc_{name}) => {{
+        """
+        suffix_decode_rpc = f"""
+                        }}
+                Err(e) => log::warn!("decode error: {{}}", e),
+            }}
+        }}
+
+        """
+        if ctx.strong_state_count > 0 and ctx.current_procedure == FUNC_REQ_BODY:
+            ctx.push_code(
+                f"let mut rpc_hashmap_inner = {ctx.rpc_hashmap}.write().unwrap();"
+            )
+            ctx.push_code(prefix_decode_rpc)
+            ctx.push_code(f"rpc_hashmap_inner.insert(self.context_id, body_size);")
+            placeholder, args, res_init_code, res_get_code = "", "", "", ""
+            for i, (sname, arg) in enumerate(ctx.strong_access_args.items()):
+                placeholder += "/{}"
+                args += (
+                    arg.accept(self, ctx) + f'+ "_{sname}", '
+                )  # Append the sname to avoid key collision between elements
+                res_init_code += f"let mut {sname}_read: Option<String> = None;\n"
+                res_get_code += f"""{sname}_read = match(mget[{i}]) {{
+                                        serde_json::Value::Null => None,
+                                        _ => Some(mget[{i}].as_str().unwrap().to_string())
+                                    }};
+                                """
+            ctx.push_code(
+                f"""self.dispatch_http_call(
+                                  "webdis-service-{ctx.element_name}", // or your service name
+                                   vec![
+                                        (":method", "GET"),
+                                        (":path", &format!("/MGET{placeholder}", {args})),
+                                        (":authority", "webdis-service-{ctx.element_name}"), // Replace with the appropriate authority if needed
+                                   ],
+                                   None,
+                                   vec![],
+                                   Duration::from_secs(5),
+                              )
+                              .unwrap();
+                              return Action::Pause"""
+            )
+            ctx.push_code(suffix_decode_rpc)
+            # Move to on_http_call_response()
+            ctx.current_procedure = FUNC_EXTERNAL_RESPONSE
+
+        ctx.push_code(inners)
+
+        if (
+            ctx.strong_state_count > 0
+            and ctx.current_procedure == FUNC_EXTERNAL_RESPONSE
+        ):
+            ctx.push_code(
+                f"let mut rpc_hashmap_inner = {ctx.rpc_hashmap}.read().unwrap();"
+            )
+            ctx.push_code(
+                "let rpc_body_size: usize = *rpc_hashmap_inner.get(&self.context_id).unwrap();"
+            )
+            ctx.push_code(res_init_code)
+            ctx.push_code(
+                f"""match serde_json::from_str::<Value>(body_str) {{
+                    Ok(json) => match json.get("MGET") {{
+                        Some(res) if !res.is_null() => {{
+                            let mget = res.as_array().unwrap();
+                            {res_get_code}
+                        }}
+                        _ => {{
+                            // log::warn!("Only GET results will be parsed!");
+                            return;
+                        }}
+                    }},
+                    Err(_) => log::warn!("Response body: [Invalid JSON data]"),
+                }}
+            """
+            )
+
+        # If the procedure does not access the RPC message, then we do not need to decode the RPC message
+        if ctx.current_procedure != FUNC_INIT:
+            prefix = prefix_decode_rpc
+            if ctx.current_procedure == FUNC_EXTERNAL_RESPONSE:
+                prefix = prefix.replace("body_size", "rpc_body_size")
+            if original_procedure == FUNC_REQ_BODY:
+                if "rpc" in ctx.access_ops[FUNC_REQ_BODY]:
+                    ctx.push_code(prefix)
+            elif original_procedure == FUNC_RESP_BODY:
+                if "rpc" in ctx.access_ops[FUNC_RESP_BODY]:
+                    ctx.push_code(prefix)
+
+        # if there exist weak consistency states, register on_tick function
+        if ctx.current_procedure == FUNC_INIT and ctx.weak_state_count > 0:
+            ctx.push_code("self.set_tick_period(Duration::from_secs(1));")
+
+        for p in node.params:
+            name = p.name
+            if ctx.find_var(name) == None:
+                LOG.error(f"param {name} not found in VisitProcedure")
+                raise Exception(f"param {name} not found")
+        for s in node.body:
+            code = s.accept(self, ctx)
+            ctx.push_code(code)
+
+        if ctx.current_procedure != FUNC_INIT:
+            if original_procedure == FUNC_REQ_BODY:
+                if "rpc" in ctx.access_ops[FUNC_REQ_BODY]:
+                    ctx.push_code(suffix_decode_rpc)
+            elif original_procedure == FUNC_RESP_BODY:
+                if "rpc" in ctx.access_ops[FUNC_RESP_BODY]:
+                    ctx.push_code(suffix_decode_rpc)
+
+    def visitStatement(self, node: Statement, ctx: NativeContext) -> str:
+        if node.stmt == None:
+            return ";//NULL_STMT\n"
+        else:
+            if isinstance(node.stmt, Expr) or isinstance(node.stmt, Send):
+                ret = node.stmt.accept(self, ctx) + ";\n"
+                return ret
+            else:
+                return node.stmt.accept(self, ctx)
+
+    def visitMatch(self, node: Match, ctx: NativeContext) -> str:
+        template = "match (" + node.expr.accept(self, ctx)
+        if isinstance(node.expr, Identifier):
+            var = ctx.find_var(node.expr.name)
+            if var.type.name == "String":
+                template += ".as_str()"
+        template += ") {"
+        # TODO: to parse the content of a strong consistent GET result, for now
+        # we require users to explicitly use a temporary variable to store the
+        # result of `.get()` operation and then apply `match` on that variable,
+        # i.e., the code
+        #     match(state.get(...))
+        # should be rewritten as
+        #     res = state.get(...);
+        #     match(res)
+        # The second style is more convenient for the compiler to decide the right
+        # point to switch to the `on_http_call_response()` method. In the future,
+        # we may support the more consise version.
+
+        # For each match(Identifier) expression, we need to addtionally check
+        # whether it's parsing a strong consistent GET result.
+        # if isinstance(node.expr, Identifier):
+        # TODO: Check type after we have type inference
+        # template += node.expr.accept(self, ctx)
+        # var = ctx.find_var(node.expr.name)
+        # if var.consistency == "strong":
+        #     strong_match = True
+        #     # switch to on_http_call_response()
+        #     ctx.current_procedure = FUNC_EXTERNAL_RESPONSE
+        #     template += ".as_str()"
+        # elif (
+        #     var.type.name == "String"
+        #     and ctx.current_procedure != FUNC_EXTERNAL_RESPONSE
+        # ):
+        #     # match (xxx) {
+        #     #     Some(var) => {
+        #     #         match(var.as_str())
+        #     #                   ^^^^^^^^
+        #     #     }
+        #     # }
+        #     # In on_http_call_response(), the outer-most match is responsible for casting
+        #     # results into &str
+        #     # TODO: complete type inference for type casting
+        #     template += ".as_str()"
+        # var = ctx.find_var(node.expr.name)
+        # if var.type.name == "String":
+        #     template += node.expr.accept(self, ctx) + ".as_str()"
+        # else:
+        # template += node.expr.accept(self, ctx)
+        # template += ") {"
+        for p, s in node.actions:
+            ctx.push_scope(p)
+            leg = f"    {p.accept(self, ctx)} => {{"
+            for st in s:
+                leg += f"{st.accept(self, ctx)}\n"
+            leg += "}"
+            template += leg
+            ctx.pop_scope()
+
+        # Append a wildcard matching statement to pass Rust compiler checking
+        template += "_ => {}"
+        template += "}"
+
+        return template
+
+    def visitAssign(self, node: Assign, ctx: NativeContext) -> str:
+        value = node.right.accept(self, ctx)
+        var = ctx.find_var(node.left.name)
+
+        if ctx.current_procedure == FUNC_INIT:
+            if var == None:
+                LOG.error(f"variable not found in assign")
+                raise ValueError
+            if not var.temp and not var.atomic:
+                if isinstance(var.type, WasmBasicType):
+                    lhs = "*" + var.name
+                else:
+                    lhs = var.name
+            else:
+                lhs = var.name
+            if var.type.name == "String":
+                rhs = f"{value}.to_string()"
+            else:
+                rhs = value
+            return f"{lhs} = {rhs};"
+        else:
+            if var == None:
+                # If var is none, it's a temparary variable.
+                # NOTE: This is a hacky way to handle temp variables. We assume that temp variables are always of type String.
+                # TODO(): Assign correct type to temp variable after we have type inference.
+                # currently, we only inspect whether this temp variable holds a strong-consistent result.
+                ctx.declare(
+                    node.left.name,
+                    WasmType("unknown"),
+                    True,
+                    False,
+                )
+                lhs = "let mut " + node.left.name
+                return f"{lhs} = {value};\n"
+            else:
+                if not var.temp and not var.atomic:
+                    if isinstance(var.type, WasmBasicType):
+                        lhs = "*" + var.name
+                    else:
+                        lhs = var.name
+                else:
+                    lhs = var.name
+                return f"{lhs} = ({value}) as {var.type.name};\n"
+
+    def visitPattern(self, node: Pattern, ctx: NativeContext):
+        if isinstance(node.value, Identifier):
+            assert node.some
+            name = node.value.name
+            if ctx.find_var(name) == None:
+                # TODO: infer the correct type for the temp variable
+                ctx.declare(name, WasmBasicType("String"), True, False)  # declare temp
+            # else:
+            # LOG.error("variable already defined should not appear in Some")
+            # raise Exception(f"variable {name} already defined")
+            return f"Some({node.value.accept(self, ctx)})"
+        if node.some:
+            return f"Some({node.value.accept(self, ctx)})"
+        else:
+            return node.value.accept(self, ctx)
+
+    def visitExpr(self, node: Expr, ctx):
+        return f"({node.lhs.accept(self, ctx)} {node.op.accept(self, ctx)} {node.rhs.accept(self, ctx)})"
+
+    def visitOperator(self, node: Operator, ctx):
+        match node:
+            case Operator.ADD:
+                return "+"
+            case Operator.SUB:
+                return "-"
+            case Operator.MUL:
+                return "*"
+            case Operator.DIV:
+                return "/"
+            case Operator.AND:
+                return "&&"
+            case Operator.OR:
+                return "||"
+            case Operator.EQ:
+                return "=="
+            case Operator.NEQ:
+                return "!="
+            case Operator.GT:
+                return ">"
+            case Operator.GE:
+                return ">="
+            case Operator.LT:
+                return "<"
+            case Operator.LE:
+                return "<="
+            case Operator.NOT:
+                return "!"
+            case _:
+                raise Exception("unknown operator")
+
+    def visitIdentifier(self, node: Identifier, ctx: NativeContext):
+        var = ctx.find_var(node.name)
+        if var == None:
+            LOG.error(f"variable name {node.name} not found")
+            raise Exception(f"variable {node.name} not found")
+        else:
+            if var.temp or var.rpc:
+                return var.name
+            else:
+                # Not sure what this does
+                # assert var.is_unwrapped()
+                if isinstance(var.type, WasmBasicType):
+                    return "*" + var.name
+                else:
+                    return var.name
+
+    def visitType(self, node: Type, ctx: NativeContext):
+        def map_basic_type(type_def: str):
+            match type_def:
+                case "float":
+                    return WasmBasicType("f64")
+                case "int":
+                    return WasmBasicType("i32")
+                case "uint":
+                    return WasmBasicType("u32")
+                case "string":
+                    return WasmBasicType("String")
+                case "Instant":
+                    return WasmBasicType("f64")
+                case _:
+                    LOG.warning(f"unknown type: {type_def}")
+                    return WasmType(type_def)
+
+        type_def: str = node.name
+        if type_def.startswith("Vec<"):
+            vec_type = type_def[4:].split(">")[0].strip()
+            # If the vector state requires strong consistency, we need to rely on an external storage
+            # Otherwise (local state or eventual consistent state), use a local vector
+            if node.consistency == "strong":
+                return WasmSyncVecType(map_basic_type(vec_type))
+            else:
+                return WasmVecType(map_basic_type(vec_type))
+        elif type_def.startswith("Map<"):
+            temp = type_def[4:].split(">")[0]
+            key_type = temp.split(",")[0].strip()
+            value_type = temp.split(",")[1].strip()
+            # If the map state requires strong consistency, we need to rely on an external storage
+            # Otherwise (local state or eventual consistent state), use a local map
+            if node.consistency == "strong":
+                return WasmSyncMapType(
+                    map_basic_type(key_type), map_basic_type(value_type)
+                )
+            else:
+                return WasmMapType(map_basic_type(key_type), map_basic_type(value_type))
+        else:
+            return map_basic_type(type_def)
+
+    def visitFuncCall(self, node: FuncCall, ctx: NativeContext) -> str:
+        def func_mapping(fname: str) -> WasmFunctionType:
+            match fname:
+                case "randomf":
+                    return WasmGlobalFunctions["random_f64"]
+                case "randomu":
+                    return WasmGlobalFunctions["random_u32"]
+                case "update_window":
+                    return WasmGlobalFunctions["update_window"]
+                case "current_time":
+                    return WasmGlobalFunctions["current_time"]
+                case "min":
+                    return WasmGlobalFunctions["min_f64"]
+                case "max":
+                    return WasmGlobalFunctions["max_f64"]
+                case "time_diff":
+                    return WasmGlobalFunctions["time_diff"]
+                case "time_diff_ref":
+                    return WasmGlobalFunctions["time_diff_ref"]
+                case "encrypt":
+                    return WasmGlobalFunctions["encrypt"]
+                case "decrypt":
+                    return WasmGlobalFunctions["decrypt"]
+                case "rpc_id":
+                    return WasmGlobalFunctions["rpc_id"]
+                case _:
+                    LOG.error(f"unknown global function: {fname} in func_mapping")
+                    raise Exception("unknown global function:", fname)
+
+        fn_name = node.name.name
+        fn: WasmFunctionType = func_mapping(fn_name)
+        types = fn.args
+        args = [f"{i.accept(self, ctx)}" for i in node.args if i is not None]
+        for idx, ty in enumerate(types):
+            if ty.name == "&str":
+                args[idx] = f"&{args[idx]}"
+            elif ty.name == "Instant":
+                args[idx] = f"{args[idx]}.clone()"
+            else:
+                args[idx] = f"(({args[idx]}).clone() as {ty.name})"
+        ret = fn.gen_call(args)
+        return ret
+
+    def visitMethodCall(self, node: MethodCall, ctx: NativeContext) -> str:
+        var = ctx.find_var(node.obj.name)
+        if var.consistency == "strong" and node.method == MethodType.GET:
+            return f"{var.name}_read"
+        if var == None:
+            LOG.error(f"{node.obj.name} is not declared")
+            raise Exception(f"object {node.obj.name} not found")
+        t = var.type
+        args = [i.accept(self, ctx) for i in node.args]
+
+        if not var.rpc:
+            new_arg = []
+            for i in args:
+                if i.startswith('"'):
+                    new_arg.append(i + ".to_string()")
+                else:
+                    new_arg.append(i)
+            args = new_arg
+        if var.consistency == "strong":
+            # For strong-consistent variables, we use "self.dispatch_http_call"
+            # to interact with the external storage, and thus the variable name
+            # shouldn't appear.
+            ret = ""
+        elif ctx.current_procedure == FUNC_INIT:
+            ret = var.name
+        else:
+            ret = node.obj.accept(self, ctx)
+
+        if var.rpc:
+            match node.method:
+                case MethodType.GET:
+                    ret = proto_gen_get(var.name, args, ctx)
+                case MethodType.SET:
+                    ret = proto_gen_set(var.name, args, ctx)
+                case MethodType.DELETE:
+                    raise NotImplementedError
+                case MethodType.SIZE:
+                    ret = proto_gen_size(args)
+                case MethodType.BYTE_SIZE:
+                    return proto_gen_bytesize(var.name, args)
+                case _:
+                    raise Exception("unknown method", node.method)
+        else:
+            match node.method:
+                case MethodType.GET:
+                    ret += t.gen_get(args, node.obj.name, ctx.element_name)
+                case MethodType.SET:
+                    ret += t.gen_set(
+                        args, node.obj.name, ctx.element_name, ctx.current_procedure
+                    )
+                case MethodType.DELETE:
+                    ret += t.gen_delete(args)
+                case MethodType.SIZE:
+                    ret += t.gen_size()
+                case _:
+                    raise Exception("unknown method", node.method)
+        return ret
+
+    def visitSend(self, node: Send, ctx: NativeContext) -> str:
+        # TODO: currently do not support doing things after send!
+        status_code = 403
+        # TODO: The status code should be configurable
+        # TODO: Better error checking (e.g., check if the message is an Error message and direction is down)
+        if isinstance(node.msg, Error) and node.direction == "Up":
+            # TODO: If the Error message is numeral, we will consider it as
+            # the status code
+            if (
+                node.msg.msg.type == DataType.STR
+                and node.msg.msg.value[1:-1].isnumeric()
+            ):
+                status_code = int(node.msg.msg.value[1:-1])
+            # For Send statement in on_http_call_response(), the return type
+            # should be ()
+            return_stmt = (
+                ""
+                if ctx.current_procedure == FUNC_EXTERNAL_RESPONSE
+                else "return Action::Pause;"
+            )
+            return (
+                f"""
+                        self.send_http_response(
+                            {status_code},
+                            vec![
+                                ("grpc-status", "1"),
+                            ],
+                            Some(b"{node.msg.msg.value}."),
+                        );
+                    """
+                + return_stmt
+            )
+        else:
+            return ""
+
+    def visitLiteral(self, node: Literal, ctx):
+        return node.value.replace("'", '"')
+
+    def visitError(self, node: Error, ctx) -> str:
+        raise NotImplementedError
+
+
+def proto_gen_get(rpc: str, args: List[str], ctx: NativeContext) -> str:
+    assert len(args) == 1
+    arg = args[0].strip('"')
+
+    if arg.startswith("meta"):  # RPC Metadata
+        ctx.gen_meta_get(arg)
+        return f"self.{arg}"
+    else:
+        # Extract the field type
+        arg_type = proto_get_arg_type(arg, ctx)
+
+        # TODO: temp hack, but this should work in most cases
+        return (
+            f"{rpc}.{arg}.clone()"
+            if arg_type == "String"
+            else f"{rpc}.{arg}.clone().to_string()"
+        )
+
+
+def proto_gen_set(rpc: str, args: List[str], ctx: NativeContext) -> str:
+    assert len(args) == 2
+    k = args[0].strip('"')
+    k_type = proto_get_arg_type(k, ctx)
+    v = args[1] + ".to_string()" if k_type == "string" else args[1]
+    if k.startswith("meta"):
+        raise NotImplementedError
+    #! fix that use name match
+    replacements = {
+        "RpcMethod": ctx.method_name,
+        "VarName": k,
+        "VarType": proto_type_mapping(k_type),
+        "Proto": ctx.proto,
+        "RequestMessageName": ctx.request_message_name,
+        "ResponseMessageName": ctx.response_message_name,
+    }
+    if rpc == "rpc_request":
+        # TODO: more rigorous check based on type instead of contents
+        # wasm_self_functions: List[str] -> List[NativeVariable]
+        has_request_modify = any(
+            "request_modify" in code for code in ctx.wasm_self_functions
+        )
+
+        if not has_request_modify:
+            ctx.wasm_self_functions.append(
+                deepcopy(
+                    WasmSelfFunctionTemplates["request_modify"].definition.format(
+                        **replacements
+                    )
+                )
+            )
+        return f"self.{ctx.method_name}_request_modify_{k}(&mut {rpc}, {v})"
+    elif rpc == "rpc_response":
+        has_response_modify = any(
+            "response_modify" in code for code in ctx.wasm_self_functions
+        )
+
+        if not has_response_modify:
+            ctx.wasm_self_functions.append(
+                deepcopy(
+                    WasmSelfFunctionTemplates["response_modify"].definition.format(
+                        **replacements
+                    )
+                )
+            )
+        return f"self.{ctx.method_name}_response_modify_{k}(&mut {rpc}, {v})"
+
+
+def proto_gen_size(rpc: str, args: List[str]) -> str:
+    assert len(args) == 0
+    return f"{rpc}.size()"
+
+
+def proto_gen_bytesize(rpc: str, args: List[str]) -> str:
+    assert len(args) == 0
+    # TODO: fix - should return usize.
+    # Also, this does not seem to return the actual length of the RPC but the pointer size.
+    # return f"mem::size_of_val(&{rpc}) as f64"
+    return f"{rpc}.body.bytes().len() as f64"
+
+
+def proto_get_arg_type(arg: str, ctx: NativeContext) -> str:
+    if ctx.current_procedure == FUNC_REQ_BODY:
+        return ctx.message_field_types["request"][arg]
+    elif ctx.current_procedure == FUNC_RESP_BODY:
+        return ctx.message_field_types["response"][arg]
+    elif ctx.current_procedure == FUNC_EXTERNAL_RESPONSE:
+        # TODO: We should distinguish between request and response external requests.
+        return (
+            ctx.message_field_types["request"][arg]
+            if arg in ctx.message_field_types["request"]
+            else ctx.message_field_types["response"][arg]
+        )
+    else:
+        raise Exception("unknown procedure")
+
+
+def proto_type_mapping(proto_type: str) -> str:
+    """Maps the type in the protobuf to the type in wasm"""
+    if proto_type == "string":
+        return "String"
+    elif proto_type == "int":
+        return "i32"
+    elif proto_type == "uint":
+        return "u32"
+    elif proto_type == "float":
+        return "f32"
+    elif proto_type == "bool":
+        return "bool"
+    else:
+        raise Exception("unknown type")

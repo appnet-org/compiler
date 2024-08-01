@@ -67,7 +67,7 @@ def gen_code(
             raise ValueError(f"Method {method_name} not found in {proto_path}.")
     proto = os.path.basename(proto_path).replace(".proto", "")
 
-    assert backend_name in ("mrpc", "envoy", "grpc", "ambient")
+    assert backend_name in ("mrpc", "envoy", "grpc", "ambient", "envoy_native")
     compiler = ElementCompiler()
 
     # Find the request and response message names.
@@ -116,6 +116,9 @@ def gen_code(
             message_field_types=message_field_types,
             tag=tag,
         )
+    elif backend_name == "envoy-native":
+        # TODO
+        pass
 
     printer = Printer()
 
@@ -129,6 +132,7 @@ def gen_code(
             ir = compiler.parse_and_transform(spec)
             if verbose:
                 p = ir.accept(printer, None)
+                print("showing IR:")
                 print(p)
             eirs.append(ir)
 
