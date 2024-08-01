@@ -1,0 +1,94 @@
+admin:
+  access_log_path: "/tmp/envoy_access.log"
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 9999 }
+
+static_resources:
+  listeners:
+    - name: listener_8081
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 8081 }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                http2_protocol_options: {}  # enable HTTP/2
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: backend
+                      domains: ["*"]
+                      routes:
+                        - match: { prefix: "/" }
+                          route:
+                            cluster: service_cluster
+                            timeout: 5s
+                http_filters:
+                  - name: sample
+                    typed_config:
+                      "@type": type.googleapis.com/sample.FilterConfig
+                  - name: envoy.filters.http.router
+                    typed_config: 
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+  clusters:
+    - name: service_cluster
+      connect_timeout: 0.25s
+      type: STRICT_DNS
+      # lb_policy: ROUND_ROBIN
+      # load_balancing_policy:
+      #   policies:
+      #   - typed_extension_config:
+      #       name: envoy.load_balancing_policies.round_robin
+      #       typed_config:
+      #         "@type": type.googleapis.com/envoy.extensions.load_balancing_policies.round_robin.v3.RoundRobin
+
+      # LOAD_BALANCING_POLICY_CONFIG
+      load_balancing_policy:
+        policies:
+          - typed_extension_config:
+              name: envoy.load_balancing_policies.myrandom
+              typed_config:
+                "@type": type.googleapis.com/envoy.custom.lbconfig
+                # "@type": type.googleapis.com/envoy.extensions.load_balancing_policies.random.v3.Random
+      http2_protocol_options: {}
+      load_assignment:
+        cluster_name: service_cluster
+        endpoints:
+          - locality:
+            lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: localhost
+                      port_value: 9000
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: localhost
+                      port_value: 9001
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: localhost
+                      port_value: 9002
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: localhost
+                      port_value: 9003
+    - name: webdis_cluster
+      connect_timeout: 0.25s
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: webdis_cluster
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1 # don't use localhost, since webdis reject ipv6.
+                      port_value: 7379

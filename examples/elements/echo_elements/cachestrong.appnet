@@ -11,6 +11,7 @@ req(rpc):
 		Some(name) =>
             match name:
                 'cached' =>
+                    hello = get(cache, get(rpc, 'body2'))
                     send(err('cache'), Up)
                 _ =>
                     send(err('bomb'), Up)

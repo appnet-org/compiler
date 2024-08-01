@@ -1,0 +1,6 @@
+import %workspace%/envoy/.bazelrc
+build --platform_mappings=envoy/bazel/platform_mappings
+build:fastbuild --compilation_mode=fastbuild
+build:fastbuild --copt=-O0
+# build:fastbuild --copt=-g
+build:fastbuild --strip=never

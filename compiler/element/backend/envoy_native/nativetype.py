@@ -4,7 +4,7 @@ import copy
 from enum import Enum
 from typing import List, Optional
 
-from compiler.element.backend.envoy import *
+from compiler.element.backend.envoy_wasm import *
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 
@@ -243,8 +243,6 @@ class NativeVariable:
         name: str,
         nativeType: NativeType,
         temp: bool,
-        # rpc: bool, # rpc is a special variable
-        # atomic: bool,
         inner: bool,
         consistency: str = None, # type: ignore
         combiner: str = "LWW",

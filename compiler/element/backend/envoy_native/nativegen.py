@@ -39,43 +39,16 @@ class NativeContext:
             # Check for duplicate variable names
             raise Exception(f"variable {name} already defined")
         else:
-            # Create a new WasmVariable instance and add it to the name2var mapping
+            # Create a new NativeVariable instance and add it to the name2var mapping
             var = NativeVariable(
                 name,
                 rtype,
                 temp_var,
-                # name == "rpc_request" or name == "rpc_response",
-                atomic,
                 inner=False,
                 consistency=consistency,
                 combiner=combiner,
                 persistence=persistence,
             )
-            if consistency == "weak":
-                # weak consistency states will be treated like local states, except that
-                # we periodically sync the states in the background
-                self.weak_consistency_states.append(var)
-            if consistency == "strong":
-                self.strong_consistency_states.append(var)
-                self.name2var[name] = var
-            elif not temp_var and not var.rpc and atomic:
-                # If it's not a temp variable and does not belong to RPC request or response processing.
-                var.init = rtype.gen_init()
-                self.states.append(var)
-                # Create an inner variable for the declared variable
-                v_inner = WasmVariable(
-                    name + "_inner", rtype, False, False, False, inner=True
-                )
-                self.inners.append(v_inner)
-                self.name2var[name] = v_inner
-            elif name == "rpc_request":
-                self.name2var["rpc"] = var
-            elif name == "rpc_response":
-                self.name2var["rpc"] = var
-            else:
-                # temp variable, not rpc_req/resp
-                self.name2var[name] = var
-                self.temp_var_scope[name] = self.scope[-1]
 
 
 

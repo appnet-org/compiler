@@ -1,0 +1,11 @@
+bazel-*
+clang.bazelrc
+user.bazelrc
+
+.vscode/
+.cache/
+compile_commands.json
+webdis/
+webdis.log
+
+alb/
