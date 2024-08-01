@@ -4,7 +4,7 @@ import copy
 from enum import Enum
 from typing import List, Optional
 
-from compiler.element.backend.envoy import *
+from compiler.element.backend.envoy_wasm import *
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 

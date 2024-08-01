@@ -2,9 +2,9 @@ import os
 from typing import Dict
 
 from compiler.config import COMPILER_ROOT
-from compiler.element.backend.envoy.boilerplate import *
-from compiler.element.backend.envoy.wasmgen import WasmContext
-from compiler.element.backend.envoy.wasmtype import WasmGlobalFunctions
+from compiler.element.backend.envoy_wasm.boilerplate import *
+from compiler.element.backend.envoy_wasm.wasmgen import WasmContext
+from compiler.element.backend.envoy_wasm.wasmtype import WasmGlobalFunctions
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 
@@ -40,7 +40,7 @@ def codegen_from_template(output_dir, snippet, lib_name, proto_path):
     with open(f"{output_dir}/build.sh", "w") as f:
         f.write(build_sh.format(**snippet))
 
-    template_path = os.path.join(COMPILER_ROOT, "element/backend/envoy/templates")
+    template_path = os.path.join(COMPILER_ROOT, "element/backend/envoy_wasm/templates")
 
     # Add the proto file to the generated code
     with open(f"{template_path}/build.rs", "r") as file:
