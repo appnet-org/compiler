@@ -10,6 +10,8 @@ from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
 from compiler.element.backend.grpc.gogen import GoContext, GoGenerator
 from compiler.element.backend.mrpc.finalizer import finalize as RustFinalize
 from compiler.element.backend.mrpc.rustgen import RustContext, RustGenerator
+from compiler.element.backend.envoy_native.nativegen import NativeContext, NativeGenerator
+from compiler.element.backend.envoy_native.finalizer import finalize as NativeFinalize
 from compiler.element.frontend import ElementCompiler
 from compiler.element.frontend.printer import Printer
 from compiler.element.frontend.util import (
@@ -116,9 +118,19 @@ def gen_code(
             message_field_types=message_field_types,
             tag=tag,
         )
-    elif backend_name == "envoy-native":
-        # TODO
-        pass
+    elif backend_name == "envoy_native":
+        generator = NativeGenerator(placement)
+        finalize = NativeFinalize
+        ctx = NativeContext(
+            proto=proto,
+            method_name=method_name,
+            request_message_name=request_message_name,
+            response_message_name=response_message_name,
+            message_field_types=message_field_types,
+            mode="sidecar",
+            element_name=output_name,
+            tag=tag,
+        )
 
     printer = Printer()
 

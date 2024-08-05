@@ -12,7 +12,7 @@ envoy_cc_binary(
     name = "envoy",
     repository = "@envoy",
     deps = [
-        ":ratelimit_filter_config",
+        ":appnet_filter_config",
         "@envoy//source/exe:envoy_main_entry_lib",
     ],
 )
@@ -20,9 +20,9 @@ envoy_cc_binary(
 api_proto_package()
 
 envoy_cc_library(
-    name = "ratelimit_filter_lib",
-    srcs = ["ratelimit_filter.cc", "thirdparty/base64.cpp"],
-    hdrs = ["ratelimit_filter.h", "thirdparty/json.hpp", "thirdparty/base64.h"],
+    name = "appnet_filter_lib",
+    srcs = ["appnet_filter.cc", "thirdparty/base64.cpp"],
+    hdrs = ["appnet_filter.h", "thirdparty/json.hpp", "thirdparty/base64.h"],
     repository = "@envoy",
     deps = [
         ":pkg_cc_proto",
@@ -33,11 +33,11 @@ envoy_cc_library(
 )
 
 envoy_cc_library(
-    name = "ratelimit_filter_config",
-    srcs = ["ratelimit_filter_config.cc"],
+    name = "appnet_filter_config",
+    srcs = ["appnet_filter_config.cc"],
     repository = "@envoy",
     deps = [
-        ":ratelimit_filter_lib",
+        ":appnet_filter_lib",
         "@envoy//envoy/server:filter_config_interface",
     ],
 )

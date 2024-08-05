@@ -3,9 +3,9 @@
 #include "envoy/registry/registry.h"
 #include "envoy/server/filter_config.h"
 
-#include "ratelimit/ratelimit_filter.pb.h"
-#include "ratelimit/ratelimit_filter.pb.validate.h"
-#include "ratelimit_filter.h"
+#include "appnet_filter/appnet_filter.pb.h"
+#include "appnet_filter/appnet_filter.pb.validate.h"
+#include "appnet_filter.h"
 
 namespace Envoy {
 namespace Server {
@@ -33,12 +33,12 @@ public:
 
 private:
   Http::FilterFactoryCb createFilter(const sample::FilterConfig& proto_config, FactoryContext &factory_ctx) {
-    Http::RatelimitFilterConfigSharedPtr config =
-        std::make_shared<Http::RatelimitFilterConfig>(
-            Http::RatelimitFilterConfig(proto_config, factory_ctx));
+    Http::AppnetFilterConfigSharedPtr config =
+        std::make_shared<Http::AppnetFilterConfig>(
+            Http::AppnetFilterConfig(proto_config, factory_ctx));
 
     return [config](Http::FilterChainFactoryCallbacks& callbacks) -> void {
-      auto filter = new Http::RatelimitFilter(config);
+      auto filter = new Http::AppnetFilter(config);
       callbacks.addStreamFilter(Http::StreamFilterSharedPtr{filter});
     };
   }

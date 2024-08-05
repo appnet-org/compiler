@@ -18,7 +18,7 @@ envoy_cc_binary(
     repository = "@envoy",
     deps = [
         "//lb_random:random_lb_lib",
-        "//ratelimit:ratelimit_filter_config",
+        "//appnet_filter:appnet_filter_config",
         "@envoy//source/exe:envoy_main_entry_lib",
     ],
 )

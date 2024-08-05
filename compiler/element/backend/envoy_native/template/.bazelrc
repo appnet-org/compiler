@@ -4,3 +4,6 @@ build:fastbuild --compilation_mode=fastbuild
 build:fastbuild --copt=-O0
 # build:fastbuild --copt=-g
 build:fastbuild --strip=never
+
+
+build:fastbuild --define tcmalloc=disabled

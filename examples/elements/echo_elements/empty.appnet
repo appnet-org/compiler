@@ -1,0 +1,10 @@
+state:
+  pass
+init():
+	pass
+
+req(rpc):
+  pass
+
+resp(rpc):
+  pass

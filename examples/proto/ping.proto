@@ -26,8 +26,10 @@ message PingPongResponse {
 
 message PingEchoRequest {
   string body = 1;
+  string body2 = 2;
 }
 
 message PingEchoResponse {
   string body = 1;
+  string body2 = 2;
 }
