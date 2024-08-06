@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import Dict, List, Optional, Set
 
 from compiler.element.backend.envoy_native import *
-from compiler.element.backend.envoy_native.cpptype import *
+from compiler.element.backend.envoy_native.nativetype import *
 from compiler.element.backend.envoy_native.appnettype import *
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
@@ -21,9 +21,9 @@ class NativeContext:
         element_name: str = "",
         tag: str = "0",
     ) -> None:
-        self.appnet_var: list[AppNetVariable] = []
-        self.cpp_var: list[NativeVariable] = {}
-        self.name2var: dict[str, NativeVariable] = {}
+        self.appnet_state: dict[str, AppNetVariable] = {}
+        self.appnet_local_var: dict[str, AppNetVariable] = {}
+        self.native_var: list[dict[str, NativeVariable]] = [{}] # The first scope is the global scope
         self.global_var_def: list[str] = []
         self.init_code: list[str] = []
         self.on_tick_code: list[str] = []
@@ -35,35 +35,30 @@ class NativeContext:
         self.current_procedure: str = ""
         self.current_procedure_code: list[str] = []
 
-
-
-
-    # This method declares a new variable in the Native context and add it to the name2var mapping
-    def declare(
+    def declareAppNetState(
         self,
         name: str,
-        rtype: NativeType,
-        temp_var: bool,
-        atomic: bool,
-        consistency: str = None, # type: ignore
-        combiner: str = None, # type: ignore
-        persistence: bool = False,
-    ) -> None:
-        if name in self.name2var:
-            # Check for duplicate variable names
-            raise Exception(f"variable {name} already defined")
-        else:
-            # Create a new NativeVariable instance and add it to the name2var mapping
-            var = NativeVariable(
-                name,
-                rtype,
-                temp_var,
-                inner=False,
-                consistency=consistency,
-                combiner=combiner,
-                persistence=persistence,
-            )
+        rtype: AppNetType,
+        decorator: Optional[dict[str, str]] = None,
+    ) -> AppNetVariable:
+        if name in self.appnet_state:
+            raise Exception(f"variable {name} already declared")
+        self.appnet_state[name] = AppNetVariable(name, rtype, decorator)
+        return self.appnet_state[name]
 
+    def declareNativeVar(self, name: str, rtype: NativeType) -> Tuple[NativeVariable, str]:
+        # Return the declaration,
+        if name in self.native_var[-1]:
+            raise Exception(f"variable {name} already declared")
+        self.native_var[-1][name] = NativeVariable(name, rtype)
+        return (self.native_var[-1][name], rtype.gen_decl(name))
+
+    def push_code(self, code: str) -> None:
+        self.current_procedure_code.append(code)
+        if code.startswith("{"):
+            self.native_var.append({})
+        if code.startswith("}"):
+            self.native_var.pop()
 
 
 class NativeGenerator(Visitor):
@@ -86,17 +81,19 @@ class NativeGenerator(Visitor):
         for (identifier, type, cons, comb, per) in node.state:
 
             assert(per == None or per.name == "true" or per.name == "false")
-
-            state_name = identifier.name
-            state_native_type = type.accept(self, ctx)
-            ctx.declare(
-                state_name, state_native_type, False, True, cons.name, comb.name, bool(per.name)
-            )
+            appType: AppNetType = type.accept(self, ctx)
+            decorator = {
+                "consistency": cons.name,
+                "combiner": comb.name,
+                "persistence": per.name,
+            }
+            ctx.declareAppNetState(identifier.name, appType, decorator)
 
 
     def visitProcedure(self, node: Procedure, ctx: NativeContext):
         ctx.current_procedure = node.name
         ctx.current_procedure_code = []
+        ctx.appnet_local_var = {}
 
         if node.name == "init":
             assert(len(node.params) == 0)
@@ -106,7 +103,7 @@ class NativeGenerator(Visitor):
             assert(node.params[0].name == "rpc")
 
         for stmt in node.body:
-            ctx.current_procedure_code += stmt.accept(self, ctx)
+            stmt.accept(self, ctx)
  
         if node.name == "init":
             ctx.init_code = ctx.current_procedure_code
@@ -116,12 +113,14 @@ class NativeGenerator(Visitor):
             ctx.resp_hdr_code = ctx.current_procedure_code
         else:
             raise Exception("unknown procedure")
+        ctx.appnet_local_var = {}
 
-    def visitStatement(self, node: Statement, ctx: NativeContext) -> list[str]:
+    def visitStatement(self, node: Statement, ctx: NativeContext):
         # A statement may be translated into multiple C++ statements.
+        # These statements will be attached to ctx.current_procedure_code directly.
 
         if node.stmt is None:
-            return ["; // empty statement"]
+            ctx.push_code("; // empty statement")
         elif isinstance(node.stmt, Send) \
             or isinstance(node.stmt, Assign) \
             or isinstance(node.stmt, Match) \
@@ -136,18 +135,18 @@ class NativeGenerator(Visitor):
             raise Exception("unknown statement")
         
 
-    def visitMatch(self, node: Match, ctx: NativeContext) -> list[str]:
+    def visitMatch(self, node: Match, ctx: NativeContext) -> None:
         expr = node.expr.accept(self, ctx)
 
 
-    def visitAssign(self, node: Assign, ctx: NativeContext) -> list[str]:
+    def visitAssign(self, node: Assign, ctx: NativeContext) -> None:
         pass
 
     # def visitPattern(self, node: Pattern, ctx: NativeContext):
     #     pass
 
     # A temporary cpp variable will be generated to store the result of the expression.
-    def visitExpr(self, node: Expr, ctx) -> NativeVariable:
+    def visitExpr(self, node: Expr, ctx) -> AppNetVariable:
         pass
 
     # def visitOperator(self, node: Operator, ctx)

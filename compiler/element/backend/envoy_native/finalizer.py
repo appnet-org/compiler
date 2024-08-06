@@ -2,8 +2,8 @@ import os
 from typing import Dict
 
 from compiler.config import COMPILER_ROOT
-from compiler.element.backend.envoy_native.cppgen import NativeContext
-from compiler.element.backend.envoy_native.cpptype import NativeGlobalFunctions
+from compiler.element.backend.envoy_native.nativegen import NativeContext
+from compiler.element.backend.envoy_native.nativetype import NativeGlobalFunctions
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 
@@ -29,7 +29,7 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
             + ["} // req header end."]
             + ["{ // req body begin. "] 
                 + ctx.req_body_code
-            + ["} // req body end."],
+            + ["} // req body end.`"],
 
         "// !APPNET_RESPONSE": 
             ["{ // resp header begin. "] 
@@ -43,8 +43,10 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
     # rewrite appnet_filter/appnet_filter.cc according to the replace dict
     with open(f"{output_dir}/appnet_filter/appnet_filter.cc", "r") as file:
         appnet_filter = file.read()
+
     for key, value in replace_dict.items():
         appnet_filter = appnet_filter.replace(key, "\n".join(value))
+        
     with open(f"{output_dir}/appnet_filter/appnet_filter.cc", "w") as file:
         file.write(appnet_filter)
 
