@@ -2,8 +2,8 @@ import os
 from typing import Dict
 
 from compiler.config import COMPILER_ROOT
-from compiler.element.backend.envoy_native.nativegen import NativeContext
-from compiler.element.backend.envoy_native.nativetype import NativeGlobalFunctions
+from compiler.element.backend.envoy_native.cppgen import NativeContext
+from compiler.element.backend.envoy_native.cpptype import NativeGlobalFunctions
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 

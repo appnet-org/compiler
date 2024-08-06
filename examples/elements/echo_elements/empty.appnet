@@ -1,10 +1,12 @@
 state:
   pass
+  
 init():
 	pass
 
 req(rpc):
-  pass
+	send(rpc, Down)
 
 resp(rpc):
-  pass
+	send(rpc, Up)
+

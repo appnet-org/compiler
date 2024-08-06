@@ -2,7 +2,8 @@ from copy import deepcopy
 from typing import Dict, List, Optional, Set
 
 from compiler.element.backend.envoy_native import *
-from compiler.element.backend.envoy_native.nativetype import *
+from compiler.element.backend.envoy_native.cpptype import *
+from compiler.element.backend.envoy_native.appnettype import *
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.visitor import Visitor
@@ -20,8 +21,9 @@ class NativeContext:
         element_name: str = "",
         tag: str = "0",
     ) -> None:
-        self.states: List[NativeVariable] = []
-        self.name2var: Dict[str, NativeVariable] = {}
+        self.appnet_var: list[AppNetVariable] = []
+        self.cpp_var: list[NativeVariable] = {}
+        self.name2var: dict[str, NativeVariable] = {}
         self.global_var_def: list[str] = []
         self.init_code: list[str] = []
         self.on_tick_code: list[str] = []
@@ -76,9 +78,6 @@ class NativeGenerator(Visitor):
     def visitProgram(self, node: Program, ctx: NativeContext) -> None:
         node.definition.accept(self, ctx)
         node.init.accept(self, ctx)
-        for v in ctx.states:
-            if v.init == "":
-                v.init = v.type.gen_init()
         node.req.accept(self, ctx)
         node.resp.accept(self, ctx)
 
@@ -138,24 +137,26 @@ class NativeGenerator(Visitor):
         
 
     def visitMatch(self, node: Match, ctx: NativeContext) -> list[str]:
-        pass
+        expr = node.expr.accept(self, ctx)
+
 
     def visitAssign(self, node: Assign, ctx: NativeContext) -> list[str]:
         pass
 
-    def visitPattern(self, node: Pattern, ctx: NativeContext):
+    # def visitPattern(self, node: Pattern, ctx: NativeContext):
+    #     pass
+
+    # A temporary cpp variable will be generated to store the result of the expression.
+    def visitExpr(self, node: Expr, ctx) -> NativeVariable:
         pass
 
-    def visitExpr(self, node: Expr, ctx):
-        pass
+    # def visitOperator(self, node: Operator, ctx)
+    #     pass
 
-    def visitOperator(self, node: Operator, ctx):
-        pass
+    # def visitIdentifier(self, node: Identifier, ctx: NativeContext)
+    #     pass
 
-    def visitIdentifier(self, node: Identifier, ctx: NativeContext):
-        pass
-
-    def visitType(self, node: Type, ctx: NativeContext):
+    def visitType(self, node: Type, ctx: NativeContext) -> AppNetType:
         pass
 
     def visitFuncCall(self, node: FuncCall, ctx: NativeContext):
