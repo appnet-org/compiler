@@ -1,4 +1,0 @@
-layered_runtime:
-  layers:
-  - static_layer:
-      foo: bar

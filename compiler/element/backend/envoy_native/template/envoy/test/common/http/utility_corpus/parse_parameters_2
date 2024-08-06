@@ -1,4 +1,0 @@
-parse_parameters {
-  data: "/hello?hello"
-  start: 2
-}

@@ -1,1 +1,0 @@
-actions {   new_stream {     request_headers {       headers {         key: ":authority"         value: " "       }     }   } } 

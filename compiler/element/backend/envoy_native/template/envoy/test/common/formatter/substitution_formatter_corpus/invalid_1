@@ -1,1 +1,0 @@
-format: "{{%PROTOCOL%}}   ++ %REQ(FIRST?SECOND)% %RESP(FIRST?SECOND)"

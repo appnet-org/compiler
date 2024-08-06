@@ -1,6 +1,0 @@
-syntax = "proto3";
-
-package test.integration.typed_metadata;
-
-message TestAccessLog {
-}

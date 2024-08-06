@@ -1,5 +1,0 @@
-frames {
-  qframe {
-    mtu_discovery {}
-  }
-}

@@ -1,3 +1,0 @@
-sock {
-  local_address: "tcp://[a:b:c:d::]:0"
-}

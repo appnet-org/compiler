@@ -1,5 +1,0 @@
-config {
-  track_per_rule_stats: true
-}
-request_data {
-}

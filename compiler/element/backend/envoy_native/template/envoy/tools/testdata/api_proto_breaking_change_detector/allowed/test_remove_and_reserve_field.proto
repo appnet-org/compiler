@@ -1,7 +1,0 @@
-syntax = "proto3";
-package test.protos.allowed;
-
-message RemoveReserveFieldMessage {
-  string three = 3;
-  float four = 4;
-}

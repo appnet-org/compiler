@@ -1,6 +1,0 @@
-headers_to_add {
-  header {
-    key: "A"
-    value: "%START_TIME(%E4n%)%"
-  }
-}

@@ -1,3 +1,0 @@
-sock {
-  local_address: "unix://tmp/server"
-}

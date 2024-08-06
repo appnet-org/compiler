@@ -1,6 +1,0 @@
-actions {
-  mutate_and_move {
-    key: "#"
-    append: "~"
-  }
-}

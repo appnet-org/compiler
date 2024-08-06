@@ -1,3 +1,0 @@
-inline_headers:
-- inline_header_name: set-cookie
-  inline_header_type: RESPONSE_HEADER

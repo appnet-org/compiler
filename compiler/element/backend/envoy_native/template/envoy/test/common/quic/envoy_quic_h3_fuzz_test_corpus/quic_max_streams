@@ -1,9 +1,0 @@
-frames {
-  qframe {
-    max_streams {
-      control_frame_id: 0,
-      stream_count: 0,
-      unidirectional: true,
-    }
-  }
-}

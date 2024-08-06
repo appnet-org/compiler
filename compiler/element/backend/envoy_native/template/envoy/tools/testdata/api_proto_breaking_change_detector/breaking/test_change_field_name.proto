@@ -1,6 +1,0 @@
-syntax = "proto3";
-package test.protos.breaking;
-
-message ChangeFieldNameMessage {
-  string seventeen = 17;
-}

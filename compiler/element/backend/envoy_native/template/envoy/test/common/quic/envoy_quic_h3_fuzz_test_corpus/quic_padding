@@ -1,7 +1,0 @@
-frames {
-  qframe {
-    padding {
-      num_padding_bytes: 127,
-    }
-  }
-}

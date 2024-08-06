@@ -1,1 +1,0 @@
-format: "%REQ(valid)% %NOT_VALID%"

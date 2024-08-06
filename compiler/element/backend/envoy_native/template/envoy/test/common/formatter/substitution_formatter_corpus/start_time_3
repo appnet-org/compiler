@@ -1,4 +1,0 @@
-format: "%START_TIME(%%%%|%%%%%f|%s%%%%%3f|%1f%%%%%s)%"
-stream_info {
-  start_time: 1522796769123456
-}

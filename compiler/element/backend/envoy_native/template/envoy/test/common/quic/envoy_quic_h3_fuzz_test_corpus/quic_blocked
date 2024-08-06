@@ -1,9 +1,0 @@
-frames {
-  qframe {
-    blocked {
-      control_frame_id: 0,
-      stream_id: 0,
-      offset: 100,
-    }
-  }
-}

@@ -1,6 +1,0 @@
-format: "%RESPONSE_CODE%"
-stream_info {
-  response_code {
-    value: 404
-  }
-}

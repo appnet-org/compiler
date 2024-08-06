@@ -1,7 +1,0 @@
-make_set_cookie_value {
-  key: "token2"
-  value: "abcde"
-  path: "/hello?a"
-  max_age: 30
-  httponly: false
-}

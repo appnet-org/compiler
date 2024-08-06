@@ -1,3 +1,0 @@
-    remove_query_and_fragment {
-        path : "www.google.com/kitten?user=envoydev"
-    }

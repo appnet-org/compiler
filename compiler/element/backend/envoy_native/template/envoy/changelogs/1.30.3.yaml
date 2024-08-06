@@ -1,6 +1,0 @@
-date: June 26, 2024
-
-bug_fixes:
-- area: datadog
-  change: |
-    Bumped the version of datadog to resolve a crashing bug in earlier versions of the library.
