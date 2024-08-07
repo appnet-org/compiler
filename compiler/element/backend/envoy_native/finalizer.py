@@ -11,13 +11,15 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
 
 
     # check if the output directory exists, if not, copy the template to the output directory
-    # if the directory exists, just rewrite the appnet_filter/appnet_filter.cc file
+    # if the directory exists, just rewrite the appnet_filter/appnet_filter.cc file and its .h file
     if os.path.exists(output_dir) == False:
         os.system(f"mkdir -p {output_dir}")
         os.system(f"bash -c 'cp -r {COMPILER_ROOT}/element/backend/envoy_native/template/{{.,}}* {output_dir}'")
     else:
         os.system(f"rm -f {output_dir}/appnet_filter/appnet_filter.cc")
+        os.system(f"rm -f {output_dir}/appnet_filter/appnet_filter.h")
         os.system(f"cp {COMPILER_ROOT}/element/backend/envoy_native/template/appnet_filter/appnet_filter.cc {output_dir}/appnet_filter/appnet_filter.cc")
+        os.system(f"cp {COMPILER_ROOT}/element/backend/envoy_native/template/appnet_filter/appnet_filter.h {output_dir}/appnet_filter/appnet_filter.h")
 
     replace_dict = {
         "// !APPNET_STATE": ctx.global_var_def,

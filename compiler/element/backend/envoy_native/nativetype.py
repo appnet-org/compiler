@@ -25,9 +25,13 @@ class NativeType:
   def is_basic(self) -> bool:
     return self.is_arithmetic() or self.is_bool()
   
-  def is_same(self, other: NativeType) -> bool:
-    return type(self) == type(other)
+  def is_timepoint(self) -> bool:
+    return isinstance(self, Timepoint)
 
+  def is_same(self, other: NativeType) -> bool:
+    # not apply for complex types
+    assert(self.is_basic() or self.is_string() or self.is_timepoint())
+    return type(self) == type(other)
 
 class Timepoint(NativeType):
   def gen_decl(self, name: str) -> str:
@@ -61,6 +65,11 @@ class Option(NativeType):
   def gen_decl(self, name: str) -> str:
     return f"std::optional<{self.inner.gen_decl(name)}> = std::nullopt;"
 
+  def is_same(self, other: NativeType) -> bool:
+    if not isinstance(other, Option):
+      return False
+    return self.inner.is_same(other.inner)
+
 class Map(NativeType):
   key: NativeType
   value: NativeType
@@ -72,6 +81,11 @@ class Map(NativeType):
   def gen_decl(self, name: str) -> str:
     return f"std::map<{self.key.gen_decl(name)}, {self.value.gen_decl(name)}> {name} = {{}};"
   
+  def is_same(self, other: NativeType) -> bool:
+    if not isinstance(other, Map):
+      return False
+    return self.key.is_same(other.key) and self.value.is_same(other.value)
+
 class Vec(NativeType):
   type: NativeType
 
@@ -80,6 +94,11 @@ class Vec(NativeType):
 
   def gen_decl(self, name: str) -> str:
     return f"std::vector<{self.type.gen_decl(name)}> {name} = {{}};"
+
+  def is_same(self, other: NativeType) -> bool:
+    if not isinstance(other, Vec):
+      return False
+    return self.type.is_same(other.type)
 
 class NativeVariable:
   name: str

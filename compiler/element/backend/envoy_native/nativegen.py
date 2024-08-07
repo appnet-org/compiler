@@ -78,7 +78,9 @@ class NativeContext:
     return self.appnet_state[name]
 
   def declareNativeVar(self, name: str, rtype: NativeType) -> Tuple[NativeVariable, str]:
-    # Return the declaration
+    # Declare a native var in the current scope.
+    # It will return the declared variable and the declaration statement.
+    # The declaration statement should be pushed to the current procedure code by the caller manually.
     if name in self.native_var[-1]:
       raise Exception(f"variable {name} already declared")
     self.native_var[-1][name] = NativeVariable(name, rtype)
@@ -146,14 +148,16 @@ class NativeGenerator(Visitor):
   def visitStatement(self, node: Statement, ctx: NativeContext):
     # A statement may be translated into multiple C++ statements.
     # These statements will be attached to ctx.current_procedure_code directly.
-
+    
     if node.stmt is None:
       ctx.push_code("; // empty statement")
     elif isinstance(node.stmt, Send) \
       or isinstance(node.stmt, Assign) \
       or isinstance(node.stmt, Match) \
       or isinstance(node.stmt, Expr):
-      
+
+      ctx.push_code(f"// stmt {node.stmt}")
+
       retval = node.stmt.accept(self, ctx)
       if not isinstance(retval, list):
         retval = [retval]
@@ -308,6 +312,11 @@ class NativeGenerator(Visitor):
     assert(isinstance(rhs_appnet_type, AppNetType))
     assert(isinstance(rhs_native_var, NativeVariable))
     
+
+
+    lock_acquire_stmt = None
+    lock_release_stmt = None
+
     if lhs_name not in ctx.appnet_local_var and lhs_name not in ctx.appnet_state:
       # This is a new local variable
       lhs = ctx.declareAppNetVariable(lhs_name, rhs_appnet_type)
@@ -318,15 +327,26 @@ class NativeGenerator(Visitor):
         # Existing AppNet variable
         lhs = ctx.appnet_local_var[lhs_name]
       elif lhs_name in ctx.appnet_state:
-        # Existing AppNet state variable
+        # Existing AppNet state
         lhs = ctx.appnet_state[lhs_name]
+
+        # std::mutex global_state_lock;
+        lock_acquire_stmt = f"global_state_lock.lock(); // {lhs_name}_lock will be acquired here"
+        lock_release_stmt = f"global_state_lock.unlock(); // {lhs_name}_lock will be released here"
+
       else:
         raise Exception("unknown variable")
       
       assert(isinstance(rhs_native_var, NativeVariable))
       assert(lhs.native_var is not None)
       assert(lhs.native_var.type.is_same(rhs_native_var.type))
+
+      if lock_acquire_stmt is not None:
+        ctx.push_code(lock_acquire_stmt)
       ctx.push_code(f"{lhs.name} = {rhs_native_var.name};")
+
+      if lock_release_stmt is not None:
+        ctx.push_code(lock_release_stmt)
 
   # A temporary native variable will be generated to store the result of the expression.
   def visitExpr(self, node: Expr, ctx: NativeContext) -> Tuple[AppNetType, NativeVariable]:
@@ -415,8 +435,22 @@ class NativeGenerator(Visitor):
       raise Exception("unknown type")
 
   def visitFuncCall(self, node: FuncCall, ctx: NativeContext) -> Tuple[AppNetType, Optional[NativeVariable]]:
-    raise NotImplementedError
+    args = [self.visitGeneralExpr(arg, ctx) for arg in node.args]
+    fname = node.name.name
+    for func in APPNET_BUILTIN_FUNCS:
+      func_instance: AppNetBuiltinFuncProto = func()
+      if func_instance.appnet_name != fname:
+        continue
 
+      # Check if the arguments match
+      if not func_instance.instantiate([arg[0] for arg in args]):
+        continue
+      
+      # Generate the code
+      ret_native_var = func_instance.gen_code(ctx, *[arg[1] for arg in args])
+      return (func_instance.ret_type(), ret_native_var)
+    
+    raise Exception(f"no function prototype match with name={fname} args={args}")
     
   def visitMethodCall(self, node: MethodCall, ctx: NativeContext) -> Tuple[AppNetType, Optional[NativeVariable]]:
     raise NotImplementedError
@@ -430,16 +464,29 @@ class NativeGenerator(Visitor):
     match ctx.current_procedure:
       case "req":
         if node.direction == "Up":
-          raise NotImplementedError("up direction is not supported in req procedure yet")
+          # Make sure it's something like send(err('msg'), Up)
+          if isinstance(node.msg, Error):
+            assert(node.msg.msg.type == DataType.STR)
+            assert(node.msg.msg.value != "")
+            # Forbidden 403
+            ctx.push_code(f"this->decoder_callbacks_->sendLocalReply(Http::Code::Forbidden, \"{node.msg.msg.value[1:-1]}\", nullptr, absl::nullopt, \"\");")
+            ctx.push_code(f"this->req_appnet_blocked_ = true;")
+            ctx.push_code("co_return;")
+          else:
+            raise Exception("req procedure should only send error message tp Up direction")
         elif node.direction == "Down":
-          ctx.push_code(f"this->decoder_callbacks_->continueDecoding();")
+          ctx.push_code("if (this->in_decoding_or_encoding_ == false) {")
+          ctx.push_code(f"  this->decoder_callbacks_->continueDecoding();")
+          ctx.push_code("}")
           ctx.push_code("co_return;")
         else:
           raise Exception("unknown direction")
         
       case "resp":
         if node.direction == "Up":
-          ctx.push_code(f"this->encoder_callbacks_->continueEncoding();")
+          ctx.push_code("if (this->in_decoding_or_encoding_ == false) {")
+          ctx.push_code(f"  this->encoder_callbacks_->continueEncoding();")
+          ctx.push_code("}")
           ctx.push_code("co_return;")
         elif node.direction == "Down":
           raise NotImplementedError("down direction is not supported in resp procedure yet")
@@ -477,36 +524,141 @@ class NativeGenerator(Visitor):
   def visitError(self, node: Error, ctx) -> str:
     raise NotImplementedError
 
-# def proto_gen_get(rpc: str, args: List[str], ctx: NativeContext) -> str:
-#   pass
 
 
-# def proto_gen_set(rpc: str, args: List[str], ctx: NativeContext) -> str:
-#   pass
+# ======================== BUILD-IN FUNCTIONS ========================
 
 
-# def proto_gen_size(rpc: str, args: List[str]) -> str:
-#   pass
+class AppNetBuiltinFuncProto:
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    # This function accepts a list of AppNetType and returns a boolean indicating whether the given list of AppNetType is valid for this function
+    raise NotImplementedError
+
+  def ret_type(self) -> AppNetType:
+    raise NotImplementedError
+
+  def native_arg_sanity_check(self, native_args: List[NativeVariable]):
+    # Check the given native arguments is consistent with the app args given by instantiate()
+    assert(self.prepared)
+    assert(len(native_args) == len(self.appargs))
+    for i in range(len(native_args)):
+      assert(native_args[i].type.is_same(self.appargs[i].to_native()))
+
+  def gen_code(self, ctx: NativeContext, *args) -> NativeVariable:
+    raise NotImplementedError
+
+  def __init__(self, appnet_name: str, comments: str = ""):
+    self.appnet_name = appnet_name
+    self.comments = comments
+    self.prepared = False
+    self.appargs = []
+
+class GetMap(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and isinstance(args[0], AppNetMap) and args[0].key.is_same(args[1])
+    if ret:
+      assert(isinstance(args[0], AppNetMap))
+      assert(isinstance(args[1], AppNetType))
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    assert(self.prepared)
+    return AppNetOption(self.map.value)
+
+  def gen_code(self, ctx: NativeContext, map: NativeVariable, key: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([map, key])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    
+    ctx.push_code(native_decl_stmt)
+    ctx.push_code(f"{res_native_var.name} = map_get_opt({map.name}, {key.name});")
+    return res_native_var
+  
+  def __init__(self):
+    super().__init__("get", "map")
+    self.map: AppNetMap = None # type: ignore
+    self.key: AppNetType = None # type: ignore
 
 
-# def proto_gen_bytesize(rpc: str, args: List[str]) -> str:
-#   pass
+class CurrentTime(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 0
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
 
-# def proto_get_arg_type(arg: str, ctx: NativeContext) -> str:
-#   pass
+  def ret_type(self) -> AppNetType:
+    return AppNetInstant()
 
+  def native_arg_sanity_check(self, args: List[NativeVariable]):
+    assert(self.prepared)
+    assert(len(args) == 0)
 
-# def proto_type_mapping(proto_type: str) -> str:
-#   """Maps the type in the protobuf to the type in wasm"""
-#   if proto_type == "string":
-#     return "String"
-#   elif proto_type == "int":
-#     return "i32"
-#   elif proto_type == "uint":
-#     return "u32"
-#   elif proto_type == "float":
-#     return "f32"
-#   elif proto_type == "bool":
-#     return "bool"
-#   else:
-#     raise Exception("unknown type")
+  def gen_code(self, ctx: NativeContext, args = []) -> NativeVariable:
+    self.native_arg_sanity_check(args)
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    
+    ctx.push_code(native_decl_stmt)
+    ctx.push_code(f"{res_native_var.name} = std::chrono::system_clock::now();")
+    return res_native_var
+
+  def __init__(self):
+    super().__init__("current_time")
+
+class TimeDiff(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and isinstance(args[0], AppNetInstant) and isinstance(args[1], AppNetInstant)
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    return AppNetFloat()
+
+  def gen_code(self, ctx: NativeContext, end: NativeVariable, start: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([end, start])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    
+    ctx.push_code(native_decl_stmt)
+    # cast into float in second
+    ctx.push_code(f"{res_native_var.name} = std::chrono::duration_cast<std::chrono::duration<float>>({end.name} - {start.name}).count();")
+    return res_native_var
+
+  def __init__(self):
+    super().__init__("time_diff", "in_sec")
+
+class Min(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and args[0].is_same(args[1])
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    assert(self.prepared)
+    return self.appargs[0]
+
+  def gen_code(self, ctx: NativeContext, a: NativeVariable, b: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([a, b])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    
+    ctx.push_code(native_decl_stmt)
+    ctx.push_code(f"{res_native_var.name} = std::min({a.name}, {b.name});")
+    return res_native_var
+
+  def __init__(self):
+    super().__init__("min")
+
+APPNET_BUILTIN_FUNCS = [GetMap, CurrentTime, TimeDiff, Min]
