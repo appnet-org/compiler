@@ -12,27 +12,46 @@ class NativeType:
     LOG.error(f"gen_decl not implemented for {self}")
     assert(0)
     return ""
+  
+  def is_arithmetic(self) -> bool:
+    return isinstance(self, Int) or isinstance(self, Float)
 
+  def is_string(self) -> bool:
+    return isinstance(self, String)
+  
+  def is_bool(self) -> bool:
+    return isinstance(self, Bool)
+  
+  def is_basic(self) -> bool:
+    return self.is_arithmetic() or self.is_bool()
+  
+  def is_same(self, other: NativeType) -> bool:
+    return type(self) == type(other)
+
+
+class Timepoint(NativeType):
+  def gen_decl(self, name: str) -> str:
+    return f"std::chrono::time_point<std::chrono::system_clock> {name};"
 
 class Int(NativeType):
   def gen_decl(self, name: str) -> str:
-    return f"int {name};"
+    return f"int {name} = 0;"
 
 class Float(NativeType):
   def gen_decl(self, name: str) -> str:
-    return f"float {name};"
+    return f"float {name} = 0;"
   
 class String(NativeType):
   def gen_decl(self, name: str) -> str:
-    return f"std::string {name};"
+    return f"std::string {name} = \"\";"
   
 class Bool(NativeType):
   def gen_decl(self, name: str) -> str:
-    return f"bool {name};"
+    return f"bool {name} = false;"
   
 class Bytes(NativeType):
   def gen_decl(self, name: str) -> str:
-    return f"std::vector<uint8_t> {name};"
+    return f"std::vector<uint8_t> {name}{{0}};"
 
 class Option(NativeType):
   inner: NativeType
@@ -40,7 +59,7 @@ class Option(NativeType):
     self.inner = inner
 
   def gen_decl(self, name: str) -> str:
-    return f"std::optional<{self.inner.gen_decl(name)}>"
+    return f"std::optional<{self.inner.gen_decl(name)}> = std::nullopt;"
 
 class Map(NativeType):
   key: NativeType
@@ -51,7 +70,7 @@ class Map(NativeType):
     self.value = value
 
   def gen_decl(self, name: str) -> str:
-    return f"std::map<{self.key.gen_decl(name)}, {self.value.gen_decl(name)}> {name};"
+    return f"std::map<{self.key.gen_decl(name)}, {self.value.gen_decl(name)}> {name} = {{}};"
   
 class Vec(NativeType):
   type: NativeType
@@ -60,7 +79,7 @@ class Vec(NativeType):
     self.type = type
 
   def gen_decl(self, name: str) -> str:
-    return f"std::vector<{self.type.gen_decl(name)}> {name};"
+    return f"std::vector<{self.type.gen_decl(name)}> {name} = {{}};"
 
 class NativeVariable:
   name: str

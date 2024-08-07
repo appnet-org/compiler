@@ -2,33 +2,76 @@
 
 
 from typing import Optional
-from compiler.element.backend.envoy_native.nativetype import NativeVariable
+from compiler.element.logger import ELEMENT_LOG as LOG
+
+from compiler.element.backend.envoy_native.types import *
 
 
-# Every expression and state in AppNet has a type. This is the base class for all types in AppNet.
+
+# Every expression, state and temporary variables in AppNet belong to a AppNetType. 
+# This is the base class for all types in AppNet.
+
 class AppNetType:
-  pass
+  def to_native(self) -> NativeType: # type: ignore
+    LOG.error(f"to_native not implemented for {self}")
+    assert(0)
+
+  def is_basic(self) -> bool:
+    return self.is_arithmetic() or self.is_bool()
+  
+  def is_arithmetic(self) -> bool:
+    return isinstance(self, Int) or isinstance(self, Float)
+  
+  def is_string(self) -> bool:
+    return isinstance(self, String)
+
+  def is_bool(self) -> bool:
+    return isinstance(self, Bool)
+  
+  def is_same(self, other) -> bool:
+    return type(self) == type(other)
+  
+  def is_map(self) -> bool:
+    return isinstance(self, Map)
+  
+  def is_vec(self) -> bool:
+    return isinstance(self, Vec)
+  
+  def is_option(self) -> bool:
+    return isinstance(self, Option)
+
 
 class Int(AppNetType):
-  pass
+  def to_native(self) -> NativeType:
+    return NativeInt()
 
 class Float(AppNetType):
-  pass
+  def to_native(self) -> NativeType:
+    return NativeFloat()
 
 class String(AppNetType):
-  pass
+  def to_native(self) -> NativeType:
+    return NativeString()
 
 class Bool(AppNetType):
-  pass
+  def to_native(self) -> NativeType:
+    return NativeBool()
 
 class Bytes(AppNetType):
-  pass
+  def to_native(self) -> NativeType:
+    return NativeBytes()
+
+class Instant(AppNetType):
+  def to_native(self) -> NativeType:
+    return NativeTimepoint()
 
 class Option(AppNetType): # return type of get(Map, ...)
   inner: AppNetType
-  def __init__(self, is_some: bool, inner: AppNetType):
-    self.is_some = is_some
-    self.inner
+  def __init__(self, inner: AppNetType):
+    self.inner = inner
+
+  def to_native(self) -> NativeType:
+    return NativeOption(self.inner.to_native())
 
 class Map(AppNetType):
   key: AppNetType
@@ -38,14 +81,22 @@ class Map(AppNetType):
     self.key = key
     self.value = value
 
+  def to_native(self) -> NativeType:
+    return NativeMap(self.key.to_native(), self.value.to_native())
+
 class Vec(AppNetType):
   type: AppNetType
 
   def __init__(self, type: AppNetType):
     self.type = type
 
+  def to_native(self) -> NativeType:
+    return NativeVec(self.type.to_native())
+
 class Void(AppNetType):
-  pass
+  def to_native(self) -> NativeType: # type: ignore
+    LOG.error(f"AppNet Void type cannot be converted to native type")
+    assert(0)
 
 class AppNetVariable:
   name: str

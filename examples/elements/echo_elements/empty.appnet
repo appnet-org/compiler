@@ -1,8 +1,8 @@
 state:
-  pass
+  a: float
   
 init():
-	pass
+	a = 1.0
 
 req(rpc):
 	send(rpc, Down)

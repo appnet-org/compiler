@@ -3,7 +3,6 @@ from typing import Dict
 
 from compiler.config import COMPILER_ROOT
 from compiler.element.backend.envoy_native.nativegen import NativeContext
-from compiler.element.backend.envoy_native.nativetype import NativeGlobalFunctions
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 
@@ -29,7 +28,7 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
             + ["} // req header end."]
             + ["{ // req body begin. "] 
                 + ctx.req_body_code
-            + ["} // req body end.`"],
+            + ["} // req body end."],
 
         "// !APPNET_RESPONSE": 
             ["{ // resp header begin. "] 
@@ -46,9 +45,15 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
 
     for key, value in replace_dict.items():
         appnet_filter = appnet_filter.replace(key, "\n".join(value))
-        
+
     with open(f"{output_dir}/appnet_filter/appnet_filter.cc", "w") as file:
         file.write(appnet_filter)
+
+    # remove .git to prevent strange bazel build behavior
+    os.system(f"rm -rf {output_dir}/.git")
+
+    # clang format
+    os.system(f"clang-format -i {output_dir}/appnet_filter/appnet_filter.cc")
 
     LOG.info(f"Backend code for {lib_name} generated. You can find the source code at {output_dir}")
 
