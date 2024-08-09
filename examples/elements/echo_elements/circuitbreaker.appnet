@@ -3,7 +3,7 @@ state:
     pending_req: int
     drop_count: int
 
-init(max_concurrent_req):
+init():
 	max_concurrent_req = 1
     pending_req = 0
     drop_count = 0

@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Set
 
 from compiler.element.backend.envoy_native.types import *
 
+from compiler.element.backend.envoy_native.types import NativeVariable
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.node import Identifier, Pattern
@@ -36,7 +37,6 @@ class NativeContext:
     self.current_procedure_code: list[str] = []
 
     self.tmp_cnt: int = 0
-
   def push_scope(self) -> None:
     self.native_var.append({})
 
@@ -83,13 +83,13 @@ class NativeContext:
     self.appnet_state[name] = AppNetVariable(name, rtype, decorator)
     return self.appnet_state[name]
 
-  def declareNativeVar(self, name: str, rtype: NativeType) -> Tuple[NativeVariable, str]:
+  def declareNativeVar(self, name: str, rtype: NativeType, local: bool = True) -> Tuple[NativeVariable, str]:
     # Declare a native var in the current scope.
     # It will return the declared variable and the declaration statement.
     # The declaration statement should be pushed to the current procedure code by the caller manually.
     if name in self.native_var[-1]:
       raise Exception(f"variable {name} already declared")
-    self.native_var[-1][name] = NativeVariable(name, rtype)
+    self.native_var[-1][name] = NativeVariable(name, rtype, local)
     return (self.native_var[-1][name], rtype.gen_decl(name))
 
 
@@ -132,7 +132,7 @@ class NativeGenerator(Visitor):
         "persistence": per.name,
       }
       state = ctx.declareAppNetState(identifier.name, appType, decorator)
-      native_var, decl = ctx.declareNativeVar(identifier.name, state.type.to_native())
+      native_var, decl = ctx.declareNativeVar(identifier.name, state.type.to_native(), False)
       state.native_var = native_var
       ctx.push_global_var_def(decl)
 
@@ -150,7 +150,7 @@ class NativeGenerator(Visitor):
       assert(len(node.params) == 1)
       assert(node.params[0].name == "rpc")
       app_rpc = ctx.declareAppNetLocalVariable("rpc", AppNetRPC())
-      native_rpc, decl = ctx.declareNativeVar("rpc", app_rpc.type.to_native())
+      native_rpc, decl = ctx.declareNativeVar("rpc", app_rpc.type.to_native(), False)
       app_rpc.native_var = native_rpc
       buffer_name = "this->request_buffer_" if node.name == "req" else "this->response_buffer_"
       tmp_data_buf_name = ctx.new_temporary_name()
@@ -233,7 +233,7 @@ class NativeGenerator(Visitor):
     none_appnet_type, none_embed_str = none_pattern.value.accept(self, ctx)
     assert(none_embed_str == "None")
 
-    ctx.push_code(f"if ({native_expr.name}.is_some())")
+    ctx.push_code(f"if ({native_expr.name}.has_value())")
     ctx.push_code("{")
 
     assert(isinstance(some_pattern.value, Identifier))
@@ -383,6 +383,12 @@ class NativeGenerator(Visitor):
       if lock_release_stmt is not None:
         ctx.push_code(lock_release_stmt)
 
+  def acceptable_oper_type(self, lhs: AppNetType, op: Operator, rhs: AppNetType) -> bool:
+    if op in [Operator.ADD, Operator.SUB, Operator.MUL, Operator.DIV, Operator.GT, Operator.LT, Operator.GE, Operator.LE]:
+      if lhs.is_arithmetic() and rhs.is_arithmetic():
+        return True
+    return False
+
   # A temporary native variable will be generated to store the result of the expression.
   def visitExpr(self, node: Expr, ctx: NativeContext) -> Tuple[AppNetType, NativeVariable]:
     assert(isinstance(node, Expr))
@@ -396,18 +402,18 @@ class NativeGenerator(Visitor):
     assert(isinstance(rhs_nativevar, NativeVariable))
 
     # Make sure they are the same type. We don't support type conversion for now.
-    assert(lhs_appnet_type.is_same(rhs_appnet_type))
-    assert(lhs_nativevar.type.is_same(rhs_nativevar.type))
+
+    assert(lhs_appnet_type.is_same(rhs_appnet_type) or self.acceptable_oper_type(lhs_appnet_type, node.op, rhs_appnet_type))
+    # assert(lhs_nativevar.type.is_same(rhs_nativevar.type))
 
     def get_expr_type(op: Operator, lhs_type: AppNetType, rhs_type: AppNetType) -> AppNetType:
       if lhs_type.is_basic() and rhs_type.is_basic():
         if op in [Operator.ADD, Operator.SUB, Operator.MUL, Operator.DIV]:
-          assert(lhs_type.is_same(rhs_type))
-          assert(lhs_type.is_arithmetic())
-          return lhs_type
+          assert(lhs_type.is_arithmetic() and rhs_type.is_arithmetic())
+          return AppNetFloat() if lhs_type.is_float() or rhs_type.is_float() else AppNetInt()
         
         if op in [Operator.EQ, Operator.NEQ, Operator.LT, Operator.GT, Operator.LE, Operator.GE]:
-          assert(lhs_type.is_same(rhs_type))
+          assert(lhs_type.is_same(rhs_type) or lhs_type.is_arithmetic() and rhs_type.is_arithmetic())
           if lhs_type.is_bool():
             assert(op in [Operator.EQ, Operator.NEQ])
           return AppNetBool()
@@ -734,7 +740,7 @@ class GetRPCField(AppNetBuiltinFuncProto):
     return ret
 
   def ret_type(self) -> AppNetType:
-    # TODO
+    # TODO: Getting the exact type from .proto file.
     return AppNetString()
 
   def gen_code(self, ctx: NativeContext, rpc: NativeVariable, field: NativeVariable) -> NativeVariable:
@@ -743,10 +749,7 @@ class GetRPCField(AppNetBuiltinFuncProto):
     res_native_var, native_decl_stmt,  \
       = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
     ctx.push_code(native_decl_stmt)
-    ctx.push_code( f"{res_native_var.name} = {rpc.name}.{field.name}();")
-    # const google::protobuf::Descriptor* descriptor = message.GetDescriptor();
-    # const google::protobuf::Reflection* reflection = message.GetReflection();
-    # const google::protobuf::FieldDescriptor* field = descriptor->FindFieldByName(a);
+    ctx.push_code( f"{res_native_var.name} = get_rpc_field({rpc.name}, {field.name});")
 
 
     return res_native_var
@@ -777,4 +780,163 @@ class SetMap(AppNetBuiltinFuncProto):
   def __init__(self):
     super().__init__("set", "map")
 
-APPNET_BUILTIN_FUNCS = [GetRPCField, GetMap, CurrentTime, TimeDiff, Min, SetMap]
+class ByteSize(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 1 and isinstance(args[0], AppNetRPC)
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    return AppNetInt()
+
+  def gen_code(self, ctx: NativeContext, rpc: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([rpc])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    ctx.push_code(native_decl_stmt)
+    ctx.push_code( f"{res_native_var.name} = {rpc.name}.ByteSizeLong();")
+
+    return res_native_var
+
+  def __init__(self):
+    super().__init__("byte_size")
+
+class RandomF(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and args[0].is_arithmetic() and args[1].is_arithmetic()
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    return AppNetFloat()
+
+  def native_arg_sanity_check(self, native_args: List[NativeVariable]):
+    # allow int and float to be mixed
+    assert(self.prepared)
+    assert(len(native_args) == 2)
+    assert(native_args[0].type.is_arithmetic())
+    assert(native_args[1].type.is_arithmetic())
+
+  def gen_code(self, ctx: NativeContext, a: NativeVariable, b: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([a, b])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    
+    ctx.push_code(native_decl_stmt)
+    # get a random float number between a and b
+    ctx.push_code(f"{res_native_var.name} = {a.name} + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/({b.name} - {a.name})));")
+    return res_native_var
+
+  def __init__(self):
+    super().__init__("randomf")
+
+
+# set(record_req, size(record_req), get(rpc, 'body'))
+class SetVector(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 3 and isinstance(args[0], AppNetVec) and args[0].type.is_same(args[2]) and isinstance(args[1], AppNetInt)
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    return AppNetVoid()
+
+  def gen_code(self, ctx: NativeContext, vec: NativeVariable, index: NativeVariable, value: NativeVariable) -> None:
+    self.native_arg_sanity_check([vec, index, value])
+
+    # We are conservative here. We lock the global state for the whole operation.
+    ctx.push_code("global_state_lock.lock();")
+    ctx.push_code(f"if ({index.name} >= {vec.name}.size()) {{")
+    ctx.push_code(f"  {vec.name}.resize({index.name} + 1);")
+    ctx.push_code("}")
+    ctx.push_code(f"{vec.name}[{index.name}] = {value.name};")
+    ctx.push_code("global_state_lock.unlock();")
+    return None
+
+  def __init__(self):
+    super().__init__("set", "vector")
+
+
+class SizeVector(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 1 and isinstance(args[0], AppNetVec)
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    return AppNetInt()
+
+  def gen_code(self, ctx: NativeContext, vec: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([vec])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    ctx.push_code(native_decl_stmt)
+    ctx.push_code( f"{res_native_var.name} = {vec.name}.size();")
+
+    return res_native_var
+
+  def __init__(self):
+    super().__init__("size", "vector")
+
+class SetRPCField(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    # TODO: For now, we assume the rpc field is a string
+    ret = len(args) == 3 and isinstance(args[0], AppNetRPC) and isinstance(args[1], AppNetString) and args[2].is_string()
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    return AppNetVoid()
+
+  def gen_code(self, ctx: NativeContext, rpc: NativeVariable, field: NativeVariable, value: NativeVariable) -> None:
+    self.native_arg_sanity_check([rpc, field, value])
+
+    # We are conservative here. We lock the global state for the whole operation.
+    ctx.push_code("global_state_lock.lock();")
+    ctx.push_code(f"set_rpc_field({rpc.name}, {field.name}, {value.name});")
+    ctx.push_code("global_state_lock.unlock();")
+    buffer_name = "request_buffer_" if ctx.current_procedure == "req" else "response_buffer_"
+    ctx.push_code(f"replace_payload(this->{buffer_name}, {rpc.name});")
+    return None
+
+  def __init__(self):
+    super().__init__("set", "rpc_field")
+
+
+class RPCID(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 0
+    if ret:
+      self.prepared = True
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    return AppNetInt()
+
+  def gen_code(self, ctx: NativeContext) -> NativeVariable:
+    self.native_arg_sanity_check([])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    ctx.push_code(native_decl_stmt)
+    ctx.push_code( f"{res_native_var.name} = 0;")
+
+    return res_native_var
+  
+  def __init__(self):
+    super().__init__("rpc_id")
+
+APPNET_BUILTIN_FUNCS = [GetRPCField, GetMap, CurrentTime, TimeDiff, Min, SetMap, ByteSize, RandomF, SetVector, SizeVector, SetRPCField, RPCID]

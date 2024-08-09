@@ -141,7 +141,9 @@ class Vec(NativeType):
 class NativeVariable:
   name: str
   type: NativeType
+  local: bool # is this variable local to a request or not
 
-  def __init__(self, name: str, type: NativeType):
+  def __init__(self, name: str, type: NativeType, local: bool):
     self.name = name
     self.type = type
+    self.local = local

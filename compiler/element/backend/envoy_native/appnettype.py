@@ -22,6 +22,9 @@ class AppNetType:
   def is_arithmetic(self) -> bool:
     return isinstance(self, Int) or isinstance(self, Float)
   
+  def is_float(self) -> bool:
+    return isinstance(self, Float)
+
   def is_string(self) -> bool:
     return isinstance(self, String)
 
@@ -41,8 +44,10 @@ class AppNetType:
     return isinstance(self, Option)
 
 def appnet_type_from_str(name: str) -> AppNetType:
-  match name:
+  match name.lower():
     case "int":
+      return Int()
+    case "uint":
       return Int()
     case "float":
       return Float()
