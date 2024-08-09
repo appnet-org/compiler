@@ -9,6 +9,7 @@ from compiler.element.backend.envoy_native.nativetype import Option as NativeOpt
 from compiler.element.backend.envoy_native.nativetype import Map as NativeMap
 from compiler.element.backend.envoy_native.nativetype import Vec as NativeVec
 from compiler.element.backend.envoy_native.nativetype import Timepoint as NativeTimepoint
+from compiler.element.backend.envoy_native.nativetype import RPC as NativeRPC
 
 from compiler.element.backend.envoy_native.appnettype import AppNetVariable, AppNetType
 from compiler.element.backend.envoy_native.appnettype import Int as AppNetInt
@@ -20,3 +21,8 @@ from compiler.element.backend.envoy_native.appnettype import Option as AppNetOpt
 from compiler.element.backend.envoy_native.appnettype import Map as AppNetMap
 from compiler.element.backend.envoy_native.appnettype import Vec as AppNetVec
 from compiler.element.backend.envoy_native.appnettype import Instant as AppNetInstant
+from compiler.element.backend.envoy_native.appnettype import RPC as AppNetRPC
+from compiler.element.backend.envoy_native.appnettype import Void as AppNetVoid
+
+
+from compiler.element.backend.envoy_native.appnettype import appnet_type_from_str

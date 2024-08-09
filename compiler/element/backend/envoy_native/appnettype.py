@@ -1,4 +1,4 @@
-# Created and used by Envoy natvie backend.
+# Created and used by Envoy native backend.
 
 
 from typing import Optional
@@ -40,6 +40,27 @@ class AppNetType:
   def is_option(self) -> bool:
     return isinstance(self, Option)
 
+def appnet_type_from_str(name: str) -> AppNetType:
+  match name:
+    case "int":
+      return Int()
+    case "float":
+      return Float()
+    case "string":
+      return String()
+    case "bool":
+      return Bool()
+    case "bytes":
+      return Bytes()
+    case "instant":
+      return Instant()
+    case _:
+      raise Exception(f"Unknown type {name} when converting from string")
+
+
+class RPC(AppNetType):
+  def to_native(self) -> NativeType:
+    return NativeRPC()
 
 class Int(AppNetType):
   def to_native(self) -> NativeType:
