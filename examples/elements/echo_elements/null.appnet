@@ -1,0 +1,12 @@
+state:
+  a: float
+  
+init():
+	a = 1.0
+
+req(rpc):
+	send(rpc, Down)
+
+resp(rpc):
+	send(rpc, Up)
+
