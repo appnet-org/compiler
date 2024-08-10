@@ -10,6 +10,8 @@ from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
 from compiler.element.backend.grpc.gogen import GoContext, GoGenerator
 from compiler.element.backend.mrpc.finalizer import finalize as RustFinalize
 from compiler.element.backend.mrpc.rustgen import RustContext, RustGenerator
+from compiler.element.backend.envoy_native.nativegen import NativeContext, NativeGenerator
+from compiler.element.backend.envoy_native.finalizer import finalize as NativeFinalize
 from compiler.element.frontend import ElementCompiler
 from compiler.element.frontend.printer import Printer
 from compiler.element.frontend.util import (
@@ -67,7 +69,7 @@ def gen_code(
             raise ValueError(f"Method {method_name} not found in {proto_path}.")
     proto = os.path.basename(proto_path).replace(".proto", "")
 
-    assert backend_name in ("mrpc", "envoy", "grpc", "ambient")
+    assert backend_name in ("mrpc", "envoy", "grpc", "ambient", "envoy_native")
     compiler = ElementCompiler()
 
     # Find the request and response message names.
@@ -116,6 +118,19 @@ def gen_code(
             message_field_types=message_field_types,
             tag=tag,
         )
+    elif backend_name == "envoy_native":
+        generator = NativeGenerator(placement)
+        finalize = NativeFinalize
+        ctx = NativeContext(
+            proto=proto,
+            method_name=method_name,
+            request_message_name=request_message_name,
+            response_message_name=response_message_name,
+            message_field_types=message_field_types,
+            mode="sidecar",
+            element_name=output_name,
+            tag=tag,
+        )
 
     printer = Printer()
 
@@ -129,6 +144,7 @@ def gen_code(
             ir = compiler.parse_and_transform(spec)
             if verbose:
                 p = ir.accept(printer, None)
+                print("showing IR:")
                 print(p)
             eirs.append(ir)
 

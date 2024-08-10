@@ -74,6 +74,7 @@ class Assign(Statement):
 
 class Pattern(Node):
     def __init__(self, value: Union[Identifier, Literal, Error], some: bool):
+        assert(isinstance(value, Identifier) or isinstance(value, Literal) or isinstance(value, Error))
         self.value = value
         self.some = some
 
@@ -84,7 +85,6 @@ class Expr(Node):
         self.op = op
         self.rhs = rhs
         self.type = "unknown"
-
 
 class Identifier(Node):
     def __init__(self, name: str):
