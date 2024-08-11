@@ -143,6 +143,11 @@ class NativeGenerator(Visitor):
     ctx.appnet_local_var = {}
     ctx.push_scope()
 
+    if len(ctx.appnet_state) > 0:
+      # TODO: We do very coarse-grained locking here.
+      # If we have global states, we serialize all the request handling.
+      ctx.push_code("std::lock_guard<std::mutex> lock(global_state_lock);")
+
     if node.name == "init":
       assert(len(node.params) == 0)
     else:
@@ -150,7 +155,7 @@ class NativeGenerator(Visitor):
       assert(len(node.params) == 1)
       assert(node.params[0].name == "rpc")
       app_rpc = ctx.declareAppNetLocalVariable("rpc", AppNetRPC())
-      native_rpc, decl = ctx.declareNativeVar("rpc", app_rpc.type.to_native(), False)
+      native_rpc, decl = ctx.declareNativeVar("rpc", app_rpc.type.to_native())
       app_rpc.native_var = native_rpc
       buffer_name = "this->request_buffer_" if node.name == "req" else "this->response_buffer_"
       tmp_data_buf_name = ctx.new_temporary_name()
@@ -346,11 +351,6 @@ class NativeGenerator(Visitor):
 
     assert(isinstance(rhs_appnet_type, AppNetType))
     assert(isinstance(rhs_native_var, NativeVariable))
-    
-
-
-    lock_acquire_stmt = None
-    lock_release_stmt = None
 
     if lhs_name not in ctx.appnet_local_var and lhs_name not in ctx.appnet_state:
       # This is a new local variable
@@ -365,10 +365,6 @@ class NativeGenerator(Visitor):
         # Existing AppNet state
         lhs = ctx.appnet_state[lhs_name]
 
-        # std::mutex global_state_lock;
-        lock_acquire_stmt = f"global_state_lock.lock(); // {lhs_name}_lock will be acquired here"
-        lock_release_stmt = f"global_state_lock.unlock(); // {lhs_name}_lock will be released here"
-
       else:
         raise Exception("unknown variable")
       
@@ -376,12 +372,7 @@ class NativeGenerator(Visitor):
       assert(lhs.native_var is not None)
       assert(lhs.native_var.type.is_same(rhs_native_var.type))
 
-      if lock_acquire_stmt is not None:
-        ctx.push_code(lock_acquire_stmt)
       ctx.push_code(f"{lhs.name} = {rhs_native_var.name};")
-
-      if lock_release_stmt is not None:
-        ctx.push_code(lock_release_stmt)
 
   def acceptable_oper_type(self, lhs: AppNetType, op: Operator, rhs: AppNetType) -> bool:
     if op in [Operator.ADD, Operator.SUB, Operator.MUL, Operator.DIV, Operator.GT, Operator.LT, Operator.GE, Operator.LE]:
