@@ -137,6 +137,42 @@ class NativeGenerator(Visitor):
       ctx.push_global_var_def(decl)
 
 
+      # ===== Consistency Part =====
+      assert(decorator["consistency"] in ['strong', 'weak', 'None'])
+      if decorator['consistency'] == 'None':
+        continue
+
+
+      if appType.is_map() == False:
+        raise Exception("Only map type can have consistency for now")
+      
+      assert(isinstance(appType, AppNetMap))
+      if appType.key.is_string() == False or appType.value.is_string() == False:
+        raise Exception("Only map<string, string> can have weak consistency for now")
+        
+      if decorator['consistency'] in ['weak']:
+        # for (auto& [key, value] : cache) {
+        #   ENVOY_LOG(info, "[AppNet Filter] cache key={}, value={}", key, value);
+        # }
+        # this->sendWebdisRequest(const std::string path, int &callback)
+        # localhost:7379/MGET/a/b/c/d       to get a,b,c,d
+        # localhost:7379/MSET/a/b/c/d       to set a to b, c to d
+        geturl = "/MGET/"
+        seturl = "/MSET/"
+
+        # We simulate the overhead. Just set the value to the key, and then get them back from webdis.
+        ctx.on_tick_code.append(f"std::string geturl = \"http://localhost:7379/MGET\";")
+        ctx.on_tick_code.append(f"std::string seturl = \"http://localhost:7379/MSET\";")
+        ctx.on_tick_code.append(f"for (auto& [key, value] : {state.name}) {{")
+        ctx.on_tick_code.append(f"geturl += \"/\" + key;")
+        ctx.on_tick_code.append(f"seturl += \"/\" + key + \"/\" + value;")
+        ctx.on_tick_code.append(f"}}")
+        ctx.on_tick_code.append(f"this->sendWebdisRequest(seturl);")
+        # TODO: We should wait for the response of the set request, and then we can send the get request.
+        ctx.on_tick_code.append(f"this->sendWebdisRequest(geturl);")
+
+
+
   def visitProcedure(self, node: Procedure, ctx: NativeContext):
     ctx.current_procedure = node.name
     ctx.current_procedure_code = []
@@ -329,6 +365,7 @@ class NativeGenerator(Visitor):
       if node.name in ctx.appnet_local_var:
         rhs = ctx.appnet_local_var[node.name]
       elif node.name in ctx.appnet_state:
+        # TODO: handle strong consistency here.
         rhs = ctx.appnet_state[node.name]
       else:
         raise Exception(f"unknown variable {node.name}")
@@ -345,6 +382,7 @@ class NativeGenerator(Visitor):
     return (rhs_appnet_type, rhs_native_var)
 
   def visitAssign(self, node: Assign, ctx: NativeContext) -> None:
+    assert(isinstance(node.left, Identifier))
     lhs_name = node.left.name
 
     rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
@@ -633,10 +671,7 @@ class GetMap(AppNetBuiltinFuncProto):
     
     ctx.push_code(native_decl_stmt)
     
-    # We are conservative here. We lock the global state
-    ctx.push_code(f"global_state_lock.lock();")
     ctx.push_code(f"{res_native_var.name} = map_get_opt({map.name}, {key.name});")
-    ctx.push_code(f"global_state_lock.unlock();")
     return res_native_var
   
   def __init__(self):
@@ -762,10 +797,7 @@ class SetMap(AppNetBuiltinFuncProto):
   def gen_code(self, ctx: NativeContext, map: NativeVariable, key: NativeVariable, value: NativeVariable) -> None:
     self.native_arg_sanity_check([map, key, value])
 
-    # We are conservative here. We lock the global state for the whole operation.
-    ctx.push_code("global_state_lock.lock();")
     ctx.push_code(f"{map.name}[{key.name}] = {value.name};")
-    ctx.push_code("global_state_lock.unlock();")
     return None
 
   def __init__(self):
@@ -844,12 +876,10 @@ class SetVector(AppNetBuiltinFuncProto):
     self.native_arg_sanity_check([vec, index, value])
 
     # We are conservative here. We lock the global state for the whole operation.
-    ctx.push_code("global_state_lock.lock();")
     ctx.push_code(f"if ({index.name} >= {vec.name}.size()) {{")
     ctx.push_code(f"  {vec.name}.resize({index.name} + 1);")
     ctx.push_code("}")
     ctx.push_code(f"{vec.name}[{index.name}] = {value.name};")
-    ctx.push_code("global_state_lock.unlock();")
     return None
 
   def __init__(self):
@@ -896,9 +926,7 @@ class SetRPCField(AppNetBuiltinFuncProto):
     self.native_arg_sanity_check([rpc, field, value])
 
     # We are conservative here. We lock the global state for the whole operation.
-    ctx.push_code("global_state_lock.lock();")
     ctx.push_code(f"set_rpc_field({rpc.name}, {field.name}, {value.name});")
-    ctx.push_code("global_state_lock.unlock();")
     buffer_name = "request_buffer_" if ctx.current_procedure == "req" else "response_buffer_"
     ctx.push_code(f"replace_payload(this->{buffer_name}, {rpc.name});")
     return None
