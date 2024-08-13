@@ -172,11 +172,11 @@ class NativeGenerator(Visitor):
 
 
       if appType.is_map() == False:
-        raise Exception("Only map type can have consistency for now")
+        raise Exception("Only map<string, string> type can have consistency for now")
       
       assert(isinstance(appType, AppNetMap))
       if appType.key.is_string() == False or appType.value.is_string() == False:
-        raise Exception("Only map<string, string> can have weak consistency for now")
+        raise Exception("Only map<string, string> can have consistency for now")
         
       if decorator['consistency'] in ['weak']:
         # for (auto& [key, value] : cache) {
@@ -395,7 +395,6 @@ class NativeGenerator(Visitor):
       if node.name in ctx.appnet_local_var:
         rhs = ctx.appnet_local_var[node.name]
       elif node.name in ctx.appnet_state:
-        # TODO: handle strong consistency here.
         rhs = ctx.appnet_state[node.name]
       else:
         raise Exception(f"unknown variable {node.name}")
