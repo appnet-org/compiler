@@ -4,11 +4,11 @@ from typing import Dict, List, Optional, Set
 from compiler.element.backend.envoy_native.types import *
 
 from compiler.element.backend.envoy_native.types import NativeVariable
+from compiler.element.backend.envoy_native.appnettype import DEFAULT_DECORATOR
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.node import Identifier, Pattern
 from compiler.element.visitor import Visitor
-
 
 class NativeContext:
   def __init__(
@@ -76,11 +76,13 @@ class NativeContext:
     self,
     name: str,
     rtype: AppNetType,
-    decorator: Optional[dict[str, str]] = None,
+    decorator: dict[str, str] = DEFAULT_DECORATOR,
   ) -> AppNetVariable:
     if name in self.appnet_state:
       raise Exception(f"variable {name} already declared")
-    self.appnet_state[name] = AppNetVariable(name, rtype, decorator)
+
+    rtype.decorator = decorator
+    self.appnet_state[name] = AppNetVariable(name, rtype)
     return self.appnet_state[name]
 
   def declareNativeVar(self, name: str, rtype: NativeType, local: bool = True) -> Tuple[NativeVariable, str]:
@@ -105,6 +107,32 @@ class NativeContext:
     if name in self.appnet_local_var:
       return (self.appnet_local_var[name], False)
     raise Exception(f"variable {name} not found")
+
+  def genBlockingWebdisRequest(self, url: NativeVariable) -> None:
+    assert url.type.is_string()
+    assert self.current_procedure in ["req", "resp", "init"]
+
+    self.push_code("{")
+    self.push_code(f"   ENVOY_LOG(info, \"[AppNet Filter] Blocking Webdis Request\");")
+    self.push_code(f"   Awaiter webdis_awaiter = Awaiter();")
+    self.push_code(f"   this->webdis_awaiter_ = &webdis_awaiter;")
+    self.push_code(f"   this->external_response_ = nullptr;")
+    self.push_code(f"   this->sendWebdisRequest({url.name}, *this);")
+    self.push_code(f"   assert(this->appnet_coroutine_.has_value());")
+    self.push_code(f"   ENVOY_LOG(info, \"[AppNet Filter] Blocking Webdis Request Sent\");")
+    self.push_code(f"   co_await webdis_awaiter;")
+    self.push_code(f"   ENVOY_LOG(info, \"[AppNet Filter] Blocking Webdis Request Done\");")
+    self.push_code("}")
+
+  def genNonBlockingWebdisRequest(self, url: NativeVariable) -> None:
+    assert url.type.is_string()
+    assert self.current_procedure in ["req", "resp", "init"]
+
+    self.push_code("{")
+    self.push_code(f"  ENVOY_LOG(info, \"[AppNet Filter] Non-Blocking Webdis Request\");")
+    # make sure url start with SET
+    self.push_code(f"  this->sendWebdisRequest({url.name}, *empty_callback_);")
+    self.push_code("}")
 
 class NativeGenerator(Visitor):
   def __init__(self, placement: str) -> None:
@@ -155,21 +183,21 @@ class NativeGenerator(Visitor):
         #   ENVOY_LOG(info, "[AppNet Filter] cache key={}, value={}", key, value);
         # }
         # this->sendWebdisRequest(const std::string path, int &callback)
-        # localhost:7379/MGET/a/b/c/d       to get a,b,c,d
-        # localhost:7379/MSET/a/b/c/d       to set a to b, c to d
-        geturl = "/MGET/"
-        seturl = "/MSET/"
+        # path="/MGET/a/b/c/d"       to get a,b,c,d
+        # path="/MSET/a/b/c/d"       to set a to b, c to d
 
+        ctx.on_tick_code.append("{")
         # We simulate the overhead. Just set the value to the key, and then get them back from webdis.
-        ctx.on_tick_code.append(f"std::string geturl = \"http://localhost:7379/MGET\";")
-        ctx.on_tick_code.append(f"std::string seturl = \"http://localhost:7379/MSET\";")
-        ctx.on_tick_code.append(f"for (auto& [key, value] : {state.name}) {{")
-        ctx.on_tick_code.append(f"geturl += \"/\" + key;")
-        ctx.on_tick_code.append(f"seturl += \"/\" + key + \"/\" + value;")
-        ctx.on_tick_code.append(f"}}")
+        ctx.on_tick_code.append(f"  std::string geturl = \"/MGET\";")
+        ctx.on_tick_code.append(f"  std::string seturl = \"/MSET\";")
+        ctx.on_tick_code.append(f"  for (auto& [key, value] : {state.name}) {{")
+        ctx.on_tick_code.append(f"    geturl += \"/\" + key;")
+        ctx.on_tick_code.append(f"    seturl += \"/\" + key + \"/\" + base64_encode(value, true);")
+        ctx.on_tick_code.append(f"  }}")
         ctx.on_tick_code.append(f"this->sendWebdisRequest(seturl);")
         # TODO: We should wait for the response of the set request, and then we can send the get request.
-        ctx.on_tick_code.append(f"this->sendWebdisRequest(geturl);")
+        ctx.on_tick_code.append(f"  this->sendWebdisRequest(geturl);")
+        ctx.on_tick_code.append("}")
 
 
 
@@ -182,7 +210,9 @@ class NativeGenerator(Visitor):
     if len(ctx.appnet_state) > 0:
       # TODO: We do very coarse-grained locking here.
       # If we have global states, we serialize all the request handling.
-      ctx.push_code("std::lock_guard<std::mutex> lock(global_state_lock);")
+      if ctx.current_procedure != "init":
+        # init() already has the lock in tempalte, for init global variable.
+        ctx.push_code("std::lock_guard<std::mutex> lock(global_state_lock);")
 
     if node.name == "init":
       assert(len(node.params) == 0)
@@ -564,8 +594,9 @@ class NativeGenerator(Visitor):
             assert(node.msg.msg.type == DataType.STR)
             assert(node.msg.msg.value != "")
             # Forbidden 403
+            # TODO: This may be buggy since req_appnet_blocked_ is used in encodeHeader().
+            ctx.push_code(f"this->req_appnet_blocked_ = true;") 
             ctx.push_code(f"this->decoder_callbacks_->sendLocalReply(Http::Code::Forbidden, \"{node.msg.msg.value[1:-1]}\", nullptr, absl::nullopt, \"\");")
-            ctx.push_code(f"this->req_appnet_blocked_ = true;")
             ctx.push_code("co_return;")
           else:
             raise Exception("req procedure should only send error message tp Up direction")
@@ -621,6 +652,8 @@ class NativeGenerator(Visitor):
 
 
 
+
+
 # ======================== BUILD-IN FUNCTIONS ========================
 
 
@@ -648,9 +681,74 @@ class AppNetBuiltinFuncProto:
     self.prepared = False
     self.appargs = []
 
+class GetMapStrongConsistency(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and isinstance(args[0], AppNetMap) and args[0].key.is_same(args[1])
+    ret = ret and args[0].decorator['consistency'] == 'strong'
+    if ret:
+      assert(isinstance(args[0], AppNetMap))
+      assert(isinstance(args[1], AppNetType))
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    assert(self.prepared)
+    assert(isinstance(self.appargs[0], AppNetMap))
+    return AppNetOption(self.appargs[0].value)
+
+  def gen_code(self, ctx: NativeContext, map: NativeVariable, key: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([map, key])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())    
+    ctx.push_code(native_decl_stmt)
+
+    ctx.push_code("{")
+    ctx.push_code(f"// save variable to {res_native_var.name}")
+
+    # Construct the URL
+    url_native_var, url_decl_str = ctx.declareNativeVar(ctx.new_temporary_name(), NativeString())
+    ctx.push_code(url_decl_str)
+    ctx.push_code(f"{url_native_var.name} = \"/GET/\" + {key.name};")
+    ctx.genBlockingWebdisRequest(url_native_var)
+
+    # Parse the response
+    # which is put in ResponseMessagePtr external_response_;
+    ctx.push_code("if (this->external_response_ == nullptr) {")
+    ctx.push_code("   ENVOY_LOG(error, \"[AppNet Filter] Webdis Request Failed\");")
+    ctx.push_code("   std::terminate();")
+    ctx.push_code("}")
+
+    
+
+    ret_type = self.ret_type()
+    assert isinstance(ret_type, AppNetOption)
+    assert isinstance(ret_type.inner, AppNetString)
+
+    # return {"GET":null} or {"GET":"value"}
+    # parse the response using json
+    ctx.push_code(f"std::string response_str = this->external_response_->bodyAsString();")
+    ctx.push_code(f"ENVOY_LOG(info, \"[AppNet Filter] Webdis Response: {{}}\", response_str);")
+
+    # nlohmann::json j = nlohmann::json::parse(body);
+    ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
+    ctx.push_code(f"if (j.contains(\"GET\") && j[\"GET\"].is_null() == false)")
+    ctx.push_code("{")
+    ctx.push_code(f"  {res_native_var.name}.emplace(base64_decode(j[\"GET\"], false));")
+    ctx.push_code("}")
+
+    ctx.push_code("}")
+    
+    return res_native_var
+
+  def __init__(self):
+    super().__init__("get", "map_strong")
+
 class GetMap(AppNetBuiltinFuncProto):
   def instantiate(self, args: List[AppNetType]) -> bool:
     ret = len(args) == 2 and isinstance(args[0], AppNetMap) and args[0].key.is_same(args[1])
+    ret = ret and args[0].decorator['consistency'] in ['None', 'weak']
     if ret:
       assert(isinstance(args[0], AppNetMap))
       assert(isinstance(args[1], AppNetType))
@@ -786,6 +884,7 @@ class GetRPCField(AppNetBuiltinFuncProto):
 class SetMap(AppNetBuiltinFuncProto):
   def instantiate(self, args: List[AppNetType]) -> bool:
     ret = len(args) == 3 and isinstance(args[0], AppNetMap) and args[0].key.is_same(args[1]) and args[0].value.is_same(args[2])
+    ret = ret and args[0].decorator['consistency'] in ['None', 'weak']
     if ret:
       self.prepared = True
       self.appargs = args
@@ -958,4 +1057,41 @@ class RPCID(AppNetBuiltinFuncProto):
   def __init__(self):
     super().__init__("rpc_id")
 
-APPNET_BUILTIN_FUNCS = [GetRPCField, GetMap, CurrentTime, TimeDiff, Min, SetMap, ByteSize, RandomF, SetVector, SizeVector, SetRPCField, RPCID]
+class SetMapStrongConsistency(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 3 and isinstance(args[0], AppNetMap) and args[0].key.is_same(args[1]) and args[0].value.is_same(args[2])
+    ret = ret and args[0].decorator['consistency'] == 'strong'
+    if ret:
+      assert(isinstance(args[0], AppNetMap))
+      assert(isinstance(args[1], AppNetType))
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    return AppNetVoid()
+
+  def gen_code(self, ctx: NativeContext, map: NativeVariable, key: NativeVariable, value: NativeVariable) -> None:
+    self.native_arg_sanity_check([map, key, value])
+
+    url_native_var, url_decl_str = ctx.declareNativeVar(ctx.new_temporary_name(), NativeString())
+    ctx.push_code(url_decl_str)
+    ctx.push_code(f"{url_native_var.name} = \"/SET/\" + {key.name} + \"/\" + base64_encode({value.name}, true);")
+  
+    if ctx.current_procedure == 'req':
+      # If in resp or request, we send blocking call SET to webdis
+      # Construct the URL
+      ctx.genBlockingWebdisRequest(url_native_var)
+    elif ctx.current_procedure in ['init', 'resp']:
+      if ctx.current_procedure == 'resp':
+        LOG.warn("strong consistency operation is automatically converted to weak consistency in response procedure.")
+      # we just send non blocking here.
+      ctx.genNonBlockingWebdisRequest(url_native_var)
+
+  def __init__(self):
+    super().__init__("set", "map_strong")
+
+APPNET_BUILTIN_FUNCS = [
+  GetRPCField, GetMap, CurrentTime, TimeDiff, Min, SetMap, 
+  ByteSize, RandomF, SetVector, SizeVector, SetRPCField, RPCID,
+  GetMapStrongConsistency, SetMapStrongConsistency]

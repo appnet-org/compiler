@@ -8,10 +8,19 @@ from compiler.element.backend.envoy_native.types import *
 
 
 
+DEFAULT_DECORATOR = {
+  "consistency": "None",
+  "combiner": "None",
+  "persistence": "None",
+}
+
 # Every expression, state and temporary variables in AppNet belong to a AppNetType. 
 # This is the base class for all types in AppNet.
 
 class AppNetType:
+  def __init__(self, decorator: dict[str, str] = DEFAULT_DECORATOR):
+    self.decorator = decorator
+
   def to_native(self) -> NativeType: # type: ignore
     LOG.error(f"to_native not implemented for {self}")
     assert(0)
@@ -94,6 +103,7 @@ class Instant(AppNetType):
 class Option(AppNetType): # return type of get(Map, ...)
   inner: AppNetType
   def __init__(self, inner: AppNetType):
+    super().__init__()
     self.inner = inner
 
   def to_native(self) -> NativeType:
@@ -103,7 +113,8 @@ class Map(AppNetType):
   key: AppNetType
   value: AppNetType
 
-  def __init__(self, key: AppNetType, value: AppNetType):
+  def __init__(self, key: AppNetType, value: AppNetType, decorator: dict[str, str] = DEFAULT_DECORATOR):
+    super().__init__(decorator)
     self.key = key
     self.value = value
 
@@ -114,6 +125,7 @@ class Vec(AppNetType):
   type: AppNetType
 
   def __init__(self, type: AppNetType):
+    super().__init__()
     self.type = type
 
   def to_native(self) -> NativeType:
@@ -128,15 +140,8 @@ class AppNetVariable:
   name: str
   type: AppNetType
 
-  # We have two types of variables in AppNet:
-  # 1. Temporary variables: These are variables that are implicitly declared in procedures.
-  # 2. State variables: These are variables that are declared in the state block of the program.
-  # If global_decorator is None, it means it's a temporary local variable.
-  global_decorator: Optional[dict[str, str]]
-
   native_var: Optional[NativeVariable]
 
-  def __init__(self, name: str, type: AppNetType, global_decorator: Optional[dict[str, str]] = None):
+  def __init__(self, name: str, type: AppNetType):
     self.name = name
     self.type = type
-    self.global_decorator = global_decorator
