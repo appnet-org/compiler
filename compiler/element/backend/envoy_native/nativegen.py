@@ -831,7 +831,7 @@ class TimeDiff(AppNetBuiltinFuncProto):
 
 class Min(AppNetBuiltinFuncProto):
   def instantiate(self, args: List[AppNetType]) -> bool:
-    ret = len(args) == 2 and args[0].is_same(args[1])
+    ret = len(args) == 2 and args[0].is_arithmetic() and args[1].is_arithmetic()
     if ret:
       self.prepared = True
       self.appargs = args
@@ -839,7 +839,7 @@ class Min(AppNetBuiltinFuncProto):
 
   def ret_type(self) -> AppNetType:
     assert(self.prepared)
-    return self.appargs[0]
+    return AppNetFloat() if self.appargs[0].is_float() or self.appargs[1].is_float() else AppNetInt()
 
   def gen_code(self, ctx: NativeContext, a: NativeVariable, b: NativeVariable) -> NativeVariable:
     self.native_arg_sanity_check([a, b])
@@ -848,7 +848,7 @@ class Min(AppNetBuiltinFuncProto):
       = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
     
     ctx.push_code(native_decl_stmt)
-    ctx.push_code(f"{res_native_var.name} = std::min({a.name}, {b.name});")
+    ctx.push_code(f"{res_native_var.name} = my_min({a.name}, {b.name});")
     return res_native_var
 
   def __init__(self):
@@ -1091,7 +1091,32 @@ class SetMapStrongConsistency(AppNetBuiltinFuncProto):
   def __init__(self):
     super().__init__("set", "map_strong")
 
+class Max(AppNetBuiltinFuncProto):
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and args[0].is_arithmetic() and args[1].is_arithmetic()
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+
+  def ret_type(self) -> AppNetType:
+    assert(self.prepared)
+    return AppNetFloat() if self.appargs[0].is_float() or self.appargs[1].is_float() else AppNetInt()
+
+  def gen_code(self, ctx: NativeContext, a: NativeVariable, b: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([a, b])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    
+    ctx.push_code(native_decl_stmt)
+    ctx.push_code(f"{res_native_var.name} = my_max({a.name}, {b.name});")
+    return res_native_var
+
+  def __init__(self):
+    super().__init__("max")
+
 APPNET_BUILTIN_FUNCS = [
-  GetRPCField, GetMap, CurrentTime, TimeDiff, Min, SetMap, 
+  GetRPCField, GetMap, CurrentTime, TimeDiff, Min, Max, SetMap, 
   ByteSize, RandomF, SetVector, SizeVector, SetRPCField, RPCID,
   GetMapStrongConsistency, SetMapStrongConsistency]
