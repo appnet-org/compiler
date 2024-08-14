@@ -973,7 +973,6 @@ class SetVector(AppNetBuiltinFuncProto):
   def gen_code(self, ctx: NativeContext, vec: NativeVariable, index: NativeVariable, value: NativeVariable) -> None:
     self.native_arg_sanity_check([vec, index, value])
 
-    # We are conservative here. We lock the global state for the whole operation.
     ctx.push_code(f"if ({index.name} >= {vec.name}.size()) {{")
     ctx.push_code(f"  {vec.name}.resize({index.name} + 1);")
     ctx.push_code("}")
@@ -1023,7 +1022,6 @@ class SetRPCField(AppNetBuiltinFuncProto):
   def gen_code(self, ctx: NativeContext, rpc: NativeVariable, field: NativeVariable, value: NativeVariable) -> None:
     self.native_arg_sanity_check([rpc, field, value])
 
-    # We are conservative here. We lock the global state for the whole operation.
     ctx.push_code(f"set_rpc_field({rpc.name}, {field.name}, {value.name});")
     buffer_name = "request_buffer_" if ctx.current_procedure == "req" else "response_buffer_"
     ctx.push_code(f"replace_payload(this->{buffer_name}, {rpc.name});")
