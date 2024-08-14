@@ -2,3 +2,7 @@
 	path = compiler/element/backend/envoy_native/template
 	url = git@github.com:jokerwyt/envoy-appnet.git
 	branch = master
+[submodule "compiler/graph/backend/istio-proxy"]
+	path = compiler/graph/backend/istio-proxy
+	url = git@github.com:jokerwyt/istio-proxy.git
+	branch = master
