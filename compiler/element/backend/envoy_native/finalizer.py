@@ -18,9 +18,17 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
     else:
         os.system(f"rm -f {output_dir}/appnet_filter/appnet_filter.cc")
         os.system(f"rm -f {output_dir}/appnet_filter/appnet_filter.h")
+        os.system(f"rm -f {output_dir}/appnet_filter/appnet_filter_config.cc")
         os.system(f"cp {COMPILER_ROOT}/element/backend/envoy_native/template/appnet_filter/appnet_filter.cc {output_dir}/appnet_filter/appnet_filter.cc")
         os.system(f"cp {COMPILER_ROOT}/element/backend/envoy_native/template/appnet_filter/appnet_filter.h {output_dir}/appnet_filter/appnet_filter.h")
+        os.system(f"cp {COMPILER_ROOT}/element/backend/envoy_native/template/appnet_filter/appnet_filter_config.cc {output_dir}/appnet_filter/appnet_filter_config.cc")
 
+
+    if ctx.on_tick_code != []:
+        # acquire the global_state_lock
+        ctx.on_tick_code = ['std::unique_lock<std::mutex> lock(global_state_lock);'] \
+            + ctx.on_tick_code
+        
     replace_dict = {
         "// !APPNET_STATE": ctx.global_var_def,
         "// !APPNET_INIT": ctx.init_code,
@@ -39,6 +47,7 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
             + ["{ // resp body begin. "] 
                 + ctx.resp_body_code
             + ["} // resp body end."],
+        "// !APPNET_ONTICK": ctx.on_tick_code,
     }
 
     # rewrite appnet_filter/appnet_filter.cc according to the replace dict

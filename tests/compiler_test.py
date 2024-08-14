@@ -25,30 +25,43 @@ logger.addHandler(stream_handler)
 TEST_LOG = logging.getLogger("COMPILER TEST")
 
 element_pool = [
-    "cachestrong",
-    "cacheweak",
-    "aclstrong",
-    "aclweak",
-    "lbstickystrong",
-    "lbstickyweak",
-    "fault",
-    "ratelimit",
-    "logging",
-    "mutation",
-    "metrics",
     "admissioncontrol",
     "bandwidthlimit",
+    "cache",
+    "cachestrong",
+    "cacheweak",
     "circuitbreaker",
+    # "decrypt",
+    # "encrypt",
+    "fault",
+    "firewall",
+    "firewallstrong",
+    "firewallweak",
+    "lbsticky",
+    "lbstickystrong",
+    "lbstickyweak",
+    "logging",
+    "metrics",
+    "mutation",
+    "null",
+    "ratelimit",
     # "encryptping-decryptping",
 ]
 
 apps = {
-    "ping": {
+    "echo": {
         "proto_file": os.path.join(proto_base_dir, "ping.proto"),   
         "method_name": "PingEcho",
-        "mod_name": "github.com/appnet-org/golib/sample/echo-pb",
-        "mod_location": os.path.join(APPNET_ROOT, "go-lib/sample/ping-pb"),
+        "mod_name": "",
+        "mod_location": "",
     },
+
+    # "ping": {
+    #     "proto_file": os.path.join(proto_base_dir, "ping.proto"),   
+    #     "method_name": "PingEcho",
+    #     "mod_name": "github.com/appnet-org/golib/sample/echo-pb",
+    #     "mod_location": os.path.join(APPNET_ROOT, "go-lib/sample/ping-pb"),
+    # },
     # "reservation": {
     #     "proto_file": os.path.join(proto_base_dir, "reservation.proto"),   
     #     "method_name": "CheckAvailability",
@@ -71,7 +84,7 @@ apps = {
     # },
 }
 
-backends = ["envoy", "grpc"]
+backends = ["envoy_native"] #, "envoy", "grpc"]
 
 class CompilerTestCase(unittest.TestCase):
     def generate_element_code(self, ename: str, backend: str, p: str, proto_file: str, method_name: str, mod_name: str = None, mod_location: str = None):
@@ -85,25 +98,27 @@ class CompilerTestCase(unittest.TestCase):
         ]
         if backend == "grpc":
             command.extend([ "--mod_name", mod_name, "--mod_location", mod_location])
-
-        # print(" ".join(command))
+        
+        print("== generate command ==")
+        print(" ".join(command))
 
         result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return result
 
     def compile_elements(self, backend):
-        command = [
-            "bash", os.path.join(ROOT_DIR, f"compiler/element/generated/{backend}/build.sh"),
-        ]
-
-        result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # bash -c "cd /mnt/compiler/compiler/element/generated/envoy_native && ./build.sh"
+        working_dir = os.path.join(ROOT_DIR, f"compiler/element/generated/{backend}")
+        command = ["bash", "-c", f"./build.sh"]
+        # run the command under the working directory
+        result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=working_dir)
+        print(result.stderr)
         return result
 
     # Dynamically create a test method for each element
     def create_test_method(app, element, backend, proto_file, method_name, mod_name, mod_location):
         def test_method(self):
             # os.environ['ELEMENT_SPEC_BASE_DIR'] = os.path.join(ROOT_DIR, f"experiments/elements/{app}_elements")
-            position_pool = ["client"] if backend == "envoy" else ["client", "server"]
+            position_pool = ["client"] if backend in ["envoy", "envoy_native"] else ["client", "server"]
             for position in position_pool:
                 TEST_LOG.info(f"Testing {backend} backend: {app} element: {element} at position: {position}")
                 
