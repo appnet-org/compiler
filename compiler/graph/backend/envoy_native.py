@@ -9,6 +9,7 @@ from typing import Dict, List, Tuple
 import yaml
 
 from compiler import graph_base_dir
+from compiler.config import COMPILER_ROOT
 from compiler.graph.backend import BACKEND_CONFIG_DIR
 from compiler.graph.backend.boilerplate import attach_yml
 from compiler.graph.backend.utils import *
@@ -28,10 +29,15 @@ def scriptgen_envoy_native(
     deploy_dir = os.path.join(local_gen_dir, f"{app_name}-deploy")
     os.makedirs(deploy_dir, exist_ok=True)
 
-    execute_local(["rm", "-rf", "/tmp/appnet/envoy_native"])
-    os.makedirs("/tmp/appnet/envoy_native", exist_ok=True)
+    # Change the owner of the generated directory to the current user
+    # We use docker to compile the final Envoy, therefore some previous cache may be owned by root.
+    # if os.geteuid() != 0:
+    #     raise Exception("This script must be run as root")
+    # os.system(f"sudo chown -R {os.getenv('USER')} {local_gen_dir}")
 
-
+    # Copy the istio-proxy source code to the generated directory
+    generated_istio_proxy_path = os.path.join(local_gen_dir, "istio_envoy")
+    print("Copying istio-proxy source code to the generated directory...", generated_istio_proxy_path)
     execute_local(
         [
             "cp",
@@ -39,32 +45,95 @@ def scriptgen_envoy_native(
             os.path.join(
                 os.path.dirname(os.path.realpath(__file__)), "istio-proxy/"
             ),
-            "/tmp/appnet/envoy_native",
+            generated_istio_proxy_path,
         ]
     )
 
-    # Compile each element
-    GRAPH_BACKEND_LOG.info("Compiling elements for Envoy Native. This might take a while...")
-    
-    istio_proxy_path = "/tmp/appnet/envoy_native/istio-proxy"
+    # Remove the original appnet_filter
+    os.system(f"rm -rf {generated_istio_proxy_path}/source/extensions/filters/http/appnet_filter")
 
+    # Combining all elements into the istio Envoy template.
     inserted_elements = set()
     for gir in girs.values():
         for element in gir.elements["req_client"] + gir.elements["req_server"]:
             if element.lib_name not in inserted_elements:
                 inserted_elements.add(element.lib_name)
                 impl_dir = os.path.join(local_gen_dir, f"{element.lib_name}_envoy_native")
+
+                filter_name = element.lib_name
+                # Copy $impl_dir/appnet_filter to istio-proxy/source/extensions/filters/http/$filter_name
                 execute_local(
                     [
                         "cp",
                         "-r",
                         os.path.join(impl_dir, "appnet_filter"),
-                        os.path.join(istio_proxy_path, "source/extensions/filters/http"),
+                        os.path.join(
+                            generated_istio_proxy_path,
+                            "source/extensions/filters/http",
+                            filter_name,
+                        ),
                     ]
                 )
 
-                filter_name = element.lib_name
-                
+                # Do source code transformation to make it fit in.
+                for root, _, files in os.walk(
+                    os.path.join(
+                        generated_istio_proxy_path, "source/extensions/filters/http", filter_name
+                    )
+                ):
+                    for file in files:
+                        # if file does not ends with .cc or .h
+                        if not file.endswith(".cc") and not file.endswith(".h"):
+                            continue
+                        file_path = os.path.join(root, file)
+                        with open(file_path, "r") as f:
+                            lines = f.readlines()
+                        with open(file_path, "w") as f:
+                            for line in lines:
+                                # Rule 1. if it's a include line, and the filename ends with .pb.h,
+                                # add prefix "source/extensions/filters/http/".
+                                # For example
+                                # Origin: #include "appnet_filter/appnet_filter.pb.h"
+                                # #include "source/extensions/filters/http/appnet_filter/appnet_filter.pb.h"
+                                if "#include" in line and ".pb.h" in line:
+                                    line = line.replace(
+                                        "#include",
+                                        f'#include "source/extensions/filters/http/{filter_name}/',
+                                    )
+                                # Rule 2. replace all AppNetSampleFilter with the AppNet${filter_name}Filter
+                                line = line.replace("AppNetSampleFilter", f"AppNet{filter_name}Filter")
+
+                                f.write(line)
+
+    # Modify BUILD.
+    # Remove the original appnet_filter, and insert the new filters.
+    # ISTIO_EXTENSIONS = [
+    #     "//source/extensions/common/workload_discovery:api_lib",  # Experimental: WIP
+    #     "//source/extensions/filters/http/alpn:config_lib",
+    #     "//source/extensions/filters/http/istio_stats",
+    #     "//source/extensions/filters/http/peer_metadata:filter_lib",
+    #     "//source/extensions/filters/network/metadata_exchange:config_lib",
+    #     # !APPNET_FILTERS
+    #     "//source/extensions/filters/http/appnet_filter:appnet_filter_lib",
+    #     "//source/extensions/load_balancing_policies/random:random_lb_lib",
+    # ]
+    with open(os.path.join(generated_istio_proxy_path, "BUILD"), "r") as f:
+        lines = f.readlines()
+    # Remove "//source/extensions/filters/http/appnet_filter:appnet_filter_lib",
+    lines = list(filter(lambda l: "//source/extensions/filters/http/appnet_filter:appnet_filter_lib" not in l, lines))
+    
+    # insert "//source/extensions/filters/http/${filter_name}:appnet_filter_lib", in the correct position
+    insert_idx = 0
+    for idx, line in enumerate(lines):
+        if "# !APPNET_FILTERS\n" in line:
+            insert_idx = idx
+            break
+    for element in inserted_elements:
+        lines.insert(insert_idx, f'    "//source/extensions/filters/http/{element}:appnet_filter_lib",\n')
+    with open(os.path.join(generated_istio_proxy_path, "BUILD"), "w") as f:
+        f.writelines(lines)
+
+    exit(0)
     # TODO: we should combine all elements into one Envoy project
     # TODO: and compile out an Envoy binary
     # TODO: and build the istio-proxy image.
