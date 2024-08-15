@@ -16,7 +16,7 @@ from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_BACKEND_LOG
 
 
-def scriptgen_envoy(
+def scriptgen_envoy_native(
     girs: Dict[str, GraphIR],
     app_name: str,
     app_manifest_file: str,
@@ -27,49 +27,49 @@ def scriptgen_envoy(
     os.makedirs(local_gen_dir, exist_ok=True)
     deploy_dir = os.path.join(local_gen_dir, f"{app_name}-deploy")
     os.makedirs(deploy_dir, exist_ok=True)
-    os.makedirs("/tmp/appnet", exist_ok=True)
+
+    execute_local(["rm", "-rf", "/tmp/appnet/envoy_native"])
+    os.makedirs("/tmp/appnet/envoy_native", exist_ok=True)
+
+
+    execute_local(
+        [
+            "cp",
+            "-r",
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)), "istio-proxy/"
+            ),
+            "/tmp/appnet/envoy_native",
+        ]
+    )
 
     # Compile each element
-    GRAPH_BACKEND_LOG.info("Compiling elements for Envoy. This might take a while...")
-    compiled_elements = set()
+    GRAPH_BACKEND_LOG.info("Compiling elements for Envoy Native. This might take a while...")
+    
+    istio_proxy_path = "/tmp/appnet/envoy_native/istio-proxy"
+
+    inserted_elements = set()
     for gir in girs.values():
         for element in gir.elements["req_client"] + gir.elements["req_server"]:
-            if element.lib_name not in compiled_elements:
-                compiled_elements.add(element.lib_name)
-                impl_dir = os.path.join(local_gen_dir, f"{element.lib_name}_envoy")
-                # Compile
-                execute_local(
-                    [
-                        "cargo",
-                        "build",
-                        "--target=wasm32-wasi",
-                        "--manifest-path",
-                        os.path.join(impl_dir, "Cargo.toml"),
-                        "--release",
-                    ]
-                )
-                # copy binary to /tmp/appnet
+            if element.lib_name not in inserted_elements:
+                inserted_elements.add(element.lib_name)
+                impl_dir = os.path.join(local_gen_dir, f"{element.lib_name}_envoy_native")
                 execute_local(
                     [
                         "cp",
-                        os.path.join(
-                            impl_dir,
-                            f"target/wasm32-wasi/release/{element.lib_name}.wasm",
-                        ),
-                        "/tmp/appnet",
+                        "-r",
+                        os.path.join(impl_dir, "appnet_filter"),
+                        os.path.join(istio_proxy_path, "source/extensions/filters/http"),
                     ]
                 )
 
-    # for file_or_dir in os.listdir(app_manifest_dir):
-    #     if app_name not in file_or_dir:
-    #         execute_local(
-    #             [
-    #                 "cp",
-    #                 "-r",
-    #                 os.path.join(app_manifest_dir, file_or_dir),
-    #                 os.path.join(deploy_dir, file_or_dir),
-    #             ]
-    #         )
+                filter_name = element.lib_name
+                
+    # TODO: we should combine all elements into one Envoy project
+    # TODO: and compile out an Envoy binary
+    # TODO: and build the istio-proxy image.
+                
+
 
     # Generate the istio manifest file for the application.
     execute_local(
@@ -79,7 +79,7 @@ def scriptgen_envoy(
             "-f",
             app_manifest_file,
             "-o",
-            os.path.join(local_gen_dir, app_name + "_istio.yml"),
+            os.path.join(local_gen_dir, app_name + "_istio.y-ml"),
         ]
     )
     GRAPH_BACKEND_LOG.info("Generating the istio manifest file for the application...")
