@@ -25,8 +25,11 @@ def scriptgen_envoy_native(
 ):
     global local_gen_dir
     local_gen_dir = os.path.join(graph_base_dir, "generated")
-    os.makedirs(local_gen_dir, exist_ok=True)
+    native_gen_dir = os.path.join(graph_base_dir, "generated_native")
     deploy_dir = os.path.join(local_gen_dir, f"{app_name}-deploy")
+
+    os.makedirs(local_gen_dir, exist_ok=True)
+    os.makedirs(native_gen_dir, exist_ok=True)
     os.makedirs(deploy_dir, exist_ok=True)
 
     # Change the owner of the generated directory to the current user
@@ -36,20 +39,21 @@ def scriptgen_envoy_native(
     # os.system(f"sudo chown -R {os.getenv('USER')} {local_gen_dir}")
 
     # Copy the istio-proxy source code to the generated directory
-    generated_istio_proxy_path = os.path.join(local_gen_dir, "istio_envoy")
-    print("Copying istio-proxy source code to the generated directory...", generated_istio_proxy_path)
-    execute_local(
-        [
-            "cp",
-            "-r",
-            os.path.join(
-                os.path.dirname(os.path.realpath(__file__)), "istio-proxy/"
-            ),
-            generated_istio_proxy_path,
-        ]
-    )
+    generated_istio_proxy_path = os.path.join(native_gen_dir, "istio_envoy")
+    # Clone the istio-proxy repository
 
-    # Remove the original appnet_filter
+    if os.path.exists(generated_istio_proxy_path) == False:
+        execute_local(
+            [
+                "git",
+                "clone",
+                # TODO: move to appnet-org in future
+                "git@github.com:jokerwyt/istio-proxy.git",
+                generated_istio_proxy_path,
+            ]
+        )
+
+    # Remove the original appnet_filter (if exists)
     os.system(f"rm -rf {generated_istio_proxy_path}/source/extensions/filters/http/appnet_filter")
 
     # Combining all elements into the istio Envoy template.
@@ -62,6 +66,16 @@ def scriptgen_envoy_native(
 
                 filter_name = element.lib_name
                 # Copy $impl_dir/appnet_filter to istio-proxy/source/extensions/filters/http/$filter_name
+                # if exists, delete the old one
+                if os.path.exists(
+                    os.path.join(
+                        generated_istio_proxy_path, "source/extensions/filters/http", filter_name
+                    )
+                ):
+                    os.system(
+                        f"rm -rf {generated_istio_proxy_path}/source/extensions/filters/http/{filter_name}"
+                    )
+
                 execute_local(
                     [
                         "cp",
@@ -82,31 +96,55 @@ def scriptgen_envoy_native(
                     )
                 ):
                     for file in files:
-                        # if file does not ends with .cc or .h
-                        if not file.endswith(".cc") and not file.endswith(".h"):
+                        # if file does not ends with .cc or .h or proto
+                        suffix = file.split(".")[-1]
+                        if suffix not in ["cc", "h", "proto"]:
                             continue
                         file_path = os.path.join(root, file)
                         with open(file_path, "r") as f:
                             lines = f.readlines()
                         with open(file_path, "w") as f:
                             for line in lines:
-                                # Rule 1. if it's a include line, and the filename ends with .pb.h,
-                                # add prefix "source/extensions/filters/http/".
+                                # Rule 1. Change the include path of the .pb.h files.
+                                # We replace prefix "appnet_filter/" with "source/extensions/filters/http/".
+                                # 
                                 # For example
-                                # Origin: #include "appnet_filter/appnet_filter.pb.h"
-                                # #include "source/extensions/filters/http/appnet_filter/appnet_filter.pb.h"
-                                if "#include" in line and ".pb.h" in line:
-                                    line = line.replace(
-                                        "#include",
-                                        f'#include "source/extensions/filters/http/{filter_name}/',
-                                    )
-                                # Rule 2. replace all AppNetSampleFilter with the AppNet${filter_name}Filter
-                                line = line.replace("AppNetSampleFilter", f"AppNet{filter_name}Filter")
+                                # Origin: #include "appnet_filter/echo.pb.h"
+                                # After: #include "source/extensions/filters/http/${filter_name}/echo.pb.h"
 
+                                if "#include" in line and ".pb.h" in line:
+                                    file_name = line.split("/")[-1].split(".")[0]
+                                    line = line.replace(
+                                        f'#include "appnet_filter/{file_name}.pb.h"',
+                                        f'#include "source/extensions/filters/http/{filter_name}/{file_name}.pb.h"',
+                                    )
+
+                                # Rule 2. replace all AppNetSampleFilter and appnetsamplefilter
+                                line = line.replace("AppNetSampleFilter", f"appnet{filter_name}")
+                                line = line.replace("appnetsamplefilter", f"appnet{filter_name}")
+                                # Note
                                 f.write(line)
 
+
     # Modify BUILD.
-    # Remove the original appnet_filter, and insert the new filters.
+    # Checkout the BUILD fiel template first.
+    # i.e. execute "git checkout origin/master -- source/extensions/filters/http/appnet_filter/BUILD" in that directory
+    ROOT_BUILD_FILE = os.path.join(generated_istio_proxy_path, "BUILD")
+    subprocess.run(
+        [
+            "git",
+            "checkout",
+            "origin/master",
+            "--",
+            ROOT_BUILD_FILE,
+        ],
+        cwd=generated_istio_proxy_path,
+        check=True,
+    )
+
+    # Remove the original appnet_filter items in BUILD, and insert the new filters.
+    # 
+    # The template is in the following format:
     # ISTIO_EXTENSIONS = [
     #     "//source/extensions/common/workload_discovery:api_lib",  # Experimental: WIP
     #     "//source/extensions/filters/http/alpn:config_lib",
@@ -117,12 +155,12 @@ def scriptgen_envoy_native(
     #     "//source/extensions/filters/http/appnet_filter:appnet_filter_lib",
     #     "//source/extensions/load_balancing_policies/random:random_lb_lib",
     # ]
-    with open(os.path.join(generated_istio_proxy_path, "BUILD"), "r") as f:
+    with open(ROOT_BUILD_FILE, "r") as f:
         lines = f.readlines()
     # Remove "//source/extensions/filters/http/appnet_filter:appnet_filter_lib",
     lines = list(filter(lambda l: "//source/extensions/filters/http/appnet_filter:appnet_filter_lib" not in l, lines))
     
-    # insert "//source/extensions/filters/http/${filter_name}:appnet_filter_lib", in the correct position
+    # Insert "//source/extensions/filters/http/${filter_name}:appnet_filter_lib", in the correct position
     insert_idx = 0
     for idx, line in enumerate(lines):
         if "# !APPNET_FILTERS\n" in line:
@@ -130,14 +168,10 @@ def scriptgen_envoy_native(
             break
     for element in inserted_elements:
         lines.insert(insert_idx, f'    "//source/extensions/filters/http/{element}:appnet_filter_lib",\n')
-    with open(os.path.join(generated_istio_proxy_path, "BUILD"), "w") as f:
+    with open(ROOT_BUILD_FILE, "w") as f:
         f.writelines(lines)
-
     exit(0)
-    # TODO: we should combine all elements into one Envoy project
-    # TODO: and compile out an Envoy binary
-    # TODO: and build the istio-proxy image.
-                
+    # Bake the istio-proxy image
 
 
     # Generate the istio manifest file for the application.

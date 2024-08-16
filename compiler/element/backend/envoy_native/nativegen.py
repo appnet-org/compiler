@@ -972,8 +972,7 @@ class SetVector(AppNetBuiltinFuncProto):
 
   def gen_code(self, ctx: NativeContext, vec: NativeVariable, index: NativeVariable, value: NativeVariable) -> None:
     self.native_arg_sanity_check([vec, index, value])
-
-    ctx.push_code(f"if ({index.name} >= {vec.name}.size()) {{")
+    ctx.push_code(f"if ({index.name} >= static_cast<int>({vec.name}.size())) {{")
     ctx.push_code(f"  {vec.name}.resize({index.name} + 1);")
     ctx.push_code("}")
     ctx.push_code(f"{vec.name}[{index.name}] = {value.name};")

@@ -39,10 +39,10 @@ class NativeType:
 
 class RPC(NativeType):
   def type_name(self) -> str:
-    return "pb::Msg"
+    return "::appnetsamplefilter::Msg"
   
   def gen_decl(self, name: str) -> str:
-    return f"pb::Msg {name};"
+    return f"::appnetsamplefilter::Msg {name};"
 
 class Timepoint(NativeType):
   def type_name (self)-> str:
