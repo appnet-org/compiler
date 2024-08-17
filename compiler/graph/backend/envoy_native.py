@@ -11,7 +11,7 @@ import yaml
 from compiler import graph_base_dir
 from compiler.config import COMPILER_ROOT
 from compiler.graph.backend import BACKEND_CONFIG_DIR
-from compiler.graph.backend.boilerplate import attach_yml
+from compiler.graph.backend.boilerplate import attach_yml_native
 from compiler.graph.backend.utils import *
 from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_BACKEND_LOG
@@ -170,10 +170,37 @@ def scriptgen_envoy_native(
         lines.insert(insert_idx, f'    "//source/extensions/filters/http/{element}:appnet_filter_lib",\n')
     with open(ROOT_BUILD_FILE, "w") as f:
         f.writelines(lines)
-    exit(0)
-    # Bake the istio-proxy image
 
+    GRAPH_BACKEND_LOG.info(f"The istio envoy source code is generated successfully in {generated_istio_proxy_path}.")
+    
+    # Compile the istio envoy.
 
+    image_name = f"jokerwyt/istio-proxy-1.22:latest"
+    if os.getenv("APPNET_NO_BAKE") != "1":
+        GRAPH_BACKEND_LOG.info("Building the istio envoy...")
+        execute_local(
+            ["bash", "build.sh"], cwd=generated_istio_proxy_path,
+        )
+        # Bake the istio proxy image.
+        GRAPH_BACKEND_LOG.info("Building the istio proxy image...")
+        execute_local(
+            ["docker", "build", "-t", f"docker.io/{image_name}", "-f", "Dockerfile.istioproxy", "."],
+            cwd=generated_istio_proxy_path,
+        )
+        GRAPH_BACKEND_LOG.info(f"Docker image {image_name} is built successfully.")
+
+        # Push the image to the docker hub.
+        GRAPH_BACKEND_LOG.info("Pushing the istio proxy image to the docker hub...")
+        execute_local(["docker", "push", f"docker.io/{image_name}"])
+        GRAPH_BACKEND_LOG.info(f"Docker image {image_name} is pushed successfully.")
+    else:
+        GRAPH_BACKEND_LOG.info("Skip building and pushing the istio proxy image.")
+
+    GRAPH_BACKEND_LOG.info("Injecting the istio proxy image to the application manifest file...")
+    istio_injected_file = os.path.join(local_gen_dir, app_name + "_istio.yml")
+    
+    cmd=f"istioctl kube-inject -f {app_manifest_file} -o {istio_injected_file} --set values.global.proxy.image=docker.io/{image_name}"
+    GRAPH_BACKEND_LOG.info(f"Executing command: {cmd}")
     # Generate the istio manifest file for the application.
     execute_local(
         [
@@ -182,9 +209,38 @@ def scriptgen_envoy_native(
             "-f",
             app_manifest_file,
             "-o",
-            os.path.join(local_gen_dir, app_name + "_istio.y-ml"),
+            os.path.join(local_gen_dir, app_name + "_istio.yml"),
         ]
     )
+
+    # Use custom istio-proxy image in the generated manifest file
+    with open(istio_injected_file, "r") as f:
+        content = f.readlines()
+        # replace
+        # docker.io/istio/proxyv2:<version_number>
+        # with 
+        # docker.io/{image_name}
+        for i, line in enumerate(content):
+            if "docker.io/istio/proxyv2" in line:
+                content[i] = line.split("docker.io/istio/proxyv2")[0] + f"docker.io/{image_name}" + "\n"
+    with open(istio_injected_file, "w") as f:
+        f.writelines(content)
+
+    # Set pull policy always
+    with open(istio_injected_file, "r") as f:
+        yml_list = list(yaml.safe_load_all(f))
+        for obj_yml in yml_list:
+            if obj_yml and "kind" in obj_yml and obj_yml["kind"] == "Deployment":
+                for container_yaml in obj_yml["spec"]["template"]["spec"]["containers"] + obj_yml["spec"]["template"]["spec"]["initContainers"]:
+                    # if the image is our custom image, set the pull policy to Always
+                    if container_yaml["image"] == f"docker.io/{image_name}":
+                        container_yaml["imagePullPolicy"] = "Always"
+
+    # Dump back
+    with open(istio_injected_file, "w") as f:
+        yaml.dump_all(yml_list, f, default_flow_style=False)
+    GRAPH_BACKEND_LOG.info(f"The istio-injected file is generated successfully at {istio_injected_file}.")
+
     GRAPH_BACKEND_LOG.info("Generating the istio manifest file for the application...")
     with open(app_manifest_file, "r") as f:
         yml_list_plain = list(yaml.safe_load_all(f))
@@ -388,7 +444,7 @@ def scriptgen_envoy_native(
                 "filename": f"/etc/appnet/{e.lib_name}.wasm",
                 "service_label": service_to_label[sname],
             }
-            attach_all_yml += attach_yml.format(**contents)
+            attach_all_yml += attach_yml_native.format(**contents)
     with open(os.path.join(deploy_dir, "attach_all_elements.yml"), "w") as f:
         f.write(attach_all_yml)
 
