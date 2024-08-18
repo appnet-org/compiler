@@ -105,18 +105,22 @@ def scriptgen_envoy_native(
                             lines = f.readlines()
                         with open(file_path, "w") as f:
                             for line in lines:
-                                # Rule 1. Change the include path of the .pb.h files.
+                                # Rule 1. Change the include path of the .pb.h and .pb.validate.h files.
                                 # We replace prefix "appnet_filter/" with "source/extensions/filters/http/".
                                 # 
                                 # For example
                                 # Origin: #include "appnet_filter/echo.pb.h"
                                 # After: #include "source/extensions/filters/http/${filter_name}/echo.pb.h"
 
-                                if "#include" in line and ".pb.h" in line:
+                                if "#include" in line and (".pb.h" in line or ".pb.validate.h" in line):
                                     file_name = line.split("/")[-1].split(".")[0]
                                     line = line.replace(
                                         f'#include "appnet_filter/{file_name}.pb.h"',
                                         f'#include "source/extensions/filters/http/{filter_name}/{file_name}.pb.h"',
+                                    )
+                                    line = line.replace(
+                                        f'#include "appnet_filter/{file_name}.pb.validate.h"',
+                                        f'#include "source/extensions/filters/http/{filter_name}/{file_name}.pb.validate.h"',
                                     )
 
                                 # Rule 2. replace all AppNetSampleFilter and appnetsamplefilter
@@ -157,8 +161,6 @@ def scriptgen_envoy_native(
     # ]
     with open(ROOT_BUILD_FILE, "r") as f:
         lines = f.readlines()
-    # Remove "//source/extensions/filters/http/appnet_filter:appnet_filter_lib",
-    lines = list(filter(lambda l: "//source/extensions/filters/http/appnet_filter:appnet_filter_lib" not in l, lines))
     
     # Insert "//source/extensions/filters/http/${filter_name}:appnet_filter_lib", in the correct position
     insert_idx = 0
@@ -167,7 +169,8 @@ def scriptgen_envoy_native(
             insert_idx = idx
             break
     for element in inserted_elements:
-        lines.insert(insert_idx, f'    "//source/extensions/filters/http/{element}:appnet_filter_lib",\n')
+        lines.insert(insert_idx, f'    "//source/extensions/filters/http/{element}:appnet_filter_config",\n')
+
     with open(ROOT_BUILD_FILE, "w") as f:
         f.writelines(lines)
 
