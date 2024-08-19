@@ -126,7 +126,10 @@ def scriptgen_envoy_native(
                                 # Rule 2. replace all AppNetSampleFilter and appnetsamplefilter
                                 line = line.replace("AppNetSampleFilter", f"appnet{filter_name}")
                                 line = line.replace("appnetsamplefilter", f"appnet{filter_name}")
-                                # Note
+
+                                # Rule 3. webdis_cluster -> webdis-service-{filter_name}
+                                line = line.replace("webdis_cluster", f"webdis-service-{filter_name}")
+
                                 f.write(line)
 
 
@@ -365,14 +368,6 @@ def scriptgen_envoy_native(
                 yml_list_istio.append(webdis_service_copy)
                 yml_list_istio.append(webdis_deploy_copy)
 
-            # Copy the wasm binary to the remote hosts (except the control plane node)
-            # We need to copy to all hosts because we don't know where the service will be scheduled
-            nodes = get_node_names(control_plane=False)
-            for node in nodes:
-                copy_remote_host(
-                    node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet"
-                )
-
     if os.getenv("APPNET_NO_OPTIMIZE") != "1":
         # has optimization: exclude ports that has no element attached to
         for client, server in app_edges:
@@ -430,9 +425,9 @@ def scriptgen_envoy_native(
     # Generate script to attach elements.
     attach_all_yml = ""
     for gir in girs.values():
-        elist = [(e, gir.client, "client") for e in gir.elements["req_client"]] + [
-            (e, gir.server, "server") for e in gir.elements["req_server"]
-        ]
+        elist = [(e, gir.client, "client") for e in gir.elements["req_client"]] \
+            + [(e, gir.server, "server") for e in gir.elements["req_server"]][::-1]
+        
         for (e, sname, placement) in elist:
             contents = {
                 "metadata_name": f"{e.lib_name}-{sname}-{placement}",

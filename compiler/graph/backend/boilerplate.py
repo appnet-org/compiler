@@ -314,7 +314,7 @@ spec:
             subFilter:
               name: "envoy.filters.http.router"
     patch:
-      operation: INSERT_FIRST
+      operation: INSERT_BEFORE
       value:
         name: appnet{ename}
         typed_config:

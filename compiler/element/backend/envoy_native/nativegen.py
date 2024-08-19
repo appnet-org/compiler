@@ -594,8 +594,13 @@ class NativeGenerator(Visitor):
             assert(node.msg.msg.value != "")
             # Forbidden 403
             # TODO: This may be buggy since req_appnet_blocked_ is used in encodeHeader().
+
+            ctx.push_code("std::function<void(ResponseHeaderMap& headers)> modify_headers = [](ResponseHeaderMap& headers) {")
+            ctx.push_code("  headers.addCopy(LowerCaseString(\"appnet-local-reply\"), \"appnetsamplefilter\");")
+            ctx.push_code("};")
+
             ctx.push_code(f"this->req_appnet_blocked_ = true;") 
-            ctx.push_code(f"this->decoder_callbacks_->sendLocalReply(Http::Code::Forbidden, \"{node.msg.msg.value[1:-1]}\", nullptr, absl::nullopt, \"\");")
+            ctx.push_code(f"this->decoder_callbacks_->sendLocalReply(Http::Code::Forbidden, \"{node.msg.msg.value[1:-1]}\", modify_headers, absl::nullopt, \"\");")
             ctx.push_code("co_return;")
           else:
             raise Exception("req procedure should only send error message tp Up direction")
