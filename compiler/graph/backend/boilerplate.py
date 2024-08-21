@@ -291,3 +291,53 @@ spec:
                         port_value: 7379
 ---
 """
+
+
+
+attach_yml_native = """apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: {metadata_name}
+spec:
+  workloadSelector:
+    labels:
+      {service_label}: {service}
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: {bound}
+      listener:
+        portNumber: {port}
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+            subFilter:
+              name: "envoy.filters.http.router"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: appnet{ename}
+        typed_config:
+          "@type": "type.googleapis.com/xds.type.v3.TypedStruct"
+          type_url: "type.googleapis.com/appnet{ename}.FilterConfig"
+  - applyTo: CLUSTER
+    match:
+        context: SIDECAR_OUTBOUND
+    patch:
+      operation: ADD
+      value:
+        name: "webdis-service-{ename}"
+        connect_timeout: 5s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: webdis-service-{ename}
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: webdis-service-{ename}
+                        port_value: 7379
+---
+"""

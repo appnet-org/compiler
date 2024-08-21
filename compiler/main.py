@@ -64,7 +64,7 @@ def parse_args():
         help="Backend name",
         type=str,
         required=True,
-        choices=["mrpc", "envoy", "grpc", "ambient"],
+        choices=["mrpc", "envoy", "grpc", "ambient", "envoy_native"],
     )
     parser.add_argument(
         "--mrpc_dir",
@@ -218,6 +218,7 @@ def main(args):
         generate_element_impl(graphirs, args.pseudo_impl)
         # Step 3.2: Generate deployment scripts
         scriptgen(graphirs, args.backend, app_name, app_manifest_file, app_edges)
+    
 
     # Dump graphir summary (in yaml)
     gen_dir = os.path.join(graph_base_dir, "generated")
