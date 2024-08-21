@@ -15,21 +15,26 @@ combiner_decorator: "@combiner" "(" NAME ")"
 persistence_decorator: "@persistence" "(" bool ")"
 
 type_: single_type
-     | "Vec" "<" single_type ">" -> vec_type
-     | "Map" "<" single_type "," single_type ">" -> map_type
+     | "Vec" "<" (single_type | pair_type) ">" -> vec_type
+     | "Map" "<" single_type "," (single_type | pair_type) ">" -> map_type
+pair_type: "<" single_type "," single_type ">"
 single_type: NAME
 
-body: _NEWLINE _INDENT (simple_stmt | match_stmt | _NEWLINE)* _DEDENT
+body: _NEWLINE _INDENT ( simple_stmt | match_stmt | foreach_stmt | _NEWLINE )* _DEDENT
 
-simple_stmt: (expr | assign | primitive | "pass" ) _NEWLINE
+simple_stmt: (expr | assign | send | "pass" ) _NEWLINE
 
-primitive: "send" "(" (expr | err) "," direction ")"
+send: "send" "(" (expr | err) "," direction ")"
 direction: "Up" -> dir_up | "Down" -> dir_down
 err: "err" "(" (quoted_string | NAME) ")"
 
-assign: identifier "=" expr
+assign: (single_var | pair_var) "=" expr
+single_var: identifier
+pair_var: "(" identifier "," identifier ")"
 
-expr: "(" expr ")" | expr op expr | identifier | const | builtin_func | func
+expr: "(" expr ")" | expr op expr | pair | primitive_val
+pair: "(" primitive_val "," primitive_val ")"
+primitive_val: identifier | const | builtin_func | func
 
 const: NAME | quoted_string | INT | FLOAT | bool
 quoted_string: /'[^']*'/
@@ -63,6 +68,10 @@ action_stmt: pattern "=>" body
 pattern: const
        | "None" -> none_pattern
        | "Some" "(" (identifier |err) ")" -> some_pattern
+
+foreach_stmt: "foreach" "(" identifier "," lambda_func ")"
+lambda_func: "lambda" "(" identifier ")" ":" lambdabody
+lambdabody: _NEWLINE _INDENT (simple_stmt | match_stmt | foreach_stmt)* _DEDENT
 
 identifier: NAME
 bool: "true" -> true | "false" -> false
