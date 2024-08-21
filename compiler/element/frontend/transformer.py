@@ -64,6 +64,9 @@ class ElementTransformer(Transformer):
     def map_type(self, t) -> Type:
         return Type(f"Map<{t[0].name}, {t[1].name}>", None, None, False)
 
+    def pair_type(self, p) -> Type:
+        return Type(f"<{p[0].name}, {p[1].name}>", None, None, False)
+
     def single_type(self, d) -> Type:
         return Type(d[0], None, None, False)
 
@@ -111,6 +114,15 @@ class ElementTransformer(Transformer):
         else:
             return Statement(s[0])
 
+    def foreach_stmt(self, f) -> Foreach:
+        return Foreach(f[0], f[1])
+
+    def lambda_func(self, l) -> LambdaFunc:
+        return LambdaFunc(l[0], l[1])
+
+    def lambdabody(self, l):
+        return l
+
     def match_stmt(self, m) -> Match:
         """
         Args:
@@ -149,10 +161,22 @@ class ElementTransformer(Transformer):
         else:
             raise Exception("Invalid expression: " + str(e))
 
+    def primitive_val(self, p):
+        return p[0]
+
+    def pair(self, p) -> Expr:
+        return Pair(p[0], p[1])
+
     def assign(self, a) -> Assign:
         return Assign(a[0], a[1])
 
-    def primitive(self, p):
+    def single_var(self, s) -> Identifier:
+        return s[0]
+
+    def pair_var(self, p) -> Pair:
+        return Pair(p[0], p[1])
+
+    def send(self, p):
         """
         Args:
             p (list): [expr|err, "Up"|"Down"]

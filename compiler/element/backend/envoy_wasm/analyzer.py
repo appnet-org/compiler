@@ -68,8 +68,22 @@ class AccessAnalyzer(
             for st in s:
                 st.accept(self, ctx)
 
+    def visitForeach(self, node: Foreach, ctx: WasmContext):
+        node.func.accept(self, ctx)
+
+    def visitLambdaFunc(self, node: LambdaFunc, ctx: WasmContext):
+        for st in node.body:
+            st.accept(self, ctx)
+
     def visitAssign(self, node: Assign, ctx: WasmContext):
-        set_method(node.left.name, ctx, MethodType.SET)
+        if isinstance(node.left, Identifier):
+            names = [node.left.name]
+        elif isinstance(node.left, Pair):
+            assert isinstance(node.left.first, Identifier)
+            assert isinstance(node.left.second, Identifier)
+            names = [node.left.first.name, node.left.second.name]
+        for name in names:
+            set_method(name, ctx, MethodType.SET)
         node.right.accept(self, ctx)
 
     def visitPattern(self, node: Pattern, ctx: WasmContext):
@@ -85,6 +99,9 @@ class AccessAnalyzer(
         node.rhs.accept(self, ctx)
 
     def visitIdentifier(self, node: Identifier, ctx: WasmContext):
+        pass
+
+    def visitPair(self, node: Pair, ctx: WasmContext):
         pass
 
     def visitConsistencyDecorator(self, node: ConsistencyDecorator, ctx: WasmContext):
