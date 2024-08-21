@@ -67,16 +67,32 @@ class Match(Statement):
 
 
 class Assign(Statement):
-    def __init__(self, left: Identifier, right: Expr):
+    def __init__(self, left: Union[Identifier, Pair], right: Expr):
         self.left = left
         self.right = right
 
 
 class Pattern(Node):
     def __init__(self, value: Union[Identifier, Literal, Error], some: bool):
-        assert(isinstance(value, Identifier) or isinstance(value, Literal) or isinstance(value, Error))
+        assert (
+            isinstance(value, Identifier)
+            or isinstance(value, Literal)
+            or isinstance(value, Error)
+        )
         self.value = value
         self.some = some
+
+
+class Foreach(Statement):
+    def __init__(self, var: Identifier, func: LambdaFunc):
+        self.var = var
+        self.func = func
+
+
+class LambdaFunc(Node):
+    def __init__(self, arg: Identifier, body: List[Statement]):
+        self.arg = arg
+        self.body = body
 
 
 class Expr(Node):
@@ -86,7 +102,14 @@ class Expr(Node):
         self.rhs = rhs
         self.type = "unknown"
 
-class Identifier(Node):
+
+class Pair(Expr):
+    def __init__(self, first: Expr, second: Expr):
+        self.first = first
+        self.second = second
+
+
+class Identifier(Expr):
     def __init__(self, name: str):
         self.name = name
 

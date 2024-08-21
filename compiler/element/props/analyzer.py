@@ -53,6 +53,13 @@ class CopyAnalyzer(Visitor):
             for st in s:
                 st.accept(self, ctx)
 
+    def visitForeach(self, node: Foreach, ctx):
+        node.func.accept(self, ctx)
+
+    def visitLambdaFunc(self, node: LambdaFunc, ctx):
+        for st in node.body:
+            st.accept(self, ctx)
+
     def visitAssign(self, node: Assign, ctx):
         pass
 
@@ -131,6 +138,12 @@ class WriteAnalyzer(Visitor):
                 ret = st.accept(self, ctx) or ret
         return ret
 
+    def visitForeach(self, node: Foreach, ctx) -> bool:
+        return node.func.accept(self, ctx)
+
+    def visitLambdaFunc(self, node: LambdaFunc, ctx) -> bool:
+        return any(st.accept(self, ctx) for st in node.body)
+
     def visitAssign(self, node: Assign, ctx) -> bool:
         return node.left.accept(self, ctx) or node.right.accept(self, ctx)
 
@@ -141,6 +154,9 @@ class WriteAnalyzer(Visitor):
         return node.lhs.accept(self, ctx) or node.rhs.accept(self, ctx)
 
     def visitIdentifier(self, node: Identifier, ctx) -> bool:
+        return False
+
+    def visitPair(self, node: Pair, ctx) -> bool:
         return False
 
     def visitType(self, node: Type, ctx) -> bool:
@@ -218,6 +234,12 @@ class ReadAnalyzer(Visitor):
                 ret = st.accept(self, ctx) or ret
         return ret
 
+    def visitForeach(self, node: Foreach, ctx) -> bool:
+        return node.func.accept(self, ctx)
+
+    def visitLambdaFunc(self, node: LambdaFunc, ctx) -> bool:
+        return any(st.accept(self, ctx) for st in node.body)
+
     def visitAssign(self, node: Assign, ctx) -> bool:
         return node.left.accept(self, ctx) or node.right.accept(self, ctx)
 
@@ -228,6 +250,9 @@ class ReadAnalyzer(Visitor):
         return node.lhs.accept(self, ctx) or node.rhs.accept(self, ctx)
 
     def visitIdentifier(self, node: Identifier, ctx) -> bool:
+        return False
+
+    def visitPair(self, node: Pair, ctx) -> bool:
         return False
 
     def visitType(self, node: Type, ctx) -> bool:
@@ -310,6 +335,12 @@ class DropAnalyzer(Visitor):
         # todo! fixme
         raise Exception("Unreachable! Match should not appear in drop analyzer")
 
+    def visitForeach(self, node: Foreach, ctx) -> bool:
+        return node.func.accept(self, ctx)
+
+    def visitLambdaFunc(self, node: LambdaFunc, ctx) -> bool:
+        return any(st.accept(self, ctx) for st in node.body)
+
     def visitAssign(self, node: Assign, ctx) -> bool:
         return False
 
@@ -388,12 +419,26 @@ class AliasAnalyzer(Visitor):
             for st in s:
                 st.accept(self, ctx)
 
+    def visitForeach(self, node: Foreach, ctx):
+        node.func.accept(self, ctx)
+
+    def visitLambdaFunc(self, node: LambdaFunc, ctx):
+        for st in node.body:
+            st.accept(self, ctx)
+
     def visitAssign(self, node: Assign, ctx):
-        name = node.left.name
+        if isinstance(node.left, Identifier):
+            names = [node.left.name]
+        elif isinstance(node.left, Pair):
+            assert isinstance(node.left.first, Identifier)
+            assert isinstance(node.left.second, Identifier)
+            names = [node.left.first.name, node.left.second.name]
+
         is_target = node.right.accept(self, ctx)
         if is_target == True:
-            self.targets.append(name)
-            self.target_fields[name] = []
+            self.targets.extend(names)
+            for name in names:
+                self.target_fields[name] = []
 
     def visitPattern(self, node: Pattern, ctx) -> bool:
         return node.value.accept(self, ctx)
@@ -447,6 +492,9 @@ class ExprResolver(Visitor):
 
     def visitIdentifier(self, node: Identifier, ctx) -> str:
         return node.name
+
+    def visitPair(self, node: Pair, ctx) -> str:
+        return "(" + node.first.accept(self, ctx) + node.second.accept(self, ctx) + ")"
 
     def visitExpr(self, node: Expr, ctx) -> str:
         return node.lhs.accept(self, ctx) + str(node.op) + node.rhs.accept(self, ctx)
