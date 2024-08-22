@@ -1,6 +1,7 @@
 state:
-    load_map: Map<int, <int, float>>
+    load_map: Map<int, <int, Instant>>
     epsilon: float
+    num_choices: int
 
 init():
     epsilon = 1.0
@@ -13,31 +14,43 @@ req(rpc):
     sampled_backends = random_choices(backends, num_choices)
 
     foreach(backends, lambda(backend):
-        (backend_load, last_ts) = get(load_map, backend)
-        freshness = time_diff(current_time(), last_ts) - epsilon
-
-        match(freshness > 0):
-            true => 
+        match get(load_map, backend):
+            None =>
                 pass
-            false =>
-                (backend_load, last_ts) = get(load_map_global, backend)
-                set(load_map, backend, (backend_load, last_ts))
+            Some(pair) =>
+                (backend_load, last_ts) = pair
+                freshness = time_diff(current_time(), last_ts) - epsilon
+
+                match(freshness > 0):
+                    true => 
+                        pass
+                    false =>
+                        (backend_load_new, last_ts_new) = get_load(backend)
+                        set(load_map, backend, (backend_load_new, last_ts_new))
+
+                        backend_load = backend_load_new
+                        last_ts = last_ts_new
     )
 
     selected = 0
     min_load = inf
     
     foreach(backends, lambda(backend):
-        (backend_load, last_ts) = get(load_map, backend)
-        match (backend_load < min_load):
-            true =>
-                selected = backend
-                min_load = backend_load
-            false =>
+        option_pair = get(load_map, backend)
+        match option_pair:
+            None =>
                 pass
+            Some(pair) =>
+                (backend_load, last_ts) = pair
+                match (backend_load < min_load):
+                    true =>
+                        selected = backend
+                        min_load = backend_load
+                    false =>
+                        pass
     )
 
-    set(rpc, 'dst', selected)
+    set_route_dst(selected)
     send(rpc, Down)
 
 resp(rpc):

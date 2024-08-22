@@ -138,6 +138,25 @@ class Vec(NativeType):
   def type_name(self) -> str:
     return f"std::vector<{self.type.type_name()}>"
 
+class Pair(NativeType):
+  first: NativeType
+  second: NativeType
+
+  def __init__(self, first: NativeType, second: NativeType):
+    self.first = first
+    self.second = second
+
+  def gen_decl(self, name: str) -> str:
+    return f"std::pair<{self.first.type_name()}, {self.second.type_name()}> {name};"
+
+  def is_same(self, other: NativeType) -> bool:
+    if not isinstance(other, Pair):
+      return False
+    return self.first.is_same(other.first) and self.second.is_same(other.second)
+
+  def type_name(self) -> str:
+    return f"std::pair<{self.first.type_name()}, {self.second.type_name()}>"
+
 class NativeVariable:
   name: str
   type: NativeType

@@ -17,13 +17,12 @@ class NativeContext:
     method_name=None,
     request_message_name = None,
     response_message_name = None,
-    message_field_types = None,
+    message_field_types: Optional[dict[str, dict[str, str]]] = None,
     mode: str = "sidecar",
     element_name: str = "",
     tag: str = "0",
   ) -> None:
-    self.appnet_state: dict[str, AppNetVariable] = {}
-    self.appnet_local_var: dict[str, AppNetVariable] = {}
+    self.appnet_var: list[dict[str, AppNetVariable]] = [{}] # The first scope is the states.
     self.native_var: list[dict[str, NativeVariable]] = [{}] # The first scope is the global scope
     self.global_var_def: list[str] = []
     self.init_code: list[str] = []
@@ -37,20 +36,31 @@ class NativeContext:
     self.current_procedure_code: list[str] = []
 
     self.tmp_cnt: int = 0
-  def push_scope(self) -> None:
+
+    assert(message_field_types is not None)
+    self.message_field_types: dict[str, dict[str, str]] = message_field_types
+
+  def push_appnet_scope(self) -> None:
+    self.appnet_var.append({})
+
+  def pop_appnet_scope(self) -> None:
+    popped = self.appnet_var.pop()
+    LOG.debug(f"appnet scope popped {popped}")
+
+  def push_native_scope(self) -> None:
     self.native_var.append({})
 
-  def pop_scope(self) -> None:
+  def pop_native_scope(self) -> None:
     self.native_var.pop()
 
   def push_code(self, code: str) -> None:
     self.current_procedure_code.append(code)
 
     if code.endswith("{"):
-      self.push_scope()
+      self.push_native_scope()
 
     if code.startswith("}"):
-      self.pop_scope()
+      self.pop_native_scope()
 
 
   def push_global_var_def(self, code: str) -> None:
@@ -65,12 +75,10 @@ class NativeContext:
     name: str,
     rtype: AppNetType,
   ) -> AppNetVariable:
-    if name in self.appnet_local_var:
-      raise Exception(f"variable {name} already declared")
-    if name in self.appnet_state:
-      raise Exception(f"variable {name} already declared in global scope")
-    self.appnet_local_var[name] = AppNetVariable(name, rtype)
-    return self.appnet_local_var[name]
+    if name in self.appnet_var[-1]:
+      raise Exception(f"variable {name} already declared as a local variable")
+    self.appnet_var[-1][name] = AppNetVariable(name, rtype)
+    return self.appnet_var[-1][name]
 
   def declareAppNetState(
     self,
@@ -78,12 +86,12 @@ class NativeContext:
     rtype: AppNetType,
     decorator: dict[str, str] = DEFAULT_DECORATOR,
   ) -> AppNetVariable:
-    if name in self.appnet_state:
+    if name in self.appnet_var[0]:
       raise Exception(f"variable {name} already declared")
 
     rtype.decorator = decorator
-    self.appnet_state[name] = AppNetVariable(name, rtype)
-    return self.appnet_state[name]
+    self.appnet_var[0][name] = AppNetVariable(name, rtype)
+    return self.appnet_var[0][name]
 
   def declareNativeVar(self, name: str, rtype: NativeType, local: bool = True) -> Tuple[NativeVariable, str]:
     # Declare a native var in the current scope.
@@ -102,11 +110,18 @@ class NativeContext:
     raise Exception(f"variable {name} not found")
 
   def get_appnet_state_or_var(self, name: str) -> Tuple[AppNetVariable, bool]:
-    if name in self.appnet_state:
-      return (self.appnet_state[name], True)
-    if name in self.appnet_local_var:
-      return (self.appnet_local_var[name], False)
+    for scope in reversed(self.appnet_var):
+      if name in scope:
+        return (scope[name], False)
+    if name in self.appnet_var[0]:
+      return (self.appnet_var[0][name], True)
     raise Exception(f"variable {name} not found")
+
+  def find_appnet_var(self, name: str) -> Optional[Tuple[AppNetVariable, bool]]:
+    try:
+      return self.get_appnet_state_or_var(name)
+    except:
+      return None
 
   def genBlockingWebdisRequest(self, url: NativeVariable) -> None:
     assert url.type.is_string()
@@ -133,6 +148,14 @@ class NativeContext:
     # make sure url start with SET
     self.push_code(f"  this->sendWebdisRequest({url.name}, *empty_callback_);")
     self.push_code("}")
+
+
+  def get_current_msg_fields(self) -> dict[str, str]:
+    assert self.current_procedure in ["req", "resp"]
+    if self.current_procedure == "req":
+      return self.message_field_types["request"]
+    else:
+      return self.message_field_types["response"]
 
 class NativeGenerator(Visitor):
   def __init__(self, placement: str) -> None:
@@ -204,10 +227,10 @@ class NativeGenerator(Visitor):
   def visitProcedure(self, node: Procedure, ctx: NativeContext):
     ctx.current_procedure = node.name
     ctx.current_procedure_code = []
-    ctx.appnet_local_var = {}
-    ctx.push_scope()
+    ctx.push_appnet_scope()
+    ctx.push_native_scope()
 
-    if len(ctx.appnet_state) > 0:
+    if len(ctx.appnet_var[0]) > 0:
       # TODO: We do very coarse-grained locking here.
       # If we have global states, we serialize all the request handling.
       if ctx.current_procedure != "init":
@@ -243,16 +266,41 @@ class NativeGenerator(Visitor):
     else:
       raise Exception("unknown procedure")
     
-    ctx.appnet_local_var = {}
-    ctx.pop_scope()
+    ctx.pop_appnet_scope()
+    ctx.pop_native_scope()
 
     assert(len(ctx.native_var) == 1)
+
+  def visitForeach(self, node: Foreach, ctx: NativeContext):
+    vec_name = node.var.name
+    lambda_arg_name = node.func.arg.name
+
+    ctx.push_appnet_scope()
+
+    vec, is_state = ctx.get_appnet_state_or_var(vec_name)
+    vec_type = vec.type
+    assert(isinstance(vec_type, AppNetVec))
+
+    ctx.push_code(f"for ({vec.type.to_native().type_name()} {lambda_arg_name} : {vec_name}) {{")
+    iter_var_appnet = ctx.declareAppNetLocalVariable(lambda_arg_name, vec_type.type)
+    iter_var_native, _decl = ctx.declareNativeVar(lambda_arg_name, vec_type.type.to_native())
+    iter_var_appnet.native_var = iter_var_native
+
+    for stmt in node.func.body:
+      stmt.accept(self, ctx)
+    
+    ctx.pop_appnet_scope()
+    
+    ctx.push_code("}")
 
   def visitStatement(self, node: Statement, ctx: NativeContext):
     # A statement may be translated into multiple C++ statements.
     # These statements will be attached to ctx.current_procedure_code directly.
     
-    if node.stmt is None:
+    if isinstance(node.stmt, Foreach):
+      return self.visitForeach(node.stmt, ctx)
+      pass 
+    elif node.stmt is None:
       ctx.push_code("; // empty statement")
     elif isinstance(node.stmt, Send) \
       or isinstance(node.stmt, Assign) \
@@ -386,16 +434,22 @@ class NativeGenerator(Visitor):
         ctx.new_temporary_name(), rhs_appnet_type.to_native())
       ctx.push_code(decl)
       ctx.push_code(f"{rhs_native_var.name} = {embed_str};")
-      
-    elif isinstance(node, Expr):
-      rhs_appnet_type, rhs_native_var = node.accept(self, ctx)
 
     elif isinstance(node, Identifier):
       rhs = None
-      if node.name in ctx.appnet_local_var:
-        rhs = ctx.appnet_local_var[node.name]
-      elif node.name in ctx.appnet_state:
-        rhs = ctx.appnet_state[node.name]
+      res = ctx.find_appnet_var(node.name)
+
+      if res is not None:
+        rhs, _is_state = res
+      elif node.name in ctx.appnet_var[0]:
+        rhs = ctx.appnet_var[0][node.name]
+      elif node.name == "inf":
+        rhs = ctx.declareAppNetLocalVariable(node.name, AppNetInt())
+        rhs_native_var, decl = ctx.declareNativeVar(ctx.new_temporary_name(), NativeInt())
+        ctx.push_code(decl)
+        ctx.push_code(f"{rhs_native_var.name} = std::numeric_limits<int>::infinity();")
+        rhs.native_var = rhs_native_var
+
       else:
         raise Exception(f"unknown variable {node.name}")
       
@@ -403,6 +457,10 @@ class NativeGenerator(Visitor):
       assert(rhs.native_var is not None)
       rhs_native_var = rhs.native_var
       rhs_appnet_type = rhs.type
+            
+    elif isinstance(node, Expr): # Maybe subclass of Expr
+      rhs_appnet_type, rhs_native_var = node.accept(self, ctx)
+
     else:
       raise Exception(f"unknown right hand side type={node.__class__.__name__}")
     
@@ -411,44 +469,90 @@ class NativeGenerator(Visitor):
     return (rhs_appnet_type, rhs_native_var)
 
   def visitAssign(self, node: Assign, ctx: NativeContext) -> None:
-    assert(isinstance(node.left, Identifier))
-    lhs_name = node.left.name
+    assert(isinstance(node.left, Identifier) or isinstance(node.left, Pair))
 
     rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
 
     assert(isinstance(rhs_appnet_type, AppNetType))
     assert(isinstance(rhs_native_var, NativeVariable))
 
-    if lhs_name not in ctx.appnet_local_var and lhs_name not in ctx.appnet_state:
-      # This is a new local variable
-      lhs = ctx.declareAppNetLocalVariable(lhs_name, rhs_appnet_type)
-      lhs.native_var = rhs_native_var
+    if isinstance(node.left, Identifier):
+      lhs_name = node.left.name
 
-    else:
-      if lhs_name in ctx.appnet_local_var:
-        # Existing AppNet variable
-        lhs = ctx.appnet_local_var[lhs_name]
-      elif lhs_name in ctx.appnet_state:
-        # Existing AppNet state
-        lhs = ctx.appnet_state[lhs_name]
+      if ctx.find_appnet_var(lhs_name) is None:
+        # This is a new local variable
+        lhs = ctx.declareAppNetLocalVariable(lhs_name, rhs_appnet_type)
+        lhs.native_var = rhs_native_var
 
       else:
-        raise Exception("unknown variable")
+        lhs = ctx.get_appnet_state_or_var(lhs_name)[0]
+        
+        assert(isinstance(rhs_native_var, NativeVariable))
+        assert(lhs.native_var is not None)
+        assert(lhs.native_var.type.is_same(rhs_native_var.type))
+
+        ctx.push_code(f"{lhs.name} = {rhs_native_var.name};")
+
+    elif isinstance(node.left, Pair):
+      assert(isinstance(node.left.first, Identifier) and isinstance(node.left.second, Identifier))
+      assert(isinstance(rhs_appnet_type, AppNetPair))
+      first_name = node.left.first.name
+      second_name = node.left.second.name
       
-      assert(isinstance(rhs_native_var, NativeVariable))
-      assert(lhs.native_var is not None)
-      assert(lhs.native_var.type.is_same(rhs_native_var.type))
+      # In pair assignment, we only support declaring new local variables.
+      assert(ctx.find_appnet_var(first_name) is None)
+      assert(ctx.find_appnet_var(second_name) is None)
 
-      ctx.push_code(f"{lhs.name} = {rhs_native_var.name};")
 
+      first_var_appnet = ctx.declareAppNetLocalVariable(first_name, rhs_appnet_type.first)
+      second_var_appnet = ctx.declareAppNetLocalVariable(second_name, rhs_appnet_type.second)
+
+      first_var_native, first_decl = ctx.declareNativeVar(first_name, rhs_appnet_type.first.to_native())
+      second_var_native, second_decl = ctx.declareNativeVar(second_name, rhs_appnet_type.second.to_native())
+
+      first_var_appnet.native_var = first_var_native
+      second_var_appnet.native_var = second_var_native
+
+      ctx.push_code(first_decl)
+      ctx.push_code(second_decl)
+
+      ctx.push_code(f"{first_var_native.name} = {rhs_native_var.name}.first;")
+      ctx.push_code(f"{second_var_native.name} = {rhs_native_var.name}.second;")
+
+      pass
+    else:
+      raise Exception("should not reach here")
+    
   def acceptable_oper_type(self, lhs: AppNetType, op: Operator, rhs: AppNetType) -> bool:
     if op in [Operator.ADD, Operator.SUB, Operator.MUL, Operator.DIV, Operator.GT, Operator.LT, Operator.GE, Operator.LE]:
       if lhs.is_arithmetic() and rhs.is_arithmetic():
         return True
     return False
 
+  def visitPair(self, node: Pair, ctx: NativeContext) -> Tuple[AppNetType, NativeVariable]:
+    assert(isinstance(node, Pair))
+
+    first_appnet_type, first_native_var = self.visitGeneralExpr(node.first, ctx)
+    second_appnet_type, second_native_var = self.visitGeneralExpr(node.second, ctx)
+
+    assert(isinstance(first_appnet_type, AppNetType))
+    assert(isinstance(second_appnet_type, AppNetType))
+
+    new_pair_type = AppNetPair(first_appnet_type, second_appnet_type)
+    appnet_pair = ctx.declareAppNetLocalVariable(ctx.new_temporary_name(), new_pair_type)
+    native_pair, decl = ctx.declareNativeVar(appnet_pair.name, new_pair_type.to_native())
+
+    ctx.push_code(decl)
+    ctx.push_code(f"{native_pair.name}.first = {first_native_var.name};")
+    ctx.push_code(f"{native_pair.name}.second = {second_native_var.name};")
+
+    return (new_pair_type, native_pair)
+
   # A temporary native variable will be generated to store the result of the expression.
   def visitExpr(self, node: Expr, ctx: NativeContext) -> Tuple[AppNetType, NativeVariable]:
+    if isinstance(node, Pair):
+      return self.visitPair(node, ctx)
+
     assert(isinstance(node, Expr))
     
     lhs_appnet_type, lhs_nativevar = self.visitGeneralExpr(node.lhs, ctx)
@@ -531,12 +635,26 @@ class NativeGenerator(Visitor):
     elif node.name == "Instant":
       return AppNetInstant()
     elif node.name.startswith("Map"):
+      # For now, we only support two types of map:
       # Map<keytype, valuetype>
-      keytype_str = node.name[4:-1].split(",")[0].strip()
-      valuetype_str = node.name[4:-1].split(",")[1].strip()
-      key_type = appnet_type_from_str(keytype_str)
-      value_type = appnet_type_from_str(valuetype_str)
-      return AppNetMap(key_type, value_type)
+      # Map<keytype, <typea, typeb>>
+      if node.name.count(',') == 1:
+        # Map<keytype, valuetype>
+        keytype_str = node.name[4:-1].split(",")[0].strip()
+        valuetype_str = node.name[4:-1].split(",")[1].strip()
+        key_type = appnet_type_from_str(keytype_str)
+        value_type = appnet_type_from_str(valuetype_str)
+        return AppNetMap(key_type, value_type)
+      else:
+        # Map<keytype, <typea, typeb>>
+        # keytype
+        keytype_str = node.name[4:-1].strip()[node.name[4:-1].find("<")+1:node.name[4:-1].rfind(",")]
+        # <typea, typeb>
+        valuepair_str = node.name[4:-1][node.name[4:-1].find("<"):node.name[4:-1].rfind(">")+1]
+
+        key_type = appnet_type_from_str(keytype_str)
+        value_type = appnet_type_from_str(valuepair_str)
+        return AppNetMap(key_type, value_type)
     elif node.name.startswith("Vec"):
       # Vec<string>
       valuetype_str = node.name[4:-1].strip()
@@ -560,7 +678,7 @@ class NativeGenerator(Visitor):
       ret_native_var = func_instance.gen_code(ctx, *[arg[1] for arg in args])
       return (func_instance.ret_type(), ret_native_var)
     
-    raise Exception(f"unknown function {fname}. Parameters matching failed: {args}")
+    raise Exception(f"unknown function {fname}. Parameters matching failed: {[arg[0] for arg in args]}")
 
   def visitFuncCall(self, node: FuncCall, ctx: NativeContext) -> Tuple[AppNetType, Optional[NativeVariable]]:
     args = [self.visitGeneralExpr(arg, ctx) for arg in node.args]
@@ -631,7 +749,7 @@ class NativeGenerator(Visitor):
     if node.type == DataType.STR:
       # replace ' into "
       new_str = node.value.replace("'", "\"")
-      return (AppNetString(), new_str)
+      return (AppNetString(node.value[1:-1]), new_str)
     elif node.type == DataType.INT:
       return (AppNetInt(), str(node.value))
     elif node.type == DataType.FLOAT:
@@ -867,15 +985,17 @@ class GetRPCField(AppNetBuiltinFuncProto):
       self.appargs = args
     return ret
 
-  def ret_type(self) -> AppNetType:
-    # TODO: Getting the exact type from .proto file.
-    return AppNetString()
+  def ret_type(self, msg_type_dict: dict[str, str]) -> AppNetType:
+    assert(isinstance(self.appargs[1], AppNetString))
+    field = self.appargs[1]
+    assert(isinstance(field.literal, str))
+    return proto_type_to_appnet_type(msg_type_dict[field.literal])
 
   def gen_code(self, ctx: NativeContext, rpc: NativeVariable, field: NativeVariable) -> NativeVariable:
     self.native_arg_sanity_check([rpc, field])
 
     res_native_var, native_decl_stmt,  \
-      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type(ctx.get_current_msg_fields()).to_native())
     ctx.push_code(native_decl_stmt)
     ctx.push_code( f"{res_native_var.name} = get_rpc_field({rpc.name}, {field.name});")
 
@@ -1117,7 +1237,132 @@ class Max(AppNetBuiltinFuncProto):
   def __init__(self):
     super().__init__("max")
 
+class GetBackEnd(AppNetBuiltinFuncProto):
+  # func(str) -> vec<int>
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 1 and args[0].is_string()
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    return AppNetVec(AppNetInt())
+  
+  def gen_code(self, ctx: NativeContext, backend_name: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([backend_name])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    
+    ctx.push_code(native_decl_stmt)
+    # TODO: we will need to query the shard manager later.
+    ctx.push_code(f"{res_native_var.name} = std::vector<int>{{0}};")
+    return res_native_var
+
+
+  def __init__(self):
+    super().__init__("get_backends")
+
+class RandomChoices(AppNetBuiltinFuncProto):
+  # func(vec<T>, int) -> vec<T>
+
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and isinstance(args[0], AppNetVec) and args[1].is_int()
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    assert(self.prepared)
+    return self.appargs[0]
+  
+  def gen_code(self, ctx: NativeContext, vec: NativeVariable, num: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([vec, num])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    
+    ctx.push_code(native_decl_stmt)
+    # declare a random number generator
+
+    ctx.push_code("{")
+    ctx.push_code(f"std::random_device rd;")
+    ctx.push_code(f"std::mt19937 gen(rd());")
+    ctx.push_code(f"std::uniform_int_distribution<> dis(0, {vec.name}.size() - 1);")
+    ctx.push_code(f"std::vector<int> indices;")
+    # We need to pick different random numbers out of the vector
+    ctx.push_code(f"for (int i = 0; i < {num.name}; i++)")
+    ctx.push_code("{")
+    ctx.push_code(f"  int index = dis(gen);")
+    ctx.push_code(f"  indices.push_back(index);")
+    ctx.push_code("}")
+    # random shuffle
+    ctx.push_code(f"std::random_shuffle(indices.begin(), indices.end(), gen);")
+    # copy the selected elements
+    ctx.push_code(f"for (int i = 0; i < {num.name}; i++)")
+    ctx.push_code("{")
+    ctx.push_code(f"  {res_native_var.name}.push_back({vec.name}[indices[i]]);")
+    ctx.push_code("}")
+    ctx.push_code("}")
+
+    return res_native_var
+
+  def __init__(self):
+    super().__init__("random_choices")
+
+
+class GetLoad(AppNetBuiltinFuncProto):
+  # func(int) ->  pair<int, Instant>
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 1 and args[0].is_int()
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    return AppNetPair(AppNetInt(), AppNetInstant())
+  
+  def gen_code(self, ctx: NativeContext, backend_id: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([backend_id])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    
+    ctx.push_code(native_decl_stmt)
+
+    # TODO: We will need to do the real query.
+
+    return res_native_var
+  
+  def __init__(self):
+    super().__init__("get_load")
+
+
+class SetRouteDst(AppNetBuiltinFuncProto):
+  # func(int) -> void
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 1 and args[0].is_int()
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    return AppNetVoid()
+  
+  def gen_code(self, ctx: NativeContext, backend_id: NativeVariable) -> None:
+    self.native_arg_sanity_check([backend_id])
+    ctx.push_code(f"this->setRoutingEndpoint({backend_id.name});")
+    return None
+  
+  def __init__(self):
+    super().__init__("set_route_dst")
+
 APPNET_BUILTIN_FUNCS = [
   GetRPCField, GetMap, CurrentTime, TimeDiff, Min, Max, SetMap, 
   ByteSize, RandomF, SetVector, SizeVector, SetRPCField, RPCID,
-  GetMapStrongConsistency, SetMapStrongConsistency]
+  GetMapStrongConsistency, SetMapStrongConsistency, GetBackEnd, RandomChoices,
+  GetLoad, SetRouteDst]
