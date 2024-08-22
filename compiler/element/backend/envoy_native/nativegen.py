@@ -40,6 +40,9 @@ class NativeContext:
     assert(message_field_types is not None)
     self.message_field_types: dict[str, dict[str, str]] = message_field_types
 
+    # Dirty hack for get_rpc_header type inference
+    self.most_recent_assign_left_type: Optional[AppNetType] = None
+
   def push_appnet_scope(self) -> None:
     self.appnet_var.append({})
 
@@ -109,7 +112,7 @@ class NativeContext:
         return scope[name]
     raise Exception(f"variable {name} not found")
 
-  def get_appnet_state_or_var(self, name: str) -> Tuple[AppNetVariable, bool]:
+  def get_appnet_var(self, name: str) -> Tuple[AppNetVariable, bool]:
     for scope in reversed(self.appnet_var):
       if name in scope:
         return (scope[name], False)
@@ -119,9 +122,12 @@ class NativeContext:
 
   def find_appnet_var(self, name: str) -> Optional[Tuple[AppNetVariable, bool]]:
     try:
-      return self.get_appnet_state_or_var(name)
+      return self.get_appnet_var(name)
     except:
       return None
+
+  def getHeaderPath(self):
+    return "decoder_callbacks_->requestHeaders()" if self.current_procedure == "req" else "encoder_callbacks_->responseHeaders()"
 
   def genBlockingWebdisRequest(self, url: NativeVariable) -> None:
     assert url.type.is_string()
@@ -277,13 +283,14 @@ class NativeGenerator(Visitor):
 
     ctx.push_appnet_scope()
 
-    vec, is_state = ctx.get_appnet_state_or_var(vec_name)
+    vec, is_state = ctx.get_appnet_var(vec_name)
     vec_type = vec.type
     assert(isinstance(vec_type, AppNetVec))
+    inner_type = vec_type.type
 
-    ctx.push_code(f"for ({vec.type.to_native().type_name()} {lambda_arg_name} : {vec_name}) {{")
-    iter_var_appnet = ctx.declareAppNetLocalVariable(lambda_arg_name, vec_type.type)
-    iter_var_native, _decl = ctx.declareNativeVar(lambda_arg_name, vec_type.type.to_native())
+    ctx.push_code(f"for ({inner_type.to_native().type_name()} {lambda_arg_name} : {vec_name}) {{")
+    iter_var_appnet = ctx.declareAppNetLocalVariable(lambda_arg_name, inner_type)
+    iter_var_native, _decl = ctx.declareNativeVar(lambda_arg_name, inner_type.to_native())
     iter_var_appnet.native_var = iter_var_native
 
     for stmt in node.func.body:
@@ -457,7 +464,7 @@ class NativeGenerator(Visitor):
       assert(rhs.native_var is not None)
       rhs_native_var = rhs.native_var
       rhs_appnet_type = rhs.type
-            
+
     elif isinstance(node, Expr): # Maybe subclass of Expr
       rhs_appnet_type, rhs_native_var = node.accept(self, ctx)
 
@@ -471,22 +478,33 @@ class NativeGenerator(Visitor):
   def visitAssign(self, node: Assign, ctx: NativeContext) -> None:
     assert(isinstance(node.left, Identifier) or isinstance(node.left, Pair))
 
-    rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
-
-    assert(isinstance(rhs_appnet_type, AppNetType))
-    assert(isinstance(rhs_native_var, NativeVariable))
-
     if isinstance(node.left, Identifier):
+      
       lhs_name = node.left.name
 
       if ctx.find_appnet_var(lhs_name) is None:
-        # This is a new local variable
+        # This is a new local variable.
+        LOG.debug(f"new local variable {lhs_name}")
+
+        # Eval the right side.
+        rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
+        assert(isinstance(rhs_appnet_type, AppNetType))
+        assert(isinstance(rhs_native_var, NativeVariable))
+        
         lhs = ctx.declareAppNetLocalVariable(lhs_name, rhs_appnet_type)
         lhs.native_var = rhs_native_var
+        ctx.push_code(f"{lhs.native_var.type.type_name()} {lhs.name} = {rhs_native_var.name};")
 
       else:
-        lhs = ctx.get_appnet_state_or_var(lhs_name)[0]
-        
+        # Assigning the existing variable.
+
+        lhs = ctx.get_appnet_var(lhs_name)[0]
+
+        ctx.most_recent_assign_left_type = lhs.type
+        rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
+        ctx.most_recent_assign_left_type = None
+
+        assert(isinstance(rhs_appnet_type, AppNetType))
         assert(isinstance(rhs_native_var, NativeVariable))
         assert(lhs.native_var is not None)
         assert(lhs.native_var.type.is_same(rhs_native_var.type))
@@ -494,6 +512,13 @@ class NativeGenerator(Visitor):
         ctx.push_code(f"{lhs.name} = {rhs_native_var.name};")
 
     elif isinstance(node.left, Pair):
+
+      rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
+
+      assert(isinstance(rhs_appnet_type, AppNetType))
+      assert(isinstance(rhs_native_var, NativeVariable))
+
+
       assert(isinstance(node.left.first, Identifier) and isinstance(node.left.second, Identifier))
       assert(isinstance(rhs_appnet_type, AppNetPair))
       first_name = node.left.first.name
@@ -691,7 +716,7 @@ class NativeGenerator(Visitor):
     args = [self.visitGeneralExpr(arg, ctx) for arg in node.args]
 
     obj_name = node.obj.name
-    obj_appnet_var, is_global_state = ctx.get_appnet_state_or_var(obj_name)
+    obj_appnet_var, is_global_state = ctx.get_appnet_var(obj_name)
 
     assert(obj_appnet_var.native_var is not None)
     return self.genGeneralFuncCall(fname, [(obj_appnet_var.type, obj_appnet_var.native_var)] + args, ctx)
@@ -711,7 +736,6 @@ class NativeGenerator(Visitor):
             assert(node.msg.msg.type == DataType.STR)
             assert(node.msg.msg.value != "")
             # Forbidden 403
-            # TODO: This may be buggy since req_appnet_blocked_ is used in encodeHeader().
 
             ctx.push_code("std::function<void(ResponseHeaderMap& headers)> modify_headers = [](ResponseHeaderMap& headers) {")
             ctx.push_code("  headers.addCopy(LowerCaseString(\"appnet-local-reply\"), \"appnetsamplefilter\");")
@@ -985,25 +1009,27 @@ class GetRPCField(AppNetBuiltinFuncProto):
       self.appargs = args
     return ret
 
-  def ret_type(self, msg_type_dict: dict[str, str]) -> AppNetType:
+  def ret_type(self) -> AppNetType:
+    assert(isinstance(self.msg_type_dict, dict))
     assert(isinstance(self.appargs[1], AppNetString))
     field = self.appargs[1]
     assert(isinstance(field.literal, str))
-    return proto_type_to_appnet_type(msg_type_dict[field.literal])
+    return proto_type_to_appnet_type(self.msg_type_dict[field.literal])
 
   def gen_code(self, ctx: NativeContext, rpc: NativeVariable, field: NativeVariable) -> NativeVariable:
+    self.msg_type_dict = ctx.get_current_msg_fields()
     self.native_arg_sanity_check([rpc, field])
 
     res_native_var, native_decl_stmt,  \
-      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type(ctx.get_current_msg_fields()).to_native())
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
     ctx.push_code(native_decl_stmt)
     ctx.push_code( f"{res_native_var.name} = get_rpc_field({rpc.name}, {field.name});")
-
 
     return res_native_var
 
   def __init__(self):
     super().__init__("get", "rpc_field")
+    self.msg_type_dict = None
 
 class SetMap(AppNetBuiltinFuncProto):
   def instantiate(self, args: List[AppNetType]) -> bool:
@@ -1238,9 +1264,9 @@ class Max(AppNetBuiltinFuncProto):
     super().__init__("max")
 
 class GetBackEnd(AppNetBuiltinFuncProto):
-  # func(str) -> vec<int>
+  # func(int) -> vec<int>
   def instantiate(self, args: List[AppNetType]) -> bool:
-    ret = len(args) == 1 and args[0].is_string()
+    ret = len(args) == 1 and args[0].is_int()
     if ret:
       self.prepared = True
       self.appargs = args
@@ -1299,7 +1325,7 @@ class RandomChoices(AppNetBuiltinFuncProto):
     ctx.push_code(f"  indices.push_back(index);")
     ctx.push_code("}")
     # random shuffle
-    ctx.push_code(f"std::random_shuffle(indices.begin(), indices.end(), gen);")
+    ctx.push_code(f"std::shuffle(indices.begin(), indices.end(), gen);")
     # copy the selected elements
     ctx.push_code(f"for (int i = 0; i < {num.name}; i++)")
     ctx.push_code("{")
@@ -1361,8 +1387,84 @@ class SetRouteDst(AppNetBuiltinFuncProto):
   def __init__(self):
     super().__init__("set_route_dst")
 
+class GetRPCHeader(AppNetBuiltinFuncProto):
+  # TODO: GetRPCHeader needs to infer the return type from the assign stmt.
+  # TODO: For now we use the most recent assign stmt to infer the return type, which is quite dirty.
+
+  # func(rpc, str) -> ? according to the assign stmt inference result.
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and isinstance(args[0], AppNetRPC) and isinstance(args[1], AppNetString)
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    assert(self.ret_type_inferred is not None)
+    return self.ret_type_inferred
+  
+  def gen_code(self, ctx: NativeContext, rpc: NativeVariable, field: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([rpc, field])
+    assert(ctx.most_recent_assign_left_type is not None)
+    self.ret_type_inferred = ctx.most_recent_assign_left_type
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    
+    ctx.push_code(native_decl_stmt)
+    ctx.push_code("{")
+
+    # auto a = map->get(LowerCaseString("1"));
+    # auto b = a[0]->value().getStringView();
+    # auto str = std::string(b.data(), b.size());
+
+    header_path = ctx.getHeaderPath()
+
+    ctx.push_code(f"auto __tmp = this->{header_path}->get(LowerCaseString({field.name}))[0]->value().getStringView();")
+    ctx.push_code(f"std::string __tmp_str = std::string(__tmp.data(), __tmp.size());")
+    
+    if self.ret_type_inferred.is_int():
+      ctx.push_code(f"{res_native_var.name} = std::stoi(__tmp_str);")
+    else:
+      raise NotImplementedError("only int type is supported for now")
+
+    ctx.push_code("}")
+
+    return res_native_var
+  
+  
+  def __init__(self):
+    super().__init__("get_rpc_header")
+    self.ret_type_inferred: Optional[AppNetType] = None
+
+class SetRPCHeader(AppNetBuiltinFuncProto):
+  # func(rpc, str, ?) -> void
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 3 and isinstance(args[0], AppNetRPC) and isinstance(args[1], AppNetString)
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    return AppNetVoid()
+  
+  def gen_code(self, ctx: NativeContext, rpc: NativeVariable, field: NativeVariable, value: NativeVariable) -> None:
+    self.native_arg_sanity_check([rpc, field, value])
+
+    if self.appargs[2].is_int():
+      header_path = ctx.getHeaderPath()
+      ctx.push_code(f"this->{header_path}->setCopy(LowerCaseString({field.name}), std::to_string({value.name}));")
+    else:
+      raise NotImplementedError("only int type is supported for now")
+    
+    return None
+  
+  def __init__(self):
+    super().__init__("set_rpc_header")
+
 APPNET_BUILTIN_FUNCS = [
   GetRPCField, GetMap, CurrentTime, TimeDiff, Min, Max, SetMap, 
   ByteSize, RandomF, SetVector, SizeVector, SetRPCField, RPCID,
   GetMapStrongConsistency, SetMapStrongConsistency, GetBackEnd, RandomChoices,
-  GetLoad, SetRouteDst]
+  GetLoad, SetRouteDst, GetRPCHeader, SetRPCHeader]

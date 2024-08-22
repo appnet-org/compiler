@@ -3,12 +3,17 @@ state:
     epsilon: float
     num_choices: int
 
+    
+    shard_key: int
+    load: int
+    dst: int
+
 init():
     epsilon = 1.0
     num_choices = 3
 
 req(rpc):
-    shard_key = get(rpc, 'key')
+    shard_key = get_rpc_header(rpc, 'key')
     backends = get_backends(shard_key)
 
     sampled_backends = random_choices(backends, num_choices)
@@ -50,11 +55,11 @@ req(rpc):
                         pass
     )
 
-    set_route_dst(selected)
+    set_rpc_header(rpc, 'dst', selected)
     send(rpc, Down)
 
 resp(rpc):
-    load = get(rpc, 'load')
-    dst = get(rpc, 'dst')
+    load = get_rpc_header(rpc, 'load')
+    dst = get_rpc_header(rpc, 'dst')
     set(load_map, dst, (load, current_time()))
     send(rpc, Up)
