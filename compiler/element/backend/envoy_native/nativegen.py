@@ -43,6 +43,28 @@ class NativeContext:
     # Dirty hack for get_rpc_header type inference
     self.most_recent_assign_left_type: Optional[AppNetType] = None
 
+  def insert_envoy_log(self) -> None:
+    # Insert ENVOY_LOG(warn, stmt) after each statement in req and resp
+    # This is for debugging.
+    # Then we will have 2 times more lines of code.
+
+    def process(codes: List[str]) -> List[str]:
+      new_code = []
+      for stmt in codes:
+        if ('for' in stmt or 'if' in stmt or 'else' in stmt or 'while' in stmt or '{' in stmt or '}' in stmt) \
+          == False:
+          trans_stmt = stmt.replace("\"", "\\\"")
+          new_code.append(f"ENVOY_LOG(warn, \"{trans_stmt}\");")
+          
+        new_code.append(stmt)
+
+      return new_code
+    
+    self.req_hdr_code = process(self.req_hdr_code)
+    self.req_body_code = process(self.req_body_code)
+    self.resp_hdr_code = process(self.resp_hdr_code)
+    self.resp_body_code = process(self.resp_body_code)
+
   def push_appnet_scope(self) -> None:
     self.appnet_var.append({})
 
@@ -57,8 +79,8 @@ class NativeContext:
     self.native_var.pop()
 
   def push_code(self, code: str) -> None:
+    code = code.strip()
     self.current_procedure_code.append(code)
-
     if code.endswith("{"):
       self.push_native_scope()
 
@@ -129,28 +151,33 @@ class NativeContext:
   def getHeaderPath(self):
     return "decoder_callbacks_->requestHeaders()" if self.current_procedure == "req" else "encoder_callbacks_->responseHeaders()"
 
-  def genBlockingWebdisRequest(self, url: NativeVariable) -> None:
+  def genBlockingHttpRequest(self, cluster_name: str, url: NativeVariable) -> None:
+
     assert url.type.is_string()
     assert self.current_procedure in ["req", "resp", "init"]
 
     self.push_code("{")
-    self.push_code(f"   ENVOY_LOG(info, \"[AppNet Filter] Blocking Webdis Request\");")
-    self.push_code(f"   Awaiter webdis_awaiter = Awaiter();")
-    self.push_code(f"   this->webdis_awaiter_ = &webdis_awaiter;")
+    self.push_code(f"   ENVOY_LOG(warn, \"[AppNet Filter] Blocking HTTP Request\");")
+    self.push_code(f"   Awaiter http_awaiter = Awaiter();")
+    self.push_code(f"   this->http_awaiter_ = &http_awaiter;")
     self.push_code(f"   this->external_response_ = nullptr;")
-    self.push_code(f"   this->sendWebdisRequest({url.name}, *this);")
+    self.push_code(f"   this->sendHttpRequest(\"{cluster_name}\", {url.name}, *this);")
     self.push_code(f"   assert(this->appnet_coroutine_.has_value());")
-    self.push_code(f"   ENVOY_LOG(info, \"[AppNet Filter] Blocking Webdis Request Sent\");")
-    self.push_code(f"   co_await webdis_awaiter;")
-    self.push_code(f"   ENVOY_LOG(info, \"[AppNet Filter] Blocking Webdis Request Done\");")
+    self.push_code(f"   ENVOY_LOG(warn, \"[AppNet Filter] Blocking HTTP Request Sent\");")
+    self.push_code(f"   co_await http_awaiter;")
+    self.push_code(f"   ENVOY_LOG(warn, \"[AppNet Filter] Blocking HTTP Request Done\");")
     self.push_code("}")
+
+
+  def genBlockingWebdisRequest(self, url: NativeVariable) -> None:
+    self.genBlockingHttpRequest("webdis_cluster", url)
 
   def genNonBlockingWebdisRequest(self, url: NativeVariable) -> None:
     assert url.type.is_string()
     assert self.current_procedure in ["req", "resp", "init"]
 
     self.push_code("{")
-    self.push_code(f"  ENVOY_LOG(info, \"[AppNet Filter] Non-Blocking Webdis Request\");")
+    self.push_code(f"  ENVOY_LOG(warn, \"[AppNet Filter] Non-Blocking Webdis Request\");")
     # make sure url start with SET
     self.push_code(f"  this->sendWebdisRequest({url.name}, *empty_callback_);")
     self.push_code("}")
@@ -209,7 +236,7 @@ class NativeGenerator(Visitor):
         
       if decorator['consistency'] in ['weak']:
         # for (auto& [key, value] : cache) {
-        #   ENVOY_LOG(info, "[AppNet Filter] cache key={}, value={}", key, value);
+        #   ENVOY_LOG(warn, "[AppNet Filter] cache key={}, value={}", key, value);
         # }
         # this->sendWebdisRequest(const std::string path, int &callback)
         # path="/MGET/a/b/c/d"       to get a,b,c,d
@@ -328,6 +355,9 @@ class NativeGenerator(Visitor):
     return node.name
 
   def generateOptionMatch(self, node: Match, ctx: NativeContext, appnet_type: AppNetOption, native_expr: NativeVariable) -> None:
+
+    ctx.push_appnet_scope()
+
     some_pattern = None
     some_pattern_stmts = None
 
@@ -381,8 +411,10 @@ class NativeGenerator(Visitor):
       stmt.accept(self, ctx)
 
     ctx.push_code("}")
+    ctx.pop_appnet_scope()
 
   def visitMatch(self, node: Match, ctx: NativeContext) -> None:
+
     appnet_type, native_expr = self.visitGeneralExpr(node.expr, ctx)
     
     if isinstance(native_expr.type, NativeOption):
@@ -390,6 +422,7 @@ class NativeGenerator(Visitor):
       self.generateOptionMatch(node, ctx, appnet_type, native_expr)
       return
 
+    ctx.push_appnet_scope()
     # ====== Generate basic types match (no binding) ====
 
     first = True
@@ -431,6 +464,8 @@ class NativeGenerator(Visitor):
         stmt.accept(self, ctx)
       ctx.push_code("}")
 
+    ctx.pop_appnet_scope()
+
   def visitGeneralExpr(self, node, ctx: NativeContext) -> Tuple[AppNetType, NativeVariable]:
 
     if isinstance(node, Literal):
@@ -451,10 +486,12 @@ class NativeGenerator(Visitor):
       elif node.name in ctx.appnet_var[0]:
         rhs = ctx.appnet_var[0][node.name]
       elif node.name == "inf":
+        # Special case.
         rhs = ctx.declareAppNetLocalVariable(node.name, AppNetInt())
         rhs_native_var, decl = ctx.declareNativeVar(ctx.new_temporary_name(), NativeInt())
         ctx.push_code(decl)
-        ctx.push_code(f"{rhs_native_var.name} = std::numeric_limits<int>::infinity();")
+        # set it to the maximum value of int
+        ctx.push_code(f"{rhs_native_var.name} = std::numeric_limits<int>::max();")
         rhs.native_var = rhs_native_var
 
       else:
@@ -492,7 +529,8 @@ class NativeGenerator(Visitor):
         assert(isinstance(rhs_native_var, NativeVariable))
         
         lhs = ctx.declareAppNetLocalVariable(lhs_name, rhs_appnet_type)
-        lhs.native_var = rhs_native_var
+        lhs_native, decl = ctx.declareNativeVar(lhs_name, rhs_appnet_type.to_native())
+        lhs.native_var = lhs_native
         ctx.push_code(f"{lhs.native_var.type.type_name()} {lhs.name} = {rhs_native_var.name};")
 
       else:
@@ -875,7 +913,7 @@ class GetMapStrongConsistency(AppNetBuiltinFuncProto):
     # return {"GET":null} or {"GET":"value"}
     # parse the response using json
     ctx.push_code(f"std::string response_str = this->external_response_->bodyAsString();")
-    ctx.push_code(f"ENVOY_LOG(info, \"[AppNet Filter] Webdis Response: {{}}\", response_str);")
+    ctx.push_code(f"ENVOY_LOG(warn, \"[AppNet Filter] Webdis Response: {{}}\", response_str);")
 
     # nlohmann::json j = nlohmann::json::parse(body);
     ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
@@ -1263,7 +1301,7 @@ class Max(AppNetBuiltinFuncProto):
   def __init__(self):
     super().__init__("max")
 
-class GetBackEnd(AppNetBuiltinFuncProto):
+class GetBackEnds(AppNetBuiltinFuncProto):
   # func(int) -> vec<int>
   def instantiate(self, args: List[AppNetType]) -> bool:
     ret = len(args) == 1 and args[0].is_int()
@@ -1282,8 +1320,40 @@ class GetBackEnd(AppNetBuiltinFuncProto):
       = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
     
     ctx.push_code(native_decl_stmt)
-    # TODO: we will need to query the shard manager later.
-    ctx.push_code(f"{res_native_var.name} = std::vector<int>{{0}};")
+    # curl "http://10.96.88.99:8080/getReplica?key=23&service=ServiceB"
+    # {"replica_id":[0,2]}
+
+    # we need to send a request to the shard-manager cluster, and parse the response
+    ctx.push_code("{")
+
+    url_native, decl = ctx.declareNativeVar(ctx.new_temporary_name(), NativeString())
+    ctx.push_code(decl)
+    ctx.push_code(f"{url_native.name} = \"/getReplica?key=\" + std::to_string({backend_name.name}) + \"&service=ServiceB\";")
+    ctx.genBlockingHttpRequest("shard-manager", url_native)
+
+    # parse the response
+    ctx.push_code("if (this->external_response_ == nullptr) {")
+    ctx.push_code("   ENVOY_LOG(error, \"[AppNet Filter] shard manager HTTP Request Failed\");")
+    ctx.push_code("   std::terminate();")
+    ctx.push_code("}")
+
+    ctx.push_code(f"std::string response_str = this->external_response_->bodyAsString();")
+    ctx.push_code(f"ENVOY_LOG(warn, \"[AppNet Filter] Shard Manager Response: {{}}\", response_str);")
+    ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
+    ctx.push_code(f"if (j.contains(\"replica_id\"))")
+    ctx.push_code("{")
+    ctx.push_code(f"  for (auto& id : j[\"replica_id\"])")
+    ctx.push_code("{")
+    ctx.push_code(f"    {res_native_var.name}.push_back(id);")
+    ctx.push_code("}")
+    ctx.push_code("}")
+    ctx.push_code("else")
+    ctx.push_code("{")
+    ctx.push_code(f"  ENVOY_LOG(error, \"[AppNet Filter] Shard Manager Response is in wrong format\");")
+    ctx.push_code("  std::terminate();")
+    ctx.push_code("}")
+
+    ctx.push_code("}")
     return res_native_var
 
 
@@ -1356,36 +1426,44 @@ class GetLoad(AppNetBuiltinFuncProto):
 
     res_native_var, native_decl_stmt,  \
       = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
-    
     ctx.push_code(native_decl_stmt)
 
-    # TODO: We will need to do the real query.
+    # curl "http://load-manager/getLoadInfo?service-name=my-service&replica-ids=0,1,2"
+    # {"0":{"load":7,"timestamp":1724368802.8939054},"1":{"load":5,"timestamp":1724368802.8939054},"2":{"load":5,"timestamp":1724368802.8939054}}
+
+    # we need to send a request to the load-manager cluster, and parse the response
+    ctx.push_code("{")
+    url_native_var, url_decl_str = ctx.declareNativeVar(ctx.new_temporary_name(), NativeString())
+    ctx.push_code(url_decl_str)
+    ctx.push_code(f"{url_native_var.name} = \"/getLoadInfo?service-name=my-service&replica-ids=\" + std::to_string({backend_id.name});")
+    ctx.genBlockingHttpRequest("load-manager", url_native_var)
+
+    # parse the response
+    ctx.push_code("if (this->external_response_ == nullptr) {")
+    ctx.push_code("   ENVOY_LOG(error, \"[AppNet Filter] load manager HTTP Request Failed\");")
+    ctx.push_code("   std::terminate();")
+    ctx.push_code("}")
+
+    ctx.push_code(f"std::string response_str = this->external_response_->bodyAsString();")
+    ctx.push_code(f"ENVOY_LOG(warn, \"[AppNet Filter] Load Manager Response: {{}}\", response_str);")
+    ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
+    ctx.push_code(f"if (j.contains(\"{backend_id.name}\"))")
+    ctx.push_code("{")
+    ctx.push_code(f"  {res_native_var.name}.first = j[\"{backend_id.name}\"][\"load\"];")
+    # translate the timestamp into std::chrono::system_clock::time_point
+    ctx.push_code(f"  {res_native_var.name}.second = std::chrono::system_clock::from_time_t(j[\"{backend_id.name}\"][\"timestamp\"]);")
+    ctx.push_code("}")
+    ctx.push_code("else")
+    ctx.push_code("{")
+    ctx.push_code(f"  ENVOY_LOG(error, \"[AppNet Filter] Load Manager Response is in wrong format\");")
+    ctx.push_code("  std::terminate();")
+    ctx.push_code("}")
+    ctx.push_code("}")
 
     return res_native_var
   
   def __init__(self):
     super().__init__("get_load")
-
-
-class SetRouteDst(AppNetBuiltinFuncProto):
-  # func(int) -> void
-  def instantiate(self, args: List[AppNetType]) -> bool:
-    ret = len(args) == 1 and args[0].is_int()
-    if ret:
-      self.prepared = True
-      self.appargs = args
-    return ret
-  
-  def ret_type(self) -> AppNetType:
-    return AppNetVoid()
-  
-  def gen_code(self, ctx: NativeContext, backend_id: NativeVariable) -> None:
-    self.native_arg_sanity_check([backend_id])
-    ctx.push_code(f"this->setRoutingEndpoint({backend_id.name});")
-    return None
-  
-  def __init__(self):
-    super().__init__("set_route_dst")
 
 class GetRPCHeader(AppNetBuiltinFuncProto):
   # TODO: GetRPCHeader needs to infer the return type from the assign stmt.
@@ -1466,5 +1544,5 @@ class SetRPCHeader(AppNetBuiltinFuncProto):
 APPNET_BUILTIN_FUNCS = [
   GetRPCField, GetMap, CurrentTime, TimeDiff, Min, Max, SetMap, 
   ByteSize, RandomF, SetVector, SizeVector, SetRPCField, RPCID,
-  GetMapStrongConsistency, SetMapStrongConsistency, GetBackEnd, RandomChoices,
-  GetLoad, SetRouteDst, GetRPCHeader, SetRPCHeader]
+  GetMapStrongConsistency, SetMapStrongConsistency, GetBackEnds, RandomChoices,
+  GetLoad, GetRPCHeader, SetRPCHeader]

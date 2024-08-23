@@ -339,5 +339,44 @@ spec:
                       socket_address:
                         address: webdis-service-{ename}
                         port_value: 7379
+  - applyTo: CLUSTER
+    match:
+        context: SIDECAR_OUTBOUND
+    patch:
+      operation: ADD
+      value:
+        name: "load-manager"
+        connect_timeout: 5s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: load-manager
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: load-manager
+                        port_value: 8080
+
+  - applyTo: CLUSTER
+    match:
+        context: SIDECAR_OUTBOUND
+    patch:
+      operation: ADD
+      value:
+        name: "shard-manager"
+        connect_timeout: 5s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: shard-manager
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: shard-manager
+                        port_value: 8080
 ---
 """
