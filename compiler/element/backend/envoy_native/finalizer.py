@@ -27,7 +27,10 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
         # acquire the global_state_lock
         ctx.on_tick_code = ['std::unique_lock<std::mutex> lock(global_state_lock);'] \
             + ctx.on_tick_code
-        
+    
+    if ctx.envoy_verbose: # type: ignore
+        ctx.insert_envoy_log()
+
     replace_dict = {
         "// !APPNET_STATE": ctx.global_var_def,
         "// !APPNET_INIT": ctx.init_code,

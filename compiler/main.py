@@ -49,6 +49,11 @@ def parse_args():
         action="store_true",
     )
     parser.add_argument(
+        "--envoy_verbose",
+        help="If added, we will generate verbose logging in envoy native filter",
+        action="store_true",
+    )
+    parser.add_argument(
         "--pseudo_property",
         help="If added, use hand-coded properties instead of auto-generated ones",
         action="store_true",
@@ -140,6 +145,8 @@ def compile_impl(
         tag,
         proto_module_name=proto_module_name,
         proto_module_location=proto_module_location,
+        verbose=False,
+        envoy_verbose=args.envoy_verbose,
     )
 
 

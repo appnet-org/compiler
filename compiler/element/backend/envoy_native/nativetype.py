@@ -12,7 +12,7 @@ class NativeType:
     raise NotImplementedError(f"gen_decl not implemented for {self}")
   
   def is_arithmetic(self) -> bool:
-    return isinstance(self, Int) or isinstance(self, Float)
+    return isinstance(self, Int) or isinstance(self, Float) or isinstance(self, UInt)
 
   def is_string(self) -> bool:
     return isinstance(self, String)
@@ -57,6 +57,13 @@ class Int(NativeType):
   
   def gen_decl(self, name: str) -> str:
     return f"int {name} = 0;"
+
+class UInt(NativeType):
+  def type_name(self) -> str:
+    return "unsigned int"
+  
+  def gen_decl(self, name: str) -> str:
+    return f"unsigned int {name} = 0;"
 
 class Float(NativeType):
   def type_name(self) -> str:
@@ -137,6 +144,25 @@ class Vec(NativeType):
 
   def type_name(self) -> str:
     return f"std::vector<{self.type.type_name()}>"
+
+class Pair(NativeType):
+  first: NativeType
+  second: NativeType
+
+  def __init__(self, first: NativeType, second: NativeType):
+    self.first = first
+    self.second = second
+
+  def gen_decl(self, name: str) -> str:
+    return f"std::pair<{self.first.type_name()}, {self.second.type_name()}> {name};"
+
+  def is_same(self, other: NativeType) -> bool:
+    if not isinstance(other, Pair):
+      return False
+    return self.first.is_same(other.first) and self.second.is_same(other.second)
+
+  def type_name(self) -> str:
+    return f"std::pair<{self.first.type_name()}, {self.second.type_name()}>"
 
 class NativeVariable:
   name: str
