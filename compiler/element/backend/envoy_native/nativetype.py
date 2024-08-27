@@ -12,7 +12,7 @@ class NativeType:
     raise NotImplementedError(f"gen_decl not implemented for {self}")
   
   def is_arithmetic(self) -> bool:
-    return isinstance(self, Int) or isinstance(self, Float)
+    return isinstance(self, Int) or isinstance(self, Float) or isinstance(self, UInt)
 
   def is_string(self) -> bool:
     return isinstance(self, String)
@@ -57,6 +57,13 @@ class Int(NativeType):
   
   def gen_decl(self, name: str) -> str:
     return f"int {name} = 0;"
+
+class UInt(NativeType):
+  def type_name(self) -> str:
+    return "unsigned int"
+  
+  def gen_decl(self, name: str) -> str:
+    return f"unsigned int {name} = 0;"
 
 class Float(NativeType):
   def type_name(self) -> str:

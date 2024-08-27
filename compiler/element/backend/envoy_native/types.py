@@ -11,6 +11,7 @@ from compiler.element.backend.envoy_native.nativetype import Vec as NativeVec
 from compiler.element.backend.envoy_native.nativetype import Timepoint as NativeTimepoint
 from compiler.element.backend.envoy_native.nativetype import RPC as NativeRPC
 from compiler.element.backend.envoy_native.nativetype import Pair as NativePair
+from compiler.element.backend.envoy_native.nativetype import UInt as NativeUInt
 
 from compiler.element.backend.envoy_native.appnettype import AppNetVariable, AppNetType
 from compiler.element.backend.envoy_native.appnettype import Int as AppNetInt
@@ -25,6 +26,7 @@ from compiler.element.backend.envoy_native.appnettype import Instant as AppNetIn
 from compiler.element.backend.envoy_native.appnettype import RPC as AppNetRPC
 from compiler.element.backend.envoy_native.appnettype import Pair as AppNetPair
 from compiler.element.backend.envoy_native.appnettype import Void as AppNetVoid
+from compiler.element.backend.envoy_native.appnettype import UInt as AppNetUInt
 
 
 from compiler.element.backend.envoy_native.appnettype import appnet_type_from_str

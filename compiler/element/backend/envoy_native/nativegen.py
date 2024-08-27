@@ -9,6 +9,7 @@ from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.node import Identifier, Pattern
 from compiler.element.visitor import Visitor
+from compiler.element.frontend.printer import Printer
 
 class NativeContext:
   def __init__(
@@ -21,6 +22,7 @@ class NativeContext:
     mode: str = "sidecar",
     element_name: str = "",
     tag: str = "0",
+    envoy_verbose: bool = False,
   ) -> None:
     self.appnet_var: list[dict[str, AppNetVariable]] = [{}] # The first scope is the states.
     self.native_var: list[dict[str, NativeVariable]] = [{}] # The first scope is the global scope
@@ -42,6 +44,8 @@ class NativeContext:
 
     # Dirty hack for get_rpc_header type inference
     self.most_recent_assign_left_type: Optional[AppNetType] = None
+
+    self.envoy_verbose = envoy_verbose
 
   def insert_envoy_log(self) -> None:
     # Insert ENVOY_LOG(warn, stmt) after each statement in req and resp
@@ -189,6 +193,9 @@ class NativeContext:
       return self.message_field_types["request"]
     else:
       return self.message_field_types["response"]
+    
+  def get_callback_name(self):
+    return "this->decoder_callbacks_" if self.current_procedure == "req" else "this->encoder_callbacks_"
 
 class NativeGenerator(Visitor):
   def __init__(self, placement: str) -> None:
@@ -328,6 +335,12 @@ class NativeGenerator(Visitor):
     ctx.push_code("}")
 
   def visitStatement(self, node: Statement, ctx: NativeContext):
+    if ctx.envoy_verbose:
+      try:
+        LOG.info(f"statement {node.accept(Printer(), ctx=None)}")
+      except Exception as e:
+        LOG.info(f"statement {node}, fail to parse")
+
     # A statement may be translated into multiple C++ statements.
     # These statements will be attached to ctx.current_procedure_code directly.
     
@@ -689,6 +702,8 @@ class NativeGenerator(Visitor):
   def visitType(self, node: Type, ctx: NativeContext) -> AppNetType:
     if node.name == "int":
       return AppNetInt()
+    elif node.name == "uint":
+      return AppNetUInt()
     elif node.name == "float":
       return AppNetFloat()
     elif node.name == "string":
@@ -819,12 +834,12 @@ class NativeGenerator(Visitor):
     elif node.type == DataType.BOOL:
       return (AppNetBool(), str(node.value).lower())
     else:
-      LOG.warning(f"unknown literal type {node.type}, value={node.value}")
       types = [(int, AppNetInt()), (float, AppNetFloat()), (str, AppNetString()), (bool, AppNetBool())]
       for t, appnet_type in types:
         # try cast 
         try:
           t(node.value)
+          LOG.warning(f"cast {node.value} into a {t}")
           return (appnet_type, str(node.value))
         except:
           pass
@@ -1230,14 +1245,15 @@ class RPCID(AppNetBuiltinFuncProto):
     return AppNetInt()
 
   def gen_code(self, ctx: NativeContext) -> NativeVariable:
-    self.native_arg_sanity_check([])
+    raise NotImplementedError("Use get_rpc_header(rpc, 'appnet-rpc-id') instead.")
+    # self.native_arg_sanity_check([])
 
-    res_native_var, native_decl_stmt,  \
-      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
-    ctx.push_code(native_decl_stmt)
-    ctx.push_code( f"{res_native_var.name} = 0;")
+    # res_native_var, native_decl_stmt,  \
+    #   = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    # ctx.push_code(native_decl_stmt)
+    # ctx.push_code( f"{res_native_var.name} = 0;")
 
-    return res_native_var
+    # return res_native_var
   
   def __init__(self):
     super().__init__("rpc_id")
@@ -1447,11 +1463,13 @@ class GetLoad(AppNetBuiltinFuncProto):
     ctx.push_code(f"std::string response_str = this->external_response_->bodyAsString();")
     ctx.push_code(f"ENVOY_LOG(warn, \"[AppNet Filter] Load Manager Response: {{}}\", response_str);")
     ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
-    ctx.push_code(f"if (j.contains(\"{backend_id.name}\"))")
+    # we need to cast backend_id into string
+    ctx.push_code(f"std::string __backend_id_str = std::to_string({backend_id.name});")
+    ctx.push_code(f"if (j.contains(__backend_id_str))")
     ctx.push_code("{")
-    ctx.push_code(f"  {res_native_var.name}.first = j[\"{backend_id.name}\"][\"load\"];")
+    ctx.push_code(f"  {res_native_var.name}.first = j[__backend_id_str][\"load\"];")
     # translate the timestamp into std::chrono::system_clock::time_point
-    ctx.push_code(f"  {res_native_var.name}.second = std::chrono::system_clock::from_time_t(j[\"{backend_id.name}\"][\"timestamp\"]);")
+    ctx.push_code(f"  {res_native_var.name}.second = std::chrono::system_clock::from_time_t(j[__backend_id_str][\"timestamp\"]);")
     ctx.push_code("}")
     ctx.push_code("else")
     ctx.push_code("{")
@@ -1501,8 +1519,13 @@ class GetRPCHeader(AppNetBuiltinFuncProto):
     ctx.push_code(f"auto __tmp = this->{header_path}->get(LowerCaseString({field.name}))[0]->value().getStringView();")
     ctx.push_code(f"std::string __tmp_str = std::string(__tmp.data(), __tmp.size());")
     
-    if self.ret_type_inferred.is_int():
-      ctx.push_code(f"{res_native_var.name} = std::stoi(__tmp_str);")
+    if self.ret_type_inferred.is_int() or self.ret_type_inferred.is_uint():
+      # use stoul
+      ctx.push_code(f"try {{")
+      ctx.push_code(f"  {res_native_var.name} = std::stoul(__tmp_str);")
+      ctx.push_code(f"}} catch (...) {{")
+      ctx.push_code(f"  ENVOY_LOG(error, \"[AppNet Filter] Failed to convert string to unsigned long\");")
+      ctx.push_code("}")
     else:
       raise NotImplementedError("only int type is supported for now")
 
@@ -1541,8 +1564,119 @@ class SetRPCHeader(AppNetBuiltinFuncProto):
   def __init__(self):
     super().__init__("set_rpc_header")
 
+class DeleteMap(AppNetBuiltinFuncProto):
+  # func(map, key) -> void
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and isinstance(args[0], AppNetMap) and args[0].key.is_same(args[1])
+    ret = ret and args[0].decorator['consistency'] in ['None', 'weak']
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    return AppNetVoid()
+  
+  def gen_code(self, ctx: NativeContext, map: NativeVariable, key: NativeVariable) -> None:
+    self.native_arg_sanity_check([map, key])
+
+    ctx.push_code(f"{map.name}.erase({key.name});")
+    return None
+  
+  def __init__(self):
+    super().__init__("delete", "map")
+
+class SetMetadata(AppNetBuiltinFuncProto):
+  # Example:
+  # auto a = ProtobufWkt::Struct();
+  # // add rpc-id to dynamic metadata
+  # a.mutable_fields()->insert({"rpc-id", ValueUtil::stringValue("123")});
+  # this->decoder_callbacks_->streamInfo().setDynamicMetadata("rpc-id", a);
+
+  # func(str, T) -> void
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and isinstance(args[0], AppNetString) and args[1].is_basic()
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    return AppNetVoid()
+  
+  def gen_code(self, ctx: NativeContext, key: NativeVariable, value: NativeVariable) -> None:
+    self.native_arg_sanity_check([key, value])
+
+    if isinstance(self.appargs[1], AppNetInt) == False:
+      raise NotImplementedError("only int type is supported for now")
+    
+    ctx.push_code("{")
+    # cast it into string first
+    ctx.push_code(f"std::string __tmp_str = std::to_string({value.name});")
+    ctx.push_code(f"ProtobufWkt::Struct __tmp;")
+    ctx.push_code(f"__tmp.mutable_fields()->insert({{{{{key.name}, ValueUtil::stringValue(__tmp_str)}}}});")
+    ctx.push_code(f"{ctx.get_callback_name()}->streamInfo().setDynamicMetadata(\"appnet\", __tmp);")
+    ctx.push_code("}")
+    return None
+
+  def __init__(self):
+    super().__init__("set_metadata")
+
+
+class GetMetadata(AppNetBuiltinFuncProto):
+  # Example:
+  # auto a = ProtobufWkt::Struct();
+  # // fetch rpc-id from dynamic metadata
+  # const envoy::config::core::v3::Metadata& metadata = this->encoder_callbacks_->streamInfo().dynamicMetadata();
+  # const auto& rpc_id = metadata.filter_metadata().at("rpc-id").fields().at("rpc-id").string_value();
+  # ENVOY_LOG(info, "[Ratelimit Filter] rpc-id={}", rpc_id);
+
+  # func(str) -> ?
+  # use ctx.most_recent_assign_left_type to infer the return type
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 1 and isinstance(args[0], AppNetString)
+    if ret:
+      self.prepared = True
+      self.appargs = args
+      self.ret_type_inferred = None
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    assert(self.ret_type_inferred is not None)
+    return self.ret_type_inferred
+  
+  def gen_code(self, ctx: NativeContext, key: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([key])
+
+    assert(ctx.most_recent_assign_left_type is not None)
+    self.ret_type_inferred = ctx.most_recent_assign_left_type
+    if self.ret_type_inferred.is_int() == False:
+      raise NotImplementedError("only int type is supported for now")
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    ctx.push_code(native_decl_stmt)
+
+    ctx.push_code("{")
+    ctx.push_code(f"const envoy::config::core::v3::Metadata& metadata = {ctx.get_callback_name()}->streamInfo().dynamicMetadata();")
+    ctx.push_code(f"const auto& __tmp = metadata.filter_metadata().at(\"appnet\").fields().at({key.name});")
+    ctx.push_code(f"std::string __tmp_str = __tmp.string_value();")
+    ctx.push_code(f"try {{")
+    # to int
+    ctx.push_code(f"  {res_native_var.name} = std::stoi(__tmp_str);")
+    ctx.push_code(f"}} catch (...) {{")
+    ctx.push_code(f"  ENVOY_LOG(error, \"[AppNet Filter] Failed to convert string to int\");")
+    ctx.push_code("}")
+    ctx.push_code("}")
+
+    return res_native_var
+
+  def __init__(self):
+    super().__init__("get_metadata")
+
+
 APPNET_BUILTIN_FUNCS = [
   GetRPCField, GetMap, CurrentTime, TimeDiff, Min, Max, SetMap, 
   ByteSize, RandomF, SetVector, SizeVector, SetRPCField, RPCID,
   GetMapStrongConsistency, SetMapStrongConsistency, GetBackEnds, RandomChoices,
-  GetLoad, GetRPCHeader, SetRPCHeader]
+  GetLoad, GetRPCHeader, SetRPCHeader, DeleteMap, GetMetadata, SetMetadata]

@@ -2,16 +2,13 @@ state:
     load_map: Map<int, <int, Instant>>
     epsilon: float
     num_choices: int
-    
-    shard_key: int
-    load: int
-    dst: int
 
 init():
     epsilon = 1.0
     num_choices = 3
 
 req(rpc):
+    shard_key = 0
     shard_key = get_rpc_header(rpc, 'shard-key')
     backends = get_backends(shard_key)
 
@@ -56,10 +53,15 @@ req(rpc):
     )
 
     set_rpc_header(rpc, 'dst', selected)
+    set_metadata('dst', selected)
     send(rpc, Down)
 
 resp(rpc):
+    dst = 0
+    load = 0
+
     load = get_rpc_header(rpc, 'load')
-    dst = get_rpc_header(rpc, 'dst')
+    dst = get_metadata('dst')
     set(load_map, dst, (load, current_time()))
+
     send(rpc, Up)

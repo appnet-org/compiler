@@ -29,7 +29,7 @@ class AppNetType:
     return self.is_arithmetic() or self.is_bool()
   
   def is_arithmetic(self) -> bool:
-    return isinstance(self, Int) or isinstance(self, Float)
+    return isinstance(self, Int) or isinstance(self, UInt) or isinstance(self, Float)
   
   def is_float(self) -> bool:
     return isinstance(self, Float)
@@ -58,6 +58,9 @@ class AppNetType:
   def is_int(self) -> bool:
     return isinstance(self, Int)
   
+  def is_uint(self) -> bool:
+    return isinstance(self, UInt)
+  
   def is_pair(self) -> bool:
     return isinstance(self, Pair)
 
@@ -66,7 +69,7 @@ def appnet_type_from_str(name: str) -> AppNetType:
     case "int":
       return Int()
     case "uint":
-      return Int()
+      return UInt()
     case "float":
       return Float()
     case "string":
@@ -96,6 +99,10 @@ class RPC(AppNetType):
 class Int(AppNetType):
   def to_native(self) -> NativeType:
     return NativeInt()
+
+class UInt(AppNetType):
+  def to_native(self) -> NativeType:
+    return NativeUInt()
 
 class Float(AppNetType):
   def to_native(self) -> NativeType:
@@ -171,6 +178,7 @@ class Pair(AppNetType):
 
   def to_native(self) -> NativeType:
     return NativePair(self.first.to_native(), self.second.to_native())
+
 
 class AppNetVariable:
   name: str

@@ -37,6 +37,7 @@ def gen_code(
     proto_module_name: str = "",
     proto_module_location: str = "",
     verbose: bool = False,
+    envoy_verbose: bool = False,
 ) -> str:
     """
     Generates backend code.
@@ -130,6 +131,7 @@ def gen_code(
             mode="sidecar",
             element_name=output_name,
             tag=tag,
+            envoy_verbose=envoy_verbose
         )
 
     printer = Printer()
