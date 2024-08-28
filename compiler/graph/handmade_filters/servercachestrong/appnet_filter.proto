@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package appnetservercachestrong;
+
+import "validate/validate.proto";
+
+message FilterConfig {
+}

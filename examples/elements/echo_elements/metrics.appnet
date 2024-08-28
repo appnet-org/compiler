@@ -2,15 +2,19 @@ state:
     record: Map<uint, Instant>
     latency: Vec<float>
 
+    rpc_id: uint
+
 init():
     pass
 
 req(rpc):
-	set(record, rpc_id(), current_time())
+    rpc_id = get_rpc_header(rpc, 'appnet-rpc-id')
+	set(record, rpc_id, current_time())
 	send(rpc, Down)
 
 resp(rpc):
-    match get(record, rpc_id()):
+    rpc_id = get_rpc_header(rpc, 'appnet-rpc-id')
+    match get(record, rpc_id):
         Some(t) =>
             lat = time_diff(current_time(), t)
             set(latency, size(latency), lat)

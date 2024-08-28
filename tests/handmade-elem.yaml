@@ -1,0 +1,101 @@
+app_name: echo
+app_manifest: /mnt/appnet/config/samples/echo/echo.yaml
+app_structure:
+- frontend->server
+edge:
+  frontend->server:
+  # - method: echo
+  #   name: fault
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/fault.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  # - method: echo
+  #   name: cache
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/cache.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  - method: echo
+    name: cachestrong
+    path: /mnt/appnet/compiler/examples/elements/echo_elements/cachestrong.appnet
+    position: C
+    proto: /mnt/appnet/config/samples/echo/echo.proto
+    proto_mod_name: ""
+    proto_mod_location: ""
+  # - method: echo
+  #   name: circuitbreaker
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/circuitbreaker.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  # - method: echo
+  #   name: firewall
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/firewall.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  # - method: echo
+  #   name: logging
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/logging.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  # - method: echo
+  #   name: metrics
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/metrics.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  # - method: echo
+  #   name: bandwidthlimit
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/bandwidthlimit.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  # - method: echo
+  #   name: ratelimit
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/ratelimit.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  # - method: echo
+  #   name: mutation
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/mutation.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+
+
+
+  # - method: echo
+  #   name: admissioncontrol
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/admissioncontrol.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  # - method: echo
+  #   name: lbsticky
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/lbsticky.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  # - method: echo
+  #   name: encrypt
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/encrypt.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+link: {}

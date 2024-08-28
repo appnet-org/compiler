@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package appnetservercachestrong;
+
+service EchoService {
+    rpc echo(Msg) returns(Msg);
+}
+
+message Msg {
+    string Body = 1;
+}
+
+
