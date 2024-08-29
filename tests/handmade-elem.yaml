@@ -3,7 +3,7 @@ app_manifest: /mnt/appnet/config/samples/echo/echo.yaml
 app_structure:
 - frontend->server
 edge:
-  frontend->server:
+  frontend->server: 
   # - method: echo
   #   name: fault
   #   path: /mnt/appnet/compiler/examples/elements/echo_elements/fault.appnet
@@ -14,6 +14,13 @@ edge:
   # - method: echo
   #   name: cache
   #   path: /mnt/appnet/compiler/examples/elements/echo_elements/cache.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+  # - method: echo
+  #   name: "null"
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/null.appnet
   #   position: C
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""

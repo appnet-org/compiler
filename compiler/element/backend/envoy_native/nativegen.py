@@ -1,3 +1,4 @@
+
 from copy import deepcopy
 from typing import Dict, List, Optional, Set
 
@@ -46,6 +47,7 @@ class NativeContext:
     self.most_recent_assign_left_type: Optional[AppNetType] = None
 
     self.envoy_verbose = envoy_verbose
+    self.global_state_lock_held = False
 
   def insert_envoy_log(self) -> None:
     # Insert ENVOY_LOG(warn, stmt) after each statement in req and resp
@@ -168,7 +170,15 @@ class NativeContext:
     self.push_code(f"   this->sendHttpRequest(\"{cluster_name}\", {url.name}, *this);")
     self.push_code(f"   assert(this->appnet_coroutine_.has_value());")
     self.push_code(f"   ENVOY_LOG(warn, \"[AppNet Filter] Blocking HTTP Request Sent\");")
+    
+    if self.global_state_lock_held:
+      # we need to release the lock. Otherwise, we will have a deadlock.
+      self.push_code(f"   lock.unlock();")
     self.push_code(f"   co_await http_awaiter;")
+    if self.global_state_lock_held:
+      # we need to re-acquire the lock.
+      self.push_code(f"   lock.lock();")
+
     self.push_code(f"   ENVOY_LOG(warn, \"[AppNet Filter] Blocking HTTP Request Done\");")
     self.push_code("}")
 
@@ -270,12 +280,14 @@ class NativeGenerator(Visitor):
     ctx.push_appnet_scope()
     ctx.push_native_scope()
 
+    ctx.global_state_lock_held = False
     if len(ctx.appnet_var[0]) > 0:
       # TODO: We do very coarse-grained locking here.
       # If we have global states, we serialize all the request handling.
       if ctx.current_procedure != "init":
         # init() already has the lock in tempalte, for init global variable.
-        ctx.push_code("std::lock_guard<std::mutex> lock(global_state_lock);")
+        ctx.push_code("std::unique_lock<std::mutex> lock(global_state_lock);")
+        ctx.global_state_lock_held = True
 
     if node.name == "init":
       assert(len(node.params) == 0)

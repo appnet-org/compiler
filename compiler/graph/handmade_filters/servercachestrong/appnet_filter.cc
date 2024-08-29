@@ -118,14 +118,7 @@ FilterDataStatus AppnetFilter::decodeData(Buffer::Instance& data, bool end_of_st
   this->request_buffer_ = &data;
   this->in_decoding_or_encoding_ = true;
   this->startRequestAppnetNoCoroutine();
-
-  if (this->req_appnet_blocked_) {
-    ENVOY_LOG(warn, "[Appnet Filter] cached");
-    return FilterDataStatus::StopIterationNoBuffer;
-  } else {
-    ENVOY_LOG(warn, "[Appnet Filter] not cached yet");
-    return FilterDataStatus::Continue;
-  }
+  return FilterDataStatus::StopIterationAndBuffer;
 }
 
 void AppnetFilter::setDecoderFilterCallbacks(StreamDecoderFilterCallbacks& callbacks) {
