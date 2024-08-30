@@ -7,12 +7,13 @@ from typing import Dict
 
 from compiler.graph.ir import GraphIR
 
+backends = ["grpc", "envoy", "envoy_native", "ambient"]
+
 BACKEND_CONFIG_DIR = os.path.join(Path(__file__).parent, "config")
 
 
 def scriptgen(
     girs: Dict[str, GraphIR],
-    backend: str,
     app_name: str,
     app_manifest_file: str,
     app_edges: list,
@@ -27,9 +28,7 @@ def scriptgen(
         app_manifest_file: the path to the application manifest file
         app_edges: the communication edges of the application
     """
-    try:
-        module = importlib.import_module(f"compiler.graph.backend.{backend}")
-    except:
-        raise ValueError(f"backend {backend} not supported")
-    generator = getattr(module, f"scriptgen_{backend}")
-    generator(girs, app_name, app_manifest_file, app_edges)
+    for target in backends:
+        module = importlib.import_module(f"compiler.graph.backend.{target}")
+        generator = getattr(module, f"scriptgen_{target}")
+        generator(girs, app_name, app_manifest_file, app_edges)

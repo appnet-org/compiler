@@ -127,7 +127,7 @@ def compile_impl(
     gen_name = (
         server + "".join(element_names)[:24]
     )  # Envoy does not allow long struct names
-    if backend == "mrpc":
+    if backend in ["mrpc", "grpc"]:
         gen_dir = os.path.join(gen_dir, f"{gen_name}_{placement}_{backend}")
     else:
         gen_dir = os.path.join(gen_dir, f"{gen_name}_{backend}")
@@ -155,22 +155,24 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
     gen_dir = os.path.join(graph_base_dir, "generated")
     os.system(f"rm {gen_dir} -rf")
     for gir in graphirs.values():  # For each edge in the application
-        elist = [(e, "client") for e in gir.elements["req_client"]] + [
-            (e, "server") for e in gir.elements["req_server"]
-        ]
-        for (element, placement) in elist:
+        for element in gir.complete_chain():
             # For each element in the edge
-            identifier = element.lib_name + placement
+            identifier = element.lib_name + element.final_position
             if identifier not in compiled_name:
                 if pseudo_impl:
-                    pseudo_compile(element.lib_name, gen_dir, args.backend, placement)
+                    pseudo_compile(
+                        element.lib_name,
+                        gen_dir,
+                        element.target,
+                        element.final_position,
+                    )
                 else:
                     compile_impl(
                         element.name,
                         element.path,
                         gen_dir,
-                        args.backend,
-                        placement,
+                        element.target,
+                        element.final_position,
                         element.proto,
                         element.method,
                         gir.server,
@@ -224,8 +226,7 @@ def main(args):
         # pseudo_impl is set to True when we want to use hand-coded impl instead of auto-generated ones
         generate_element_impl(graphirs, args.pseudo_impl)
         # Step 3.2: Generate deployment scripts
-        scriptgen(graphirs, args.backend, app_name, app_manifest_file, app_edges)
-    
+        scriptgen(graphirs, app_name, app_manifest_file, app_edges)
 
     # Dump graphir summary (in yaml)
     gen_dir = os.path.join(graph_base_dir, "generated")

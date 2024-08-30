@@ -26,9 +26,9 @@ class AbsElement:
             info(dict): basic element information, including name, config, proto, method, etc.
             partner(str): the name of its partner, used for optimization
         """
-        if info == "NETWORK":
+        if info == "NETWORK" or info == "IPC":
             self.name = info
-            self.position = "N"
+            self.position = info[0]
         else:
             self.id = fetch_global_id()
             self.name: List[str] = [info["name"]]
@@ -37,7 +37,11 @@ class AbsElement:
                 server  # the server side of the edge, used for finding AppNet spec
             )
             self.config = info["config"] if "config" in info else []
-            self.position = info["position"] if "position" in info else "C/S"
+            self.position = info["position"] if "position" in info else "any"
+            self.processor = info["processor"] if "processor" in info else "any"
+            self.upgrade = info["upgrade"] if "upgrade" in info else "any"
+            self.target = "TBD"
+            self.final_position = "TBD"
             self.proto = info["proto"]
             self.method = info["method"]
             self.proto_mod_name = (
@@ -67,8 +71,19 @@ class AbsElement:
     def __str__(self):
         return "+".join(self.name)
 
-    def to_rich(self, position):
-        color = "dark_green" if position == "client" else "blue"
+    def to_rich(self, processor):
+        if processor == "client_grpc":
+            color = "dark_green"
+        elif processor == "client_sidecar":
+            color = "light_green"
+        elif processor == "ambient":
+            color = "brown"
+        elif processor == "server_sidecar":
+            color = "dark_blue"
+        elif processor == "server_grpc":
+            color = "blue"
+        else:
+            color = "black"
         return Panel(
             self.deploy_name,
             style=color,
