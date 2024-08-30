@@ -37,6 +37,8 @@ class GoContext:
         self.resp_code: List[str] = []  # Code for response header processing
         self.req_code: List[str] = []  # Code for request body processing
         self.resp_code: List[str] = []  # Code for response body processing
+        self.lock_prefix: str = ""  # Code for acquiring locks
+        self.lock_suffix: str = ""  # Code for releasing locks
         self.proto: str = proto
         self.proto_module_name: str = proto_module_name
         self.proto_module_location: str = proto_module_location
@@ -129,8 +131,8 @@ class GoContext:
         return len(self.weak_consistency_states)
 
     def gen_locks(self) -> tuple[str, str]:
-        prefix = ""
-        suffix = ""
+        self.lock_prefix = ""
+        self.lock_suffix = ""
 
         # Generate inners based on operations
         # Unlock in reverse order
@@ -138,14 +140,13 @@ class GoContext:
             if v.name in self.access_ops[self.current_procedure]:
                 access_type = self.access_ops[self.current_procedure][v.name]
                 if access_type == MethodType.GET:
-                    prefix = prefix + f"{v.name}_mutex.RLock();"
-                    suffix = f"defer {v.name}_mutex.RUnlock();" + suffix
+                    self.lock_prefix = self.lock_prefix + f"{v.name}_mutex.RLock();"
+                    self.lock_suffix = f"{v.name}_mutex.RUnlock();" + self.lock_suffix
                 elif access_type == MethodType.SET:
-                    prefix = prefix + f"{v.name}_mutex.Lock();"
-                    suffix = f"defer {v.name}_mutex.Unlock();" + suffix
+                    self.lock_prefix = self.lock_prefix + f"{v.name}_mutex.Lock();"
+                    self.lock_suffix = f"{v.name}_mutex.Unlock();" + self.lock_suffix
                 else:
                     raise Exception("unknown method in gen_inners.")
-        return prefix, suffix
 
     def clear_temps(self) -> None:
         new_dic = {}
@@ -301,13 +302,11 @@ class GoGenerator(Visitor):
 
         ctx.push_code(prefix_strong_read)
 
-        prefix_locks, suffix_locks = ("", "")
         if ctx.current_procedure != FUNC_INIT:
             # No need for locks in init, nobody else has access to the closure
-            prefix_locks, suffix_locks = ctx.gen_locks()
+            ctx.gen_locks()
 
-        ctx.push_code(prefix_locks)
-        ctx.push_code(suffix_locks)
+        ctx.push_code(ctx.lock_prefix)
 
         for p in node.params:
             name = p.name
@@ -317,6 +316,8 @@ class GoGenerator(Visitor):
         for s in node.body:
             code = s.accept(self, ctx)
             ctx.push_code(code)
+
+        ctx.push_code(ctx.lock_suffix)
 
         ctx.push_code(suffix_strong_read)
 
@@ -564,13 +565,19 @@ class GoGenerator(Visitor):
                     raise Exception("unknown method", node.method)
         return ret
 
-    def visitSend(self, node: Send, ctx) -> str:
+    def visitSend(self, node: Send, ctx: GoContext) -> str:
         if isinstance(node.msg, Error) and node.direction == "Up":
             if self.placement == "client":
-                return f"""return status.Error(codes.Aborted, {node.msg.msg.accept(self, ctx)})"""
+                return (
+                    ctx.lock_suffix
+                    + f"""return status.Error(codes.Aborted, {node.msg.msg.accept(self, ctx)})"""
+                )
             else:
                 assert self.placement == "server"
-                return f"""return nil, status.Error(codes.Aborted, {node.msg.msg.accept(self, ctx)})"""
+                return (
+                    ctx.lock_suffix
+                    + f"""return nil, status.Error(codes.Aborted, {node.msg.msg.accept(self, ctx)})"""
+                )
         else:
             return ""
 
