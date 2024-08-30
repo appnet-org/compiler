@@ -221,6 +221,7 @@ def main(args):
 
     # Dump graphir summary (in yaml)
     gen_dir = os.path.join(graph_base_dir, "generated")
+    os.makedirs(gen_dir, exist_ok=True)
     graphir_summary = {"graphir": []}
     for gir in graphirs.values():
         graphir_summary["graphir"].append(str(gir))
