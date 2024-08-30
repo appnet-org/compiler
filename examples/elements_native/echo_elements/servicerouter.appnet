@@ -1,0 +1,67 @@
+state:
+    load_map: Map<int, <int, Instant>>
+    epsilon: float
+    num_choices: int
+
+init():
+    epsilon = 1.0
+    num_choices = 3
+
+req(rpc):
+    shard_key = 0
+    shard_key = get_rpc_header(rpc, 'shard-key')
+    backends = get_backends(shard_key)
+
+    sampled_backends = random_choices(backends, num_choices)
+
+    foreach(backends, lambda(backend):
+        match get(load_map, backend):
+            None =>
+                pass
+            Some(pair) =>
+                (backend_load, last_ts) = pair
+
+                freshness = time_diff(current_time(), last_ts) - epsilon
+
+                match(freshness > 0):
+                    true => 
+                        pass
+                    false =>
+                        (backend_load_new, last_ts_new) = get_load(backend)
+                        set(load_map, backend, (backend_load_new, last_ts_new))
+
+                        backend_load = backend_load_new
+                        last_ts = last_ts_new
+    )
+
+    selected = 0
+    min_load = inf
+    
+    foreach(backends, lambda(backend):
+        option_pair = get(load_map, backend)
+        match option_pair:
+            None =>
+                pass
+            Some(pair) =>
+                (backend_load, last_ts) = pair
+                match (backend_load < min_load):
+                    true =>
+                        selected = backend
+                        min_load = backend_load
+                    false =>
+                        pass
+    )
+
+    set_rpc_header(rpc, 'dst', selected)
+    set_metadata('dst', selected)
+    send(rpc, Down)
+
+resp(rpc):
+    dst = 0
+    load = 0
+
+    load = get_rpc_header(rpc, 'load')
+    dst = get_metadata('dst')
+    set(load_map, dst, (load, current_time()))
+
+    send(rpc, Up)

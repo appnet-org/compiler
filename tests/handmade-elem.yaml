@@ -11,27 +11,15 @@ edge:
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""
   #   proto_mod_location: ""
+
   # - method: echo
-  #   name: cache
-  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/cache.appnet
+  #   name: cachestrong
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/cachestrong.appnet
   #   position: C
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""
   #   proto_mod_location: ""
-  # - method: echo
-  #   name: "null"
-  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/null.appnet
-  #   position: C
-  #   proto: /mnt/appnet/config/samples/echo/echo.proto
-  #   proto_mod_name: ""
-  #   proto_mod_location: ""
-  - method: echo
-    name: cachestrong
-    path: /mnt/appnet/compiler/examples/elements/echo_elements/cachestrong.appnet
-    position: C
-    proto: /mnt/appnet/config/samples/echo/echo.proto
-    proto_mod_name: ""
-    proto_mod_location: ""
+
   # - method: echo
   #   name: circuitbreaker
   #   path: /mnt/appnet/compiler/examples/elements/echo_elements/circuitbreaker.appnet
@@ -39,13 +27,15 @@ edge:
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""
   #   proto_mod_location: ""
+
   # - method: echo
-  #   name: firewall
-  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/firewall.appnet
+  #   name: firewallstrong
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/firewallstrong.appnet
   #   position: C
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""
   #   proto_mod_location: ""
+
   # - method: echo
   #   name: logging
   #   path: /mnt/appnet/compiler/examples/elements/echo_elements/logging.appnet
@@ -53,6 +43,7 @@ edge:
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""
   #   proto_mod_location: ""
+
   # - method: echo
   #   name: metrics
   #   path: /mnt/appnet/compiler/examples/elements/echo_elements/metrics.appnet
@@ -60,6 +51,7 @@ edge:
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""
   #   proto_mod_location: ""
+
   # - method: echo
   #   name: bandwidthlimit
   #   path: /mnt/appnet/compiler/examples/elements/echo_elements/bandwidthlimit.appnet
@@ -67,13 +59,15 @@ edge:
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""
   #   proto_mod_location: ""
-  # - method: echo
-  #   name: ratelimit
-  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/ratelimit.appnet
-  #   position: C
-  #   proto: /mnt/appnet/config/samples/echo/echo.proto
-  #   proto_mod_name: ""
-  #   proto_mod_location: ""
+
+  - method: echo
+    name: ratelimit
+    path: /mnt/appnet/compiler/examples/elements/echo_elements/ratelimit.appnet
+    position: C
+    proto: /mnt/appnet/config/samples/echo/echo.proto
+    proto_mod_name: ""
+    proto_mod_location: ""
+
   # - method: echo
   #   name: mutation
   #   path: /mnt/appnet/compiler/examples/elements/echo_elements/mutation.appnet
@@ -82,8 +76,6 @@ edge:
   #   proto_mod_name: ""
   #   proto_mod_location: ""
 
-
-
   # - method: echo
   #   name: admissioncontrol
   #   path: /mnt/appnet/compiler/examples/elements/echo_elements/admissioncontrol.appnet
@@ -91,16 +83,44 @@ edge:
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""
   #   proto_mod_location: ""
+
   # - method: echo
-  #   name: lbsticky
-  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/lbsticky.appnet
+  #   name: lbstickystrong
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/lbstickystrong.appnet
   #   position: C
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""
   #   proto_mod_location: ""
+
   # - method: echo
   #   name: encrypt
   #   path: /mnt/appnet/compiler/examples/elements/echo_elements/encrypt.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+
+
+  # - method: echo
+  #   name: servicerouter
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/servicerouter.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+
+  # - method: echo
+  #   name: srserver
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/srserver.appnet
+  #   position: S
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
+
+  # ========================================
+  # - method: echo
+  #   name: "null"
+  #   path: /mnt/appnet/compiler/examples/elements/echo_elements/null.appnet
   #   position: C
   #   proto: /mnt/appnet/config/samples/echo/echo.proto
   #   proto_mod_name: ""

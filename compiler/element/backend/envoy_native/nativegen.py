@@ -248,10 +248,12 @@ class NativeGenerator(Visitor):
         raise Exception("Only map<string, string> type can have consistency for now")
       
       assert(isinstance(appType, AppNetMap))
-      if appType.key.is_string() == False or appType.value.is_string() == False:
-        raise Exception("Only map<string, string> can have consistency for now")
+      if appType.key.is_string() == False or (appType.value.is_string() == False and appType.value.is_int() == False):
+        raise Exception("Only map<string, string/int> can have consistency for now")
         
       if decorator['consistency'] in ['weak']:
+        if appType.key.is_string() == False or appType.value.is_string() == False:
+          raise Exception("Only map<string, string> can have weak consistency for now")
         # for (auto& [key, value] : cache) {
         #   ENVOY_LOG(warn, "[AppNet Filter] cache key={}, value={}", key, value);
         # }
@@ -293,7 +295,7 @@ class NativeGenerator(Visitor):
       assert(len(node.params) == 0)
     else:
       assert(node.name == "req" or node.name == "resp")
-      assert(len(node.params) == 1)
+      # assert(len(node.params) == 1)
       assert(node.params[0].name == "rpc")
       app_rpc = ctx.declareAppNetLocalVariable("rpc", AppNetRPC())
       native_rpc, decl = ctx.declareNativeVar("rpc", app_rpc.type.to_native())
@@ -381,8 +383,6 @@ class NativeGenerator(Visitor):
 
   def generateOptionMatch(self, node: Match, ctx: NativeContext, appnet_type: AppNetOption, native_expr: NativeVariable) -> None:
 
-    ctx.push_appnet_scope()
-
     some_pattern = None
     some_pattern_stmts = None
 
@@ -415,6 +415,7 @@ class NativeGenerator(Visitor):
     assert(none_embed_str == "None")
 
     ctx.push_code(f"if ({native_expr.name}.has_value())")
+    ctx.push_appnet_scope()
     ctx.push_code("{")
 
     assert(isinstance(some_pattern.value, Identifier))
@@ -429,14 +430,17 @@ class NativeGenerator(Visitor):
       stmt.accept(self, ctx)
 
     ctx.push_code("}")
+    ctx.pop_appnet_scope()
+
     ctx.push_code("else")
+    ctx.push_appnet_scope()
     ctx.push_code("{")
 
     for stmt in none_pattern_stmts:
       stmt.accept(self, ctx)
 
-    ctx.push_code("}")
     ctx.pop_appnet_scope()
+    ctx.push_code("}")
 
   def visitMatch(self, node: Match, ctx: NativeContext) -> None:
 
@@ -935,7 +939,7 @@ class GetMapStrongConsistency(AppNetBuiltinFuncProto):
 
     ret_type = self.ret_type()
     assert isinstance(ret_type, AppNetOption)
-    assert isinstance(ret_type.inner, AppNetString)
+    assert isinstance(ret_type.inner, AppNetString) or isinstance(ret_type.inner, AppNetInt)
 
     # return {"GET":null} or {"GET":"value"}
     # parse the response using json
@@ -946,7 +950,10 @@ class GetMapStrongConsistency(AppNetBuiltinFuncProto):
     ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
     ctx.push_code(f"if (j.contains(\"GET\") && j[\"GET\"].is_null() == false)")
     ctx.push_code("{")
-    ctx.push_code(f"  {res_native_var.name}.emplace(base64_decode(j[\"GET\"], false));")
+    if isinstance(ret_type.inner, AppNetInt):
+      ctx.push_code(f"  {res_native_var.name}.emplace(j[\"GET\"].get<int>());")
+    else:
+      ctx.push_code(f"  {res_native_var.name}.emplace(base64_decode(j[\"GET\"], false));")
     ctx.push_code("}")
 
     ctx.push_code("}")
@@ -1289,7 +1296,12 @@ class SetMapStrongConsistency(AppNetBuiltinFuncProto):
 
     url_native_var, url_decl_str = ctx.declareNativeVar(ctx.new_temporary_name(), NativeString())
     ctx.push_code(url_decl_str)
-    ctx.push_code(f"{url_native_var.name} = \"/SET/\" + {key.name} + \"/\" + base64_encode({value.name}, true);")
+    # if map.value is int, we need to convert it to string
+    assert(isinstance(self.appargs[0], AppNetMap))
+    if isinstance(self.appargs[0].value, AppNetInt):
+      ctx.push_code(f"{url_native_var.name} = \"/SET/\" + {key.name} + \"/\" + std::to_string({value.name});")
+    else:
+      ctx.push_code(f"{url_native_var.name} = \"/SET/\" + {key.name} + \"/\" + base64_encode({value.name}, true);")
   
     if ctx.current_procedure == 'req':
       # If in resp or request, we send blocking call SET to webdis

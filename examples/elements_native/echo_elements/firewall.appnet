@@ -1,0 +1,20 @@
+state:
+    acl: Map<string, string>
+
+init():
+    set(acl, 'apple', 'Yes')
+    set(acl, 'test', 'No')
+ 
+req(rpc):
+    match get(acl, get(rpc, 'body')):
+        Some(permission) =>
+            match permission:
+                'Yes' =>
+                    send(rpc, Down)
+                'No' =>
+                    send(err('acl'), Up)
+        None =>
+            send(rpc, Down)
+
+resp(rpc):
+    send(rpc, Up)
