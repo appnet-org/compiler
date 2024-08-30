@@ -308,7 +308,6 @@ class GoGenerator(Visitor):
 
         ctx.push_code(prefix_locks)
         ctx.push_code(suffix_locks)
-        print(suffix_locks)
 
         for p in node.params:
             name = p.name
@@ -318,7 +317,7 @@ class GoGenerator(Visitor):
         for s in node.body:
             code = s.accept(self, ctx)
             ctx.push_code(code)
-            
+
         ctx.push_code(suffix_strong_read)
 
         if ctx.current_procedure != FUNC_INIT:
