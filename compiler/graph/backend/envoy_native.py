@@ -9,14 +9,15 @@ from typing import Dict, List, Tuple
 import yaml
 
 from compiler import graph_base_dir
+from compiler.config import COMPILER_ROOT
 from compiler.graph.backend import BACKEND_CONFIG_DIR
-from compiler.graph.backend.boilerplate import attach_yml
+from compiler.graph.backend.boilerplate import attach_yml_native
 from compiler.graph.backend.utils import *
 from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_BACKEND_LOG
 
 
-def scriptgen_envoy(
+def scriptgen_envoy_native(
     girs: Dict[str, GraphIR],
     app_name: str,
     app_manifest_file: str,
@@ -24,53 +25,188 @@ def scriptgen_envoy(
 ):
     global local_gen_dir
     local_gen_dir = os.path.join(graph_base_dir, "generated")
-    os.makedirs(local_gen_dir, exist_ok=True)
+    native_gen_dir = os.path.join(graph_base_dir, "generated_native")
     deploy_dir = os.path.join(local_gen_dir, f"{app_name}-deploy")
-    os.makedirs(deploy_dir, exist_ok=True)
-    os.makedirs("/tmp/appnet", exist_ok=True)
 
-    # Compile each element
-    GRAPH_BACKEND_LOG.info("Compiling elements for Envoy. This might take a while...")
-    compiled_elements = set()
+    os.makedirs(local_gen_dir, exist_ok=True)
+    os.makedirs(native_gen_dir, exist_ok=True)
+    os.makedirs(deploy_dir, exist_ok=True)
+
+    # Change the owner of the generated directory to the current user
+    # We use docker to compile the final Envoy, therefore some previous cache may be owned by root.
+    # if os.geteuid() != 0:
+    #     raise Exception("This script must be run as root")
+    # os.system(f"sudo chown -R {os.getenv('USER')} {local_gen_dir}")
+
+    # Copy the istio-proxy source code to the generated directory
+    generated_istio_proxy_path = os.path.join(native_gen_dir, "istio_envoy")
+    # Clone the istio-proxy repository
+
+    if os.path.exists(generated_istio_proxy_path) == False:
+        execute_local(
+            [
+                "git",
+                "clone",
+                # TODO: move to appnet-org in future
+                "git@github.com:jokerwyt/istio-proxy.git",
+                generated_istio_proxy_path,
+            ]
+        )
+
+    # Remove the original appnet_filter (if exists)
+    os.system(f"rm -rf {generated_istio_proxy_path}/source/extensions/filters/http/appnet_filter")
+
+    # Combining all elements into the istio Envoy template.
+    inserted_elements = set()
     for gir in girs.values():
         for element in gir.elements["req_client"] + gir.elements["req_server"]:
-            if element.lib_name not in compiled_elements:
-                compiled_elements.add(element.lib_name)
-                impl_dir = os.path.join(local_gen_dir, f"{element.lib_name}_envoy")
-                # Compile
-                execute_local(
-                    [
-                        "cargo",
-                        "build",
-                        "--target=wasm32-wasi",
-                        "--manifest-path",
-                        os.path.join(impl_dir, "Cargo.toml"),
-                        "--release",
-                    ]
-                )
-                # copy binary to /tmp/appnet
+            if element.lib_name not in inserted_elements:
+                inserted_elements.add(element.lib_name)
+                impl_dir = os.path.join(local_gen_dir, f"{element.lib_name}_envoy_native")
+
+                filter_name = element.lib_name
+                # Copy $impl_dir/appnet_filter to istio-proxy/source/extensions/filters/http/$filter_name
+                # if exists, delete the old one
+                if os.path.exists(
+                    os.path.join(
+                        generated_istio_proxy_path, "source/extensions/filters/http", filter_name
+                    )
+                ):
+                    os.system(
+                        f"rm -rf {generated_istio_proxy_path}/source/extensions/filters/http/{filter_name}"
+                    )
+
                 execute_local(
                     [
                         "cp",
+                        "-r",
+                        os.path.join(impl_dir, "appnet_filter"),
                         os.path.join(
-                            impl_dir,
-                            f"target/wasm32-wasi/release/{element.lib_name}.wasm",
+                            generated_istio_proxy_path,
+                            "source/extensions/filters/http",
+                            filter_name,
                         ),
-                        "/tmp/appnet",
                     ]
                 )
 
-    # for file_or_dir in os.listdir(app_manifest_dir):
-    #     if app_name not in file_or_dir:
-    #         execute_local(
-    #             [
-    #                 "cp",
-    #                 "-r",
-    #                 os.path.join(app_manifest_dir, file_or_dir),
-    #                 os.path.join(deploy_dir, file_or_dir),
-    #             ]
-    #         )
+                # Do source code transformation to make it fit in.
+                for root, _, files in os.walk(
+                    os.path.join(
+                        generated_istio_proxy_path, "source/extensions/filters/http", filter_name
+                    )
+                ):
+                    for file in files:
+                        # if file does not ends with .cc or .h or proto
+                        suffix = file.split(".")[-1]
+                        if suffix not in ["cc", "h", "proto"]:
+                            continue
+                        file_path = os.path.join(root, file)
+                        with open(file_path, "r") as f:
+                            lines = f.readlines()
+                        with open(file_path, "w") as f:
+                            for line in lines:
+                                # Rule 1. Change the include path of the .pb.h and .pb.validate.h files.
+                                # We replace prefix "appnet_filter/" with "source/extensions/filters/http/".
+                                # 
+                                # For example
+                                # Origin: #include "appnet_filter/echo.pb.h"
+                                # After: #include "source/extensions/filters/http/${filter_name}/echo.pb.h"
 
+                                if "#include" in line and (".pb.h" in line or ".pb.validate.h" in line):
+                                    file_name = line.split("/")[-1].split(".")[0]
+                                    line = line.replace(
+                                        f'#include "appnet_filter/{file_name}.pb.h"',
+                                        f'#include "source/extensions/filters/http/{filter_name}/{file_name}.pb.h"',
+                                    )
+                                    line = line.replace(
+                                        f'#include "appnet_filter/{file_name}.pb.validate.h"',
+                                        f'#include "source/extensions/filters/http/{filter_name}/{file_name}.pb.validate.h"',
+                                    )
+
+                                # Rule 2. replace all AppNetSampleFilter and appnetsamplefilter
+                                line = line.replace("AppNetSampleFilter", f"appnet{filter_name}")
+                                line = line.replace("appnetsamplefilter", f"appnet{filter_name}")
+
+                                # Rule 3. webdis_cluster -> webdis-service-{filter_name}
+                                line = line.replace("webdis_cluster", f"webdis-service-{filter_name}")
+
+                                f.write(line)
+
+
+    # Modify BUILD.
+    # Checkout the BUILD fiel template first.
+    # i.e. execute "git checkout origin/master -- source/extensions/filters/http/appnet_filter/BUILD" in that directory
+    ROOT_BUILD_FILE = os.path.join(generated_istio_proxy_path, "BUILD")
+    subprocess.run(
+        [
+            "git",
+            "checkout",
+            "origin/master",
+            "--",
+            ROOT_BUILD_FILE,
+        ],
+        cwd=generated_istio_proxy_path,
+        check=True,
+    )
+
+    # Remove the original appnet_filter items in BUILD, and insert the new filters.
+    # 
+    # The template is in the following format:
+    # ISTIO_EXTENSIONS = [
+    #     "//source/extensions/common/workload_discovery:api_lib",  # Experimental: WIP
+    #     "//source/extensions/filters/http/alpn:config_lib",
+    #     "//source/extensions/filters/http/istio_stats",
+    #     "//source/extensions/filters/http/peer_metadata:filter_lib",
+    #     "//source/extensions/filters/network/metadata_exchange:config_lib",
+    #     # !APPNET_FILTERS
+    #     "//source/extensions/filters/http/appnet_filter:appnet_filter_lib",
+    #     "//source/extensions/load_balancing_policies/random:random_lb_lib",
+    # ]
+    with open(ROOT_BUILD_FILE, "r") as f:
+        lines = f.readlines()
+    
+    # Insert "//source/extensions/filters/http/${filter_name}:appnet_filter_lib", in the correct position
+    insert_idx = 0
+    for idx, line in enumerate(lines):
+        if "# !APPNET_FILTERS\n" in line:
+            insert_idx = idx
+            break
+    for element in inserted_elements:
+        lines.insert(insert_idx, f'    "//source/extensions/filters/http/{element}:appnet_filter_config",\n')
+
+    with open(ROOT_BUILD_FILE, "w") as f:
+        f.writelines(lines)
+
+    GRAPH_BACKEND_LOG.info(f"The istio envoy source code is generated successfully in {generated_istio_proxy_path}.")
+    
+    # Compile the istio envoy.
+
+    image_name = f"jokerwyt/istio-proxy-1.22:latest"
+    if os.getenv("APPNET_NO_BAKE") != "1":
+        GRAPH_BACKEND_LOG.info("Building the istio envoy...")
+        execute_local(
+            ["bash", "build.sh"], cwd=generated_istio_proxy_path,
+        )
+        # Bake the istio proxy image.
+        GRAPH_BACKEND_LOG.info("Building the istio proxy image...")
+        execute_local(
+            ["docker", "build", "-t", f"docker.io/{image_name}", "-f", "Dockerfile.istioproxy", "."],
+            cwd=generated_istio_proxy_path,
+        )
+        GRAPH_BACKEND_LOG.info(f"Docker image {image_name} is built successfully.")
+
+        # Push the image to the docker hub.
+        GRAPH_BACKEND_LOG.info("Pushing the istio proxy image to the docker hub...")
+        execute_local(["docker", "push", f"docker.io/{image_name}"])
+        GRAPH_BACKEND_LOG.info(f"Docker image {image_name} is pushed successfully.")
+    else:
+        GRAPH_BACKEND_LOG.info("Skip building and pushing the istio proxy image.")
+
+    GRAPH_BACKEND_LOG.info("Injecting the istio proxy image to the application manifest file...")
+    istio_injected_file = os.path.join(local_gen_dir, app_name + "_istio.yml")
+    
+    cmd=f"istioctl kube-inject -f {app_manifest_file} -o {istio_injected_file} --set values.global.proxy.image=docker.io/{image_name}"
+    GRAPH_BACKEND_LOG.info(f"Executing command: {cmd}")
     # Generate the istio manifest file for the application.
     execute_local(
         [
@@ -82,6 +218,35 @@ def scriptgen_envoy(
             os.path.join(local_gen_dir, app_name + "_istio.yml"),
         ]
     )
+
+    # Use custom istio-proxy image in the generated manifest file
+    with open(istio_injected_file, "r") as f:
+        content = f.readlines()
+        # replace
+        # docker.io/istio/proxyv2:<version_number>
+        # with 
+        # docker.io/{image_name}
+        for i, line in enumerate(content):
+            if "docker.io/istio/proxyv2" in line:
+                content[i] = line.split("docker.io/istio/proxyv2")[0] + f"docker.io/{image_name}" + "\n"
+    with open(istio_injected_file, "w") as f:
+        f.writelines(content)
+
+    # Set pull policy always
+    with open(istio_injected_file, "r") as f:
+        yml_list = list(yaml.safe_load_all(f))
+        for obj_yml in yml_list:
+            if obj_yml and "kind" in obj_yml and obj_yml["kind"] == "Deployment":
+                for container_yaml in obj_yml["spec"]["template"]["spec"]["containers"] + obj_yml["spec"]["template"]["spec"]["initContainers"]:
+                    # if the image is our custom image, set the pull policy to Always
+                    if container_yaml["image"] == f"docker.io/{image_name}":
+                        container_yaml["imagePullPolicy"] = "Always"
+
+    # Dump back
+    with open(istio_injected_file, "w") as f:
+        yaml.dump_all(yml_list, f, default_flow_style=False)
+    GRAPH_BACKEND_LOG.info(f"The istio-injected file is generated successfully at {istio_injected_file}.")
+
     GRAPH_BACKEND_LOG.info("Generating the istio manifest file for the application...")
     with open(app_manifest_file, "r") as f:
         yml_list_plain = list(yaml.safe_load_all(f))
@@ -203,14 +368,6 @@ def scriptgen_envoy(
                 yml_list_istio.append(webdis_service_copy)
                 yml_list_istio.append(webdis_deploy_copy)
 
-            # Copy the wasm binary to the remote hosts (except the control plane node)
-            # We need to copy to all hosts because we don't know where the service will be scheduled
-            nodes = get_node_names(control_plane=False)
-            for node in nodes:
-                copy_remote_host(
-                    node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet"
-                )
-
     if os.getenv("APPNET_NO_OPTIMIZE") != "1":
         # has optimization: exclude ports that has no element attached to
         for client, server in app_edges:
@@ -268,9 +425,9 @@ def scriptgen_envoy(
     # Generate script to attach elements.
     attach_all_yml = ""
     for gir in girs.values():
-        elist = [(e, gir.client, "client") for e in gir.elements["req_client"]] + [
-            (e, gir.server, "server") for e in gir.elements["req_server"]
-        ]
+        elist = [(e, gir.client, "client") for e in gir.elements["req_client"]] \
+            + [(e, gir.server, "server") for e in gir.elements["req_server"]][::-1]
+        
         for (e, sname, placement) in elist:
             contents = {
                 "metadata_name": f"{e.lib_name}-{sname}-{placement}",
@@ -285,7 +442,7 @@ def scriptgen_envoy(
                 "filename": f"/etc/appnet/{e.lib_name}.wasm",
                 "service_label": service_to_label[sname],
             }
-            attach_all_yml += attach_yml.format(**contents)
+            attach_all_yml += attach_yml_native.format(**contents)
     with open(os.path.join(deploy_dir, "attach_all_elements.yml"), "w") as f:
         f.write(attach_all_yml)
 

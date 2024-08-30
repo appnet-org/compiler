@@ -49,6 +49,11 @@ def parse_args():
         action="store_true",
     )
     parser.add_argument(
+        "--envoy_verbose",
+        help="If added, we will generate verbose logging in envoy native filter",
+        action="store_true",
+    )
+    parser.add_argument(
         "--pseudo_property",
         help="If added, use hand-coded properties instead of auto-generated ones",
         action="store_true",
@@ -64,7 +69,7 @@ def parse_args():
         help="Backend name",
         type=str,
         required=True,
-        choices=["mrpc", "envoy", "grpc", "ambient"],
+        choices=["mrpc", "envoy", "grpc", "ambient", "envoy_native"],
     )
     parser.add_argument(
         "--mrpc_dir",
@@ -140,6 +145,8 @@ def compile_impl(
         tag,
         proto_module_name=proto_module_name,
         proto_module_location=proto_module_location,
+        verbose=False,
+        envoy_verbose=args.envoy_verbose,
     )
 
 
@@ -218,6 +225,7 @@ def main(args):
         generate_element_impl(graphirs, args.pseudo_impl)
         # Step 3.2: Generate deployment scripts
         scriptgen(graphirs, args.backend, app_name, app_manifest_file, app_edges)
+    
 
     # Dump graphir summary (in yaml)
     gen_dir = os.path.join(graph_base_dir, "generated")

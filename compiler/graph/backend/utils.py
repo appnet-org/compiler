@@ -168,7 +168,7 @@ def execute_remote_container(service: str, host: str, cmd: List[str]) -> str:
     return res.stdout.decode("utf-8")
 
 
-def execute_local(cmd: List[str]) -> str:
+def execute_local(cmd: List[str], *, cwd=None) -> str:
     """Execute commands in localhost
 
     Args:
@@ -178,7 +178,10 @@ def execute_local(cmd: List[str]) -> str:
         The output of the command, or "xxx" if "--dry_run" is provided.
     """
     GRAPH_BACKEND_LOG.debug(f"Executing command {' '.join(cmd)}...")
-    res = subprocess.run(cmd, capture_output=True)
+    if cwd:
+        res = subprocess.run(cmd, cwd=cwd, capture_output=True)
+    else:
+        res = subprocess.run(cmd, capture_output=True)
     error_handling(res, f"Error when executing command {cmd}")
     return res.stdout.decode("utf-8")
 

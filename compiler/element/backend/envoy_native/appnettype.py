@@ -29,13 +29,16 @@ class AppNetType:
     return self.is_arithmetic() or self.is_bool()
   
   def is_arithmetic(self) -> bool:
-    return isinstance(self, Int) or isinstance(self, Float)
+    return isinstance(self, Int) or isinstance(self, UInt) or isinstance(self, Float)
   
   def is_float(self) -> bool:
     return isinstance(self, Float)
 
   def is_string(self) -> bool:
     return isinstance(self, String)
+  
+  def is_string_literal(self) -> bool:
+    return isinstance(self, String) and self.literal is not None
 
   def is_bool(self) -> bool:
     return isinstance(self, Bool)
@@ -52,12 +55,21 @@ class AppNetType:
   def is_option(self) -> bool:
     return isinstance(self, Option)
 
+  def is_int(self) -> bool:
+    return isinstance(self, Int)
+  
+  def is_uint(self) -> bool:
+    return isinstance(self, UInt)
+  
+  def is_pair(self) -> bool:
+    return isinstance(self, Pair)
+
 def appnet_type_from_str(name: str) -> AppNetType:
   match name.lower():
     case "int":
       return Int()
     case "uint":
-      return Int()
+      return UInt()
     case "float":
       return Float()
     case "string":
@@ -69,6 +81,14 @@ def appnet_type_from_str(name: str) -> AppNetType:
     case "instant":
       return Instant()
     case _:
+      if name.startswith("<") and name.endswith(">"):
+        # maybe a pair type: <typea, typeb>
+        inner = name[1:-1].split(",")
+        if len(inner) == 2:
+          return Pair(appnet_type_from_str(inner[0].strip()), appnet_type_from_str(inner[1].strip()))
+        else:
+          raise Exception(f"Unknown type {name} when converting from string")
+
       raise Exception(f"Unknown type {name} when converting from string")
 
 
@@ -80,13 +100,23 @@ class Int(AppNetType):
   def to_native(self) -> NativeType:
     return NativeInt()
 
+class UInt(AppNetType):
+  def to_native(self) -> NativeType:
+    return NativeUInt()
+
 class Float(AppNetType):
   def to_native(self) -> NativeType:
     return NativeFloat()
 
 class String(AppNetType):
+  literal: Optional[str] # Sometimes we have get(rpc, 'load') where 'load' is a string literal.
+
   def to_native(self) -> NativeType:
     return NativeString()
+  
+  def __init__(self, literal: Optional[str] = None):
+    super().__init__()
+    self.literal = literal
 
 class Bool(AppNetType):
   def to_native(self) -> NativeType:
@@ -136,6 +166,20 @@ class Void(AppNetType):
     LOG.error(f"AppNet Void type cannot be converted to native type")
     assert(0)
 
+
+class Pair(AppNetType):
+  first: AppNetType
+  second: AppNetType
+
+  def __init__(self, first: AppNetType, second: AppNetType):
+    super().__init__()
+    self.first = first
+    self.second = second
+
+  def to_native(self) -> NativeType:
+    return NativePair(self.first.to_native(), self.second.to_native())
+
+
 class AppNetVariable:
   name: str
   type: AppNetType
@@ -145,3 +189,22 @@ class AppNetVariable:
   def __init__(self, name: str, type: AppNetType):
     self.name = name
     self.type = type
+
+
+
+def proto_type_to_appnet_type(proto_type: str) -> AppNetType:
+  match proto_type:
+    case "int32", "int64", "uint32", "uint64", "sint32", "sint64", "fixed32", "fixed64", "sfixed32", "sfixed64":
+      return Int()
+    case "float", "double":
+      return Float()
+    case "string":
+      return String()
+    case "bool":
+      return Bool()
+    case "bytes":
+      return Bytes()
+    case "google.protobuf.Timestamp":
+      return Instant()
+    case _:
+      raise Exception(f"Unknown proto type {proto_type}")
