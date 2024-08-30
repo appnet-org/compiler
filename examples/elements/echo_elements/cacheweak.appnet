@@ -1,12 +1,14 @@
 state:
     @consistency(weak) @combiner(sum) @persistence(true)
 	cache: Map<string, string>
+    record: Map<uint, string>
 
 init():
     set(cache, 'bomb', 'bomb')
 
 req(rpc):
-    res = get(cache, get(rpc, 'body'))
+    body = get(rpc, 'body')
+    res = get(cache, body)
 	match res:
 		Some(name) =>
             match name:
@@ -15,9 +17,14 @@ req(rpc):
                 _ =>
                     send(err('bomb'), Up)
 		None =>
+            set(record, rpc_id(), body)
 			send(rpc, Down)
 
 resp(rpc):
-    key = get(rpc, 'body')
-	set(cache, key, 'cached')
+    body = get(record, rpc_id())
+    match body:
+        Some(name) => 
+            set(cache, name, 'cached')
+        _ =>
+            pass
 	send(rpc, Up)
