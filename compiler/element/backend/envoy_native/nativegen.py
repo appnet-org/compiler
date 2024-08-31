@@ -1,3 +1,4 @@
+
 from copy import deepcopy
 from typing import Dict, List, Optional, Set
 
@@ -46,6 +47,7 @@ class NativeContext:
     self.most_recent_assign_left_type: Optional[AppNetType] = None
 
     self.envoy_verbose = envoy_verbose
+    self.global_state_lock_held = False
 
   def insert_envoy_log(self) -> None:
     # Insert ENVOY_LOG(warn, stmt) after each statement in req and resp
@@ -168,7 +170,15 @@ class NativeContext:
     self.push_code(f"   this->sendHttpRequest(\"{cluster_name}\", {url.name}, *this);")
     self.push_code(f"   assert(this->appnet_coroutine_.has_value());")
     self.push_code(f"   ENVOY_LOG(warn, \"[AppNet Filter] Blocking HTTP Request Sent\");")
+    
+    if self.global_state_lock_held:
+      # we need to release the lock. Otherwise, we will have a deadlock.
+      self.push_code(f"   lock.unlock();")
     self.push_code(f"   co_await http_awaiter;")
+    if self.global_state_lock_held:
+      # we need to re-acquire the lock.
+      self.push_code(f"   lock.lock();")
+
     self.push_code(f"   ENVOY_LOG(warn, \"[AppNet Filter] Blocking HTTP Request Done\");")
     self.push_code("}")
 
@@ -238,10 +248,12 @@ class NativeGenerator(Visitor):
         raise Exception("Only map<string, string> type can have consistency for now")
       
       assert(isinstance(appType, AppNetMap))
-      if appType.key.is_string() == False or appType.value.is_string() == False:
-        raise Exception("Only map<string, string> can have consistency for now")
+      if appType.key.is_string() == False or (appType.value.is_string() == False and appType.value.is_int() == False):
+        raise Exception("Only map<string, string/int> can have consistency for now")
         
       if decorator['consistency'] in ['weak']:
+        if appType.key.is_string() == False or appType.value.is_string() == False:
+          raise Exception("Only map<string, string> can have weak consistency for now")
         # for (auto& [key, value] : cache) {
         #   ENVOY_LOG(warn, "[AppNet Filter] cache key={}, value={}", key, value);
         # }
@@ -270,18 +282,20 @@ class NativeGenerator(Visitor):
     ctx.push_appnet_scope()
     ctx.push_native_scope()
 
+    ctx.global_state_lock_held = False
     if len(ctx.appnet_var[0]) > 0:
       # TODO: We do very coarse-grained locking here.
       # If we have global states, we serialize all the request handling.
       if ctx.current_procedure != "init":
         # init() already has the lock in tempalte, for init global variable.
-        ctx.push_code("std::lock_guard<std::mutex> lock(global_state_lock);")
+        ctx.push_code("std::unique_lock<std::mutex> lock(global_state_lock);")
+        ctx.global_state_lock_held = True
 
     if node.name == "init":
       assert(len(node.params) == 0)
     else:
       assert(node.name == "req" or node.name == "resp")
-      assert(len(node.params) == 1)
+      # assert(len(node.params) == 1)
       assert(node.params[0].name == "rpc")
       app_rpc = ctx.declareAppNetLocalVariable("rpc", AppNetRPC())
       native_rpc, decl = ctx.declareNativeVar("rpc", app_rpc.type.to_native())
@@ -369,8 +383,6 @@ class NativeGenerator(Visitor):
 
   def generateOptionMatch(self, node: Match, ctx: NativeContext, appnet_type: AppNetOption, native_expr: NativeVariable) -> None:
 
-    ctx.push_appnet_scope()
-
     some_pattern = None
     some_pattern_stmts = None
 
@@ -403,6 +415,7 @@ class NativeGenerator(Visitor):
     assert(none_embed_str == "None")
 
     ctx.push_code(f"if ({native_expr.name}.has_value())")
+    ctx.push_appnet_scope()
     ctx.push_code("{")
 
     assert(isinstance(some_pattern.value, Identifier))
@@ -417,14 +430,17 @@ class NativeGenerator(Visitor):
       stmt.accept(self, ctx)
 
     ctx.push_code("}")
+    ctx.pop_appnet_scope()
+
     ctx.push_code("else")
+    ctx.push_appnet_scope()
     ctx.push_code("{")
 
     for stmt in none_pattern_stmts:
       stmt.accept(self, ctx)
 
-    ctx.push_code("}")
     ctx.pop_appnet_scope()
+    ctx.push_code("}")
 
   def visitMatch(self, node: Match, ctx: NativeContext) -> None:
 
@@ -923,7 +939,7 @@ class GetMapStrongConsistency(AppNetBuiltinFuncProto):
 
     ret_type = self.ret_type()
     assert isinstance(ret_type, AppNetOption)
-    assert isinstance(ret_type.inner, AppNetString)
+    assert isinstance(ret_type.inner, AppNetString) or isinstance(ret_type.inner, AppNetInt)
 
     # return {"GET":null} or {"GET":"value"}
     # parse the response using json
@@ -934,7 +950,12 @@ class GetMapStrongConsistency(AppNetBuiltinFuncProto):
     ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
     ctx.push_code(f"if (j.contains(\"GET\") && j[\"GET\"].is_null() == false)")
     ctx.push_code("{")
-    ctx.push_code(f"  {res_native_var.name}.emplace(base64_decode(j[\"GET\"], false));")
+    if isinstance(ret_type.inner, AppNetInt):
+      # get it as string, and then cast to int
+      ctx.push_code(f"std::string str_int = static_cast<std::string>(j[\"GET\"]);")
+      ctx.push_code(f"{res_native_var.name}.emplace(std::stoi(str_int));")
+    else:
+      ctx.push_code(f"  {res_native_var.name}.emplace(base64_decode(j[\"GET\"], false));")
     ctx.push_code("}")
 
     ctx.push_code("}")
@@ -1277,7 +1298,12 @@ class SetMapStrongConsistency(AppNetBuiltinFuncProto):
 
     url_native_var, url_decl_str = ctx.declareNativeVar(ctx.new_temporary_name(), NativeString())
     ctx.push_code(url_decl_str)
-    ctx.push_code(f"{url_native_var.name} = \"/SET/\" + {key.name} + \"/\" + base64_encode({value.name}, true);")
+    # if map.value is int, we need to convert it to string
+    assert(isinstance(self.appargs[0], AppNetMap))
+    if isinstance(self.appargs[0].value, AppNetInt):
+      ctx.push_code(f"{url_native_var.name} = \"/SET/\" + {key.name} + \"/\" + std::to_string({value.name});")
+    else:
+      ctx.push_code(f"{url_native_var.name} = \"/SET/\" + {key.name} + \"/\" + base64_encode({value.name}, true);")
   
     if ctx.current_procedure == 'req':
       # If in resp or request, we send blocking call SET to webdis
@@ -1607,8 +1633,8 @@ class SetMetadata(AppNetBuiltinFuncProto):
   def gen_code(self, ctx: NativeContext, key: NativeVariable, value: NativeVariable) -> None:
     self.native_arg_sanity_check([key, value])
 
-    if isinstance(self.appargs[1], AppNetInt) == False:
-      raise NotImplementedError("only int type is supported for now")
+    if isinstance(self.appargs[1], AppNetInt) == False and isinstance(self.appargs[1], AppNetUInt) == False:
+      raise NotImplementedError("only int/uint type is supported for now")
     
     ctx.push_code("{")
     # cast it into string first
@@ -1650,7 +1676,7 @@ class GetMetadata(AppNetBuiltinFuncProto):
 
     assert(ctx.most_recent_assign_left_type is not None)
     self.ret_type_inferred = ctx.most_recent_assign_left_type
-    if self.ret_type_inferred.is_int() == False:
+    if self.ret_type_inferred.is_int() == False and self.ret_type_inferred.is_uint() == False:
       raise NotImplementedError("only int type is supported for now")
 
     res_native_var, native_decl_stmt,  \
@@ -1665,7 +1691,7 @@ class GetMetadata(AppNetBuiltinFuncProto):
     # to int
     ctx.push_code(f"  {res_native_var.name} = std::stoi(__tmp_str);")
     ctx.push_code(f"}} catch (...) {{")
-    ctx.push_code(f"  ENVOY_LOG(error, \"[AppNet Filter] Failed to convert string to int\");")
+    ctx.push_code(f"  ENVOY_LOG(error, \"[AppNet Filter] Failed to convert string to int (or uint)\");")
     ctx.push_code("}")
     ctx.push_code("}")
 
@@ -1674,9 +1700,45 @@ class GetMetadata(AppNetBuiltinFuncProto):
   def __init__(self):
     super().__init__("get_metadata")
 
+class Encrypt(AppNetBuiltinFuncProto):
+  # func(msg: str, password: str) -> new_msg: str
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and args[0].is_string() and args[1].is_string()
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    return AppNetString()
+  
+  def gen_code(self, ctx: NativeContext, msg: NativeVariable, password: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([msg, password])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    ctx.push_code(native_decl_stmt)
+
+    ctx.push_code("{")
+    ctx.push_code(f"std::string __tmp_str;")
+    ctx.push_code(f"std::string __password_str = {password.name};")
+    ctx.push_code(f"std::string __msg_str = {msg.name};")
+    ctx.push_code(f"for (size_t i = 0; i < __msg_str.size(); i++)")
+    ctx.push_code("{")
+    ctx.push_code(f"  __tmp_str.push_back(__msg_str[i] ^ __password_str[i % __password_str.size()]);")
+    ctx.push_code("}")
+    ctx.push_code(f"{res_native_var.name} = __tmp_str;")
+    ctx.push_code("}")
+
+    return res_native_var
+  
+  def __init__(self):
+    super().__init__("encrypt")
+
+
 
 APPNET_BUILTIN_FUNCS = [
   GetRPCField, GetMap, CurrentTime, TimeDiff, Min, Max, SetMap, 
   ByteSize, RandomF, SetVector, SizeVector, SetRPCField, RPCID,
   GetMapStrongConsistency, SetMapStrongConsistency, GetBackEnds, RandomChoices,
-  GetLoad, GetRPCHeader, SetRPCHeader, DeleteMap, GetMetadata, SetMetadata]
+  GetLoad, GetRPCHeader, SetRPCHeader, DeleteMap, GetMetadata, SetMetadata, Encrypt]

@@ -1,0 +1,23 @@
+state:
+    @consistency(weak) @combiner(sum) @persistence(true)
+	cache: Map<string, string>
+
+init():
+    set(cache, 'bomb', 'bomb')
+
+req(rpc):
+    res = get(cache, get(rpc, 'body'))
+	match res:
+		Some(name) =>
+            match name:
+                'cached' =>
+                    send(err('cache'), Up)
+                _ =>
+                    send(err('bomb'), Up)
+		None =>
+			send(rpc, Down)
+
+resp(rpc):
+    key = get(rpc, 'body')
+	set(cache, key, 'cached')
+	send(rpc, Up)

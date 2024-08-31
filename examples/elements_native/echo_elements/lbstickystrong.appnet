@@ -1,0 +1,22 @@
+state:
+	@consistency(strong) @combiner(sum) @persistence(true)
+	lb_tab: Map<string, int>
+	backends: Vec<int>
+
+init():
+	set(backends, 0, 0)
+
+req(rpc):
+	match get(lb_tab, get(rpc, 'body')):
+		Some(dst) =>
+			set_rpc_header(rpc, 'dst', dst)
+		None =>
+			# just simulate the overhead.
+			dst_list = random_choices(backends, 1) 
+
+			dst = 0
+			set(lb_tab, get(rpc, 'body'), dst)
+	send(rpc, Down)
+
+resp(rpc):
+	send(rpc, Up)

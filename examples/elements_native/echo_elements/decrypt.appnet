@@ -1,0 +1,14 @@
+state:
+	password: string
+
+init():
+    password = '123456'
+
+req(rpc):
+    encrypted = get(rpc, 'body')
+    decrypted = decrypt(encrypted, password)
+    set(rpc, 'body', decrypted)
+    send(rpc, Down)
+
+resp(rpc):
+    send(rpc, Up)
