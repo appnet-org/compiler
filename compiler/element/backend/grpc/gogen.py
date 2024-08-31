@@ -133,15 +133,16 @@ class GoContext:
         suffix = ""
 
         # Generate inners based on operations
+        # Unlock in reverse order
         for v in self.states:
             if v.name in self.access_ops[self.current_procedure]:
                 access_type = self.access_ops[self.current_procedure][v.name]
                 if access_type == MethodType.GET:
                     prefix = prefix + f"{v.name}_mutex.RLock();"
-                    suffix = suffix + f"{v.name}_mutex.RUnlock();"
+                    suffix = f"defer {v.name}_mutex.RUnlock();" + suffix
                 elif access_type == MethodType.SET:
                     prefix = prefix + f"{v.name}_mutex.Lock();"
-                    suffix = suffix + f"{v.name}_mutex.Unlock();"
+                    suffix = f"defer {v.name}_mutex.Unlock();" + suffix
                 else:
                     raise Exception("unknown method in gen_inners.")
         return prefix, suffix
@@ -306,6 +307,8 @@ class GoGenerator(Visitor):
             prefix_locks, suffix_locks = ctx.gen_locks()
 
         ctx.push_code(prefix_locks)
+        ctx.push_code(suffix_locks)
+        print(suffix_locks)
 
         for p in node.params:
             name = p.name
@@ -315,8 +318,7 @@ class GoGenerator(Visitor):
         for s in node.body:
             code = s.accept(self, ctx)
             ctx.push_code(code)
-
-        ctx.push_code(suffix_locks)
+            
         ctx.push_code(suffix_strong_read)
 
         if ctx.current_procedure != FUNC_INIT:
