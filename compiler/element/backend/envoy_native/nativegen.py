@@ -951,7 +951,9 @@ class GetMapStrongConsistency(AppNetBuiltinFuncProto):
     ctx.push_code(f"if (j.contains(\"GET\") && j[\"GET\"].is_null() == false)")
     ctx.push_code("{")
     if isinstance(ret_type.inner, AppNetInt):
-      ctx.push_code(f"  {res_native_var.name}.emplace(j[\"GET\"].get<int>());")
+      # get it as string, and then cast to int
+      ctx.push_code(f"std::string str_int = static_cast<std::string>(j[\"GET\"]);")
+      ctx.push_code(f"{res_native_var.name}.emplace(std::stoi(str_int));")
     else:
       ctx.push_code(f"  {res_native_var.name}.emplace(base64_decode(j[\"GET\"], false));")
     ctx.push_code("}")
@@ -1631,8 +1633,8 @@ class SetMetadata(AppNetBuiltinFuncProto):
   def gen_code(self, ctx: NativeContext, key: NativeVariable, value: NativeVariable) -> None:
     self.native_arg_sanity_check([key, value])
 
-    if isinstance(self.appargs[1], AppNetInt) == False:
-      raise NotImplementedError("only int type is supported for now")
+    if isinstance(self.appargs[1], AppNetInt) == False and isinstance(self.appargs[1], AppNetUInt) == False:
+      raise NotImplementedError("only int/uint type is supported for now")
     
     ctx.push_code("{")
     # cast it into string first
@@ -1674,7 +1676,7 @@ class GetMetadata(AppNetBuiltinFuncProto):
 
     assert(ctx.most_recent_assign_left_type is not None)
     self.ret_type_inferred = ctx.most_recent_assign_left_type
-    if self.ret_type_inferred.is_int() == False:
+    if self.ret_type_inferred.is_int() == False and self.ret_type_inferred.is_uint() == False:
       raise NotImplementedError("only int type is supported for now")
 
     res_native_var, native_decl_stmt,  \
@@ -1689,7 +1691,7 @@ class GetMetadata(AppNetBuiltinFuncProto):
     # to int
     ctx.push_code(f"  {res_native_var.name} = std::stoi(__tmp_str);")
     ctx.push_code(f"}} catch (...) {{")
-    ctx.push_code(f"  ENVOY_LOG(error, \"[AppNet Filter] Failed to convert string to int\");")
+    ctx.push_code(f"  ENVOY_LOG(error, \"[AppNet Filter] Failed to convert string to int (or uint)\");")
     ctx.push_code("}")
     ctx.push_code("}")
 
