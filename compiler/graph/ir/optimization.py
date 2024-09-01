@@ -1,7 +1,7 @@
 from copy import deepcopy
-from itertools import permutations
+from itertools import permutations, product
 from pprint import pprint
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from compiler.graph.ir.element import AbsElement
 
@@ -71,8 +71,6 @@ def position_valid(chain: List[AbsElement]) -> bool:
 def equivalent(
     chain: List[AbsElement], new_chain: List[AbsElement], path: str, opt_level: str
 ) -> bool:
-    if not position_valid(new_chain):
-        return False
     if opt_level == "ignore":
         return True
     dep, new_dep = gen_dependency(chain, path), gen_dependency(new_chain, path)
@@ -208,6 +206,7 @@ def split_and_consolidate(
     return client_chain, server_chain
 
 
+# TODO: update heuristic optimization
 def chain_optimize(
     chain: List[AbsElement],
     path: str,
@@ -233,60 +232,249 @@ def chain_optimize(
     return split_and_consolidate(chain)
 
 
-def cost(chain: List[AbsElement], path: str) -> float:
-    # Parameters
-    # TODO: different parameters for different backends
-    e = 1.0
-    n = 1.0
-    d = 0.1
-    s = 5.0
-    r = 5.0
+# def cost(chain: List[AbsElement], path: str = "request") -> float:
+#     # Parameters
+#     # TODO: different parameters for different backends
+#     e = 1.0
+#     n = 1.0
+#     d = 0.1
+#     s = 5.0
+#     r = 5.0
 
-    cost = 0
+#     cost = 0
+
+#     workload = 1.0
+#     for element in chain:
+#         cost += workload * (n if element.position == "N" else e)
+#         if element.has_prop(path, "drop", "block"):
+#             workload *= 1 - d
+
+#     network_pos = -1
+#     for i in range(len(chain)):
+#         if chain[i].position == "N":
+#             network_pos = i
+#     assert network_pos != -1, "network element not found"
+#     client_chain, server_chain = chain[:network_pos], chain[network_pos + 1 :]
+
+#     for element in client_chain:
+#         if (
+#             element.prop["state"]["consistency"] == "strong"
+#             and element.prop["state"]["state_dependence"] != "client_replica"
+#         ):
+#             cost += s
+#             break
+#     for element in server_chain:
+#         if (
+#             element.prop["state"]["consistency"] == "strong"
+#             and element.prop["state"]["state_dependence"] != "server_replica"
+#         ):
+#             cost += s
+#             break
+
+#     if len(client_chain) > 0:
+#         cost += r
+#     if len(server_chain) > 0:
+#         cost += r
+
+#     return cost
+
+
+def split_chain(chain: List[AbsElement]) -> Dict[str, List[AbsElement]]:
+    subchains = {
+        "client_grpc": [],
+        "client_sidecar": [],
+        "ambient": [],
+        "server_sidecar": [],
+        "server_grpc": [],
+    }
+    for element in chain:
+        if element.final_position == "ambient":
+            subchains["ambient"].append(element)
+        else:
+            position = element.final_position
+            processor = "grpc" if "grpc" in element.target else "sidecar"
+            subchains[f"{position}_{processor}"].append(element)
+    return subchains
+
+
+def cost(chain: List[AbsElement]) -> float:
+    c = 0
+    element_overhead_config = {
+        "grpc": 1.0,
+        "sidecar_native": 1.0,
+        "sidecar_wasm": 3.0,
+        "ambient_native": 1.0,
+        "ambient_wasm": 3.0,
+    }
+    basic_overhead_config = {
+        "client_grpc": 0.5,
+        "client_sidecar": 5.0,
+        "ambient": 5.0,
+        "server_sidecar": 5.0,
+        "server_grpc": 0.5,
+    }
+    transmission_overhead_config = {
+        "ipc": 0.8,
+        "network": 1,
+    }
+    state_sync_config = {
+        "client_grpc": 5.0,
+        "client_sidecar": 5.0,
+        "ambient": 2.0,
+        "server_sidecar": 5.0,
+        "server_grpc": 5.0,
+    }
+    d = 0.1
 
     workload = 1.0
-    for element in chain:
-        cost += workload * (n if element.position == "N" else e)
-        if element.has_prop(path, "drop", "block"):
-            workload *= 1 - d
 
-    network_pos = -1
-    for i in range(len(chain)):
-        if chain[i].position == "N":
-            network_pos = i
-    assert network_pos != -1, "network element not found"
-    client_chain, server_chain = chain[:network_pos], chain[network_pos + 1 :]
+    # element overhead
+    for i, element in enumerate(chain):
+        e = element_overhead_config[element.target]
+        c += e * workload
+        if element.has_prop("request", "drop", "block"):
+            workload *= 1.0 - d
 
-    for element in client_chain:
-        if (
-            element.prop["state"]["consistency"] == "strong"
-            and element.prop["state"]["state_dependence"] != "client_replica"
-        ):
-            cost += s
-            break
-    for element in server_chain:
-        if (
-            element.prop["state"]["consistency"] == "strong"
-            and element.prop["state"]["state_dependence"] != "server_replica"
-        ):
-            cost += s
-            break
+    subchains = split_chain(chain)
 
-    if len(client_chain) > 0:
-        cost += r
-    if len(server_chain) > 0:
-        cost += r
+    # network overhead
+    if len(subchains["ambient"]) > 0:
+        c += transmission_overhead_config["network"] * 2
+    # TODO: re-compute network overhead
+    if len(subchains["client_sidecar"]) > 0:
+        c += transmission_overhead_config["ipc"]
+    if len(subchains["server_sidecar"]) > 0:
+        c += transmission_overhead_config["ipc"]
+    for pos, subchain in subchains.items():
+        # basic processor overhead
+        if len(subchain) > 0:
+            c += basic_overhead_config[pos]
+        # state sync overhead
+        l_pt, r_pt = 0, 0
+        while l_pt < len(subchain):
+            r_pt = l_pt
+            while (
+                r_pt < len(subchain) - 1
+                and subchain[r_pt + 1].target == subchain[r_pt].target
+            ):
+                r_pt += 1
+            for i in range(l_pt, r_pt + 1):
+                if subchain[i].prop["state"]["consistency"] == "strong":
+                    c += state_sync_config[pos]
+                    break
+            l_pt = r_pt + 1
 
-    return cost
+    return c
+
+
+def find_min_cost(chain: List[AbsElement]):
+    class InvalidConfigLabel(Exception):
+        pass
+
+    def get_processor_and_position(
+        index: int, ipc1: int, network1: int, network2: int, ipc2: int
+    ) -> str:
+        if index < ipc1:
+            return "client", "grpc"
+        elif ipc1 <= index < network1:
+            return "client", "sidecar"
+        elif network1 <= index < network2:
+            return "ambient", "ambient"
+        elif network2 <= index < ipc2:
+            return "server", "sidecar"
+        else:
+            return "server", "grpc"
+
+    length = len(chain)
+    min_cost = 1000000
+    best_processor_list, best_position_list = [], []
+    # TODO: rename variables
+    for ipc1 in range(length + 1):
+        for network1 in range(ipc1, length + 1):
+            for network2 in range(network1, length + 1):
+                for ipc2 in range(network2, length + 1):
+                    options_list = []
+                    position_list = []
+                    try:
+                        for i in range(length):
+                            position, processor = get_processor_and_position(
+                                i, ipc1, network1, network2, ipc2
+                            )
+                            position_list.append(position)
+                            if (
+                                chain[i].position != "any"
+                                and chain[i].position != position
+                            ):
+                                raise InvalidConfigLabel()
+                            if processor not in chain[i].processor:
+                                raise InvalidConfigLabel()
+                            options = []
+                            if processor == "grpc":
+                                options.append("grpc")
+                            else:
+                                if (
+                                    chain[i].upgrade == "yes"
+                                    or chain[i].upgrade == "any"
+                                ):
+                                    options.append(processor + "_wasm")
+                                if (
+                                    chain[i].upgrade == "any"
+                                    or chain[i].upgrade == "no"
+                                ):
+                                    options.append(processor + "_native")
+                            options_list.append(options)
+                    except InvalidConfigLabel:
+                        continue
+                    for processor_list in list(product(*options_list)):
+                        for i, element in enumerate(chain):
+                            element.target = processor_list[i]
+                            element.final_position = position_list[i]
+                        new_cost = cost(chain)
+                        # print(ipc1, network2, network2, ipc2, processor_list, new_cost)
+                        if new_cost < min_cost:
+                            min_cost = new_cost
+                            best_processor_list = deepcopy(processor_list)
+                            best_position_list = deepcopy(position_list)
+
+    for i in range(length):
+        chain[i].target = best_processor_list[i]
+        chain[i].final_position = best_position_list[i]
+
+    return min_cost
 
 
 def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str):
-    min_cost = cost(chain, path)
     init_dependency(chain, path)
+    min_cost = cost(chain)
+    # print(min_cost)
+    final_chain = deepcopy(chain)
     for new_chain in permutations(chain):
-        if position_valid(new_chain) and equivalent(chain, new_chain, path, opt_level):
-            new_cost = cost(new_chain, path)
-            if new_cost < min_cost:
-                chain = new_chain
-                min_cost = new_cost
-    return split_and_consolidate(chain)
+        if equivalent(chain, new_chain, path, opt_level):
+            # for e in new_chain:
+            #     print(e.lib_name, end=" ")
+            # print("")
+            new_chain = deepcopy(new_chain)
+            new_min_cost = find_min_cost(new_chain)
+            if new_min_cost < min_cost:
+                min_cost = new_min_cost
+                final_chain = new_chain
+
+    # split and consolidate
+    subchains = split_chain(final_chain)
+    for pos, subchain in subchains.items():
+        l_pt, r_pt = 0, 0
+        consolidated_chain = []
+        while l_pt < len(subchain):
+            r_pt = l_pt
+            while (
+                r_pt < len(subchain) - 1
+                and subchain[r_pt + 1].target == subchain[r_pt].target
+            ):
+                r_pt += 1
+            for i in range(l_pt + 1, r_pt + 1):
+                subchain[l_pt].fuse(subchain[i])
+            consolidated_chain.append(subchain[l_pt])
+            l_pt = r_pt + 1
+        subchains[pos] = consolidated_chain
+
+    return subchains
