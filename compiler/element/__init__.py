@@ -2,7 +2,14 @@ import os
 from typing import Dict, List
 
 from compiler import *
-from compiler.element.backend.envoy_wasm.analyzer import AccessAnalyzer as WasmAccessAnalyzer
+from compiler.element.backend.envoy_native.finalizer import finalize as NativeFinalize
+from compiler.element.backend.envoy_native.nativegen import (
+    NativeContext,
+    NativeGenerator,
+)
+from compiler.element.backend.envoy_wasm.analyzer import (
+    AccessAnalyzer as WasmAccessAnalyzer,
+)
 from compiler.element.backend.envoy_wasm.finalizer import finalize as WasmFinalize
 from compiler.element.backend.envoy_wasm.wasmgen import WasmContext, WasmGenerator
 from compiler.element.backend.grpc.analyzer import AccessAnalyzer as GoAccessAnalyzer
@@ -10,8 +17,6 @@ from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
 from compiler.element.backend.grpc.gogen import GoContext, GoGenerator
 from compiler.element.backend.mrpc.finalizer import finalize as RustFinalize
 from compiler.element.backend.mrpc.rustgen import RustContext, RustGenerator
-from compiler.element.backend.envoy_native.nativegen import NativeContext, NativeGenerator
-from compiler.element.backend.envoy_native.finalizer import finalize as NativeFinalize
 from compiler.element.frontend import ElementCompiler
 from compiler.element.frontend.printer import Printer
 from compiler.element.frontend.util import (
@@ -131,7 +136,7 @@ def gen_code(
             mode="sidecar",
             element_name=output_name,
             tag=tag,
-            envoy_verbose=envoy_verbose
+            envoy_verbose=envoy_verbose,
         )
 
     printer = Printer()

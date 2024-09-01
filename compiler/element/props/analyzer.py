@@ -321,17 +321,15 @@ class DropAnalyzer(Visitor):
 
     def visitStatement(self, node: Statement, ctx):
         if node.stmt == None:
-            return
+            return False
         else:
             return node.stmt.accept(self, ctx)
 
     def visitMatch(self, node: Match, ctx) -> bool:
+        ret = False
         for a in node.actions:
-            for st in a[1]:
-                if isinstance(st, Send):
-                    if isinstance(st.msg, Error):
-                        return True
-        return False
+            ret = ret or any(st.accept(self, ctx) for st in a[1])
+        return ret
         # todo! fixme
         raise Exception("Unreachable! Match should not appear in drop analyzer")
 
@@ -365,11 +363,7 @@ class DropAnalyzer(Visitor):
         return False
 
     def visitSend(self, node: Send, ctx) -> bool:
-        if node.direction == self.direction:
-            name = node.msg.accept(ExprResolver(), ctx)
-            return name in self.targets
-        else:
-            return False
+        return node.direction != self.direction and isinstance(node.msg, Error)
 
     def visitLiteral(self, node: Literal, ctx) -> bool:
         return False

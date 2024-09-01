@@ -24,6 +24,8 @@ class GraphParser:
         Returns:
             * A dictionary mapping edge name to corresponding graphir.
             * Application name.
+            * Path to application manifest file.
+            * Edges between microservices.
 
         Raises:
             FileNotFoundError: If app manifest file does not exist.

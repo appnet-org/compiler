@@ -19,25 +19,49 @@ def fetch_global_id() -> str:
 
 class AbsElement:
     def __init__(
-        self, info: Union[Dict[str, Any], str], partner: str = "", server: str = ""
+        self,
+        info: Union[Dict[str, Any], str],
+        partner: str = "",
+        server: str = "",
+        initial_position: str = "",
+        initial_target: str = "",
     ):
         """
         Args:
             info(dict): basic element information, including name, config, proto, method, etc.
             partner(str): the name of its partner, used for optimization
+            server(str): used for generating unique element name
+                consider "cache" on both A->B and A->C
+            initial_position(str): "client" or "server" or "ambient"
+            initial_target(str): "grpc" or ["sidecar", "ambient"] * ["wasm", "native"]
         """
-        if info == "NETWORK":
+        if info == "NETWORK" or info == "IPC":
             self.name = info
-            self.position = "N"
+            self.position = info[0]
         else:
             self.id = fetch_global_id()
             self.name: List[str] = [info["name"]]
             self.path: List[str] = [info["path"]]
-            self.server = (
-                server  # the server side of the edge, used for finding AppNet spec
-            )
+            self.server = server  # the server side of the edge, used for generating unique file name
             self.config = info["config"] if "config" in info else []
-            self.position = info["position"] if "position" in info else "C/S"
+            self.position = info["position"] if "position" in info else "any"
+            self.processor = (
+                info["processor"]
+                if "processor" in info
+                else ["grpc", "sidecar", "ambient"]
+            )
+            if "envoy_native" in info and info["envoy_native"] == True:
+                self.upgrade = "no"
+            elif "upgrade" in info and info["upgrade"] == True:
+                self.upgrade = "yes"
+            else:
+                self.upgrade = "any"
+            self.target = initial_target
+            if self.upgrade == "yes":
+                self.target.replace("native", "wasm")
+            elif self.upgrade == "no":
+                self.target.replace("wasm", "native")
+            self.final_position = initial_position
             self.proto = info["proto"]
             self.method = info["method"]
             self.proto_mod_name = (
@@ -47,6 +71,7 @@ class AbsElement:
                 info["proto_mod_location"] if "proto_mod_location" in info else ""
             )
             self.partner = partner
+            self.compile_dir = ""
 
     @property
     def desc(self) -> str:
@@ -65,10 +90,26 @@ class AbsElement:
         return "\n".join(self.config)
 
     def __str__(self):
-        return "+".join(self.name)
+        s = "+".join(self.name)
+        if "wasm" in self.target:
+            s += "(wasm)"
+        elif "native" in self.target:
+            s += "(native)"
+        return s
 
-    def to_rich(self, position):
-        color = "dark_green" if position == "client" else "blue"
+    def to_rich(self, processor):
+        if processor == "client_grpc":
+            color = "dark_green"
+        elif processor == "client_sidecar":
+            color = "light_green"
+        elif processor == "ambient":
+            color = "brown"
+        elif processor == "server_sidecar":
+            color = "dark_blue"
+        elif processor == "server_grpc":
+            color = "blue"
+        else:
+            color = "black"
         return Panel(
             self.deploy_name,
             style=color,

@@ -39,52 +39,80 @@ class GraphIR:
             pair: A list of dictionaries including user-specified paired-element configs.
                   Pair elements are deployed on the client and server sides which cancel
                   out each other.
+
+        Raises:
+            ValueError: if user specification is invalid.
         """
         self.client = client
         self.server = server
         self.elements: Dict[str, List[AbsElement]] = {
-            "req_client": [],
-            "req_server": [],
-            "res_client": [],
-            "res_server": [],
+            "client_grpc": [],
+            "client_sidecar": [],
+            "ambient": [],
+            "server_sidecar": [],
+            "server_grpc": [],
         }
-        # determine an initial client-server boundary
+        # determine an initial assignment
         # principle:
-        # - valid ("C" goes to client, "S" goes to server)
-        # - balanced #element on c/s sides
+        # valid ("C" goes to client, "S" goes to server, "C/S" goes to ambient)
+        # balanced #element in grpc/sidecar
         c_id, s_id = -1, len(chain)
         for i, element in enumerate(chain):
-            if "position" in element and element["position"] == "C":
+            if "position" in element and element["position"] == "client":
                 c_id = max(c_id, i)
-            elif "position" in element and element["position"] == "S":
+            elif "position" in element and element["position"] == "server":
                 s_id = min(s_id, i)
-        assert c_id <= s_id, "invalid client/server position requirements"
-        c_pt, s_pt = 0, len(chain) - 1
-        while c_pt <= s_pt:
-            if c_pt <= c_id:
-                self.elements["req_client"].append(
-                    AbsElement(chain[c_pt], server=server)
+        if c_id >= s_id:
+            raise ValueError("invalid client/server position requirements")
+        # "C/S" goes to ambient
+        for i in range(c_id + 1, s_id):
+            self.elements["ambient"].append(
+                AbsElement(
+                    chain[i],
+                    server=server,
+                    initial_position="ambient",
+                    initial_target="ambient_wasm",
                 )
-                c_pt += 1
-            elif s_pt >= s_id:
-                self.elements["req_server"].insert(
-                    0, AbsElement(chain[s_pt], server=server)
+            )
+        client_chain, server_chain = chain[: c_id + 1], chain[s_id:]
+        current_mode = "sidecar"
+        for element in client_chain[::-1]:
+            if (
+                "processor" in element
+                and "grpc" in element["processor"]
+                and "sidecar" not in element["processor"]
+            ):
+                current_mode = "grpc"
+            if "processor" in element and current_mode not in element["processor"]:
+                raise ValueError("invalid grpc/sidecar requirements")
+            self.elements["client_" + current_mode].insert(
+                0,
+                AbsElement(
+                    element,
+                    server=server,
+                    initial_position="client",
+                    initial_target="grpc" if "grpc" in current_mode else "sidecar_wasm",
+                ),
+            )
+        current_mode = "sidecar"
+        for i, element in enumerate(server_chain):
+            if (
+                "processor" in element
+                and "grpc" in element["processor"]
+                and "sidecar" not in element["processor"]
+            ):
+                current_mode = "grpc"
+            if "processor" in element and current_mode not in element["processor"]:
+                raise ValueError("invalid grpc/sidecar requirements")
+            self.elements["server_" + current_mode].append(
+                AbsElement(
+                    element,
+                    server=server,
+                    initial_position="server",
+                    initial_target="grpc" if "grpc" in current_mode else "sidecar_wasm",
                 )
-                s_pt -= 1
-            elif len(self.elements["req_client"]) <= len(self.elements["req_server"]):
-                self.elements["req_client"].append(
-                    AbsElement(chain[c_pt], server=server)
-                )
-                c_pt += 1
-            else:
-                self.elements["req_server"].insert(
-                    0, AbsElement(chain[s_pt], server=server)
-                )
-                s_pt -= 1
-        # The initial response graph is identical to the request graph, except for
-        # the required positions of element pairs
-        self.elements["res_client"] = deepcopy(self.elements["req_client"])
-        self.elements["res_server"] = deepcopy(self.elements["req_server"])
+            )
+
         # add element pairs to c/s sides
         for pdict in pair:
             edict1 = {
@@ -103,61 +131,79 @@ class GraphIR:
                 "method": pdict["method"],
                 "path": pdict["path2"],
             }
-            self.elements["req_client"].append(
-                AbsElement(edict1, partner=pdict["name2"], server=server)
+            self.elements["client_sidecar"].append(
+                AbsElement(
+                    edict1,
+                    partner=pdict["name2"],
+                    server=server,
+                    initial_position="client",
+                    initial_target="sidecar_wasm",
+                )
             )
-            self.elements["req_server"].insert(
-                0, AbsElement(edict2, partner=pdict["name1"], server=server)
+            self.elements["server_sidecar"].insert(
+                0,
+                AbsElement(
+                    edict2,
+                    partner=pdict["name1"],
+                    server=server,
+                    initial_position="server",
+                    initial_target="sidecar_wasm",
+                ),
             )
-            edict1["position"], edict2["position"] = (
-                edict2["position"],
-                edict1["position"],
-            )
-            self.elements["res_client"].append(AbsElement(edict2, server=server))
-            self.elements["res_server"].insert(0, AbsElement(edict1, server=server))
 
     @property
     def name(self) -> str:
         return f"{self.client}->{self.server}"
 
     def __str__(self):
-        s = f"{self.client}->{self.server} request GraphIR: "
-        s += " -> ".join(map(str, self.elements["req_client"]))
-        s += " (network) "
-        s += " -> ".join(map(str, self.elements["req_server"]))
+        s = f"{self.client}->{self.server} GraphIR: \n"
+        for pos, subchain in self.elements.items():
+            s += pos + ": " + " -> ".join(map(str, subchain)) + "\n"
         return s
 
     def to_rich(self) -> List[Union[Panel, str]]:
+        # TODO: better visualization
         """Generate rich.panel objects for visualization.
 
         Returns:
             A list of rich.panel objects/strings.
         """
         panel_list = [make_service_rich(self.client), "\n~\n"]
-        for i, e in enumerate(self.elements["req_client"]):
-            if i != 0:
-                panel_list.append("\n→\n")
-            panel_list.append(e.to_rich("client"))
-        panel_list.append("\n(network)\n")
-        for i, e in enumerate(self.elements["req_server"]):
-            if i != 0:
-                panel_list.append("\n→\n")
-            panel_list.append(e.to_rich("server"))
-        panel_list.append("\n~\n")
+        for e in (
+            self.elements["client_grpc"]
+            + self.elements["client_sidecar"]
+            + self.elements["ambient"]
+            + self.elements["server_sidecar"]
+            + self.elements["server_grpc"]
+        ):
+            panel_list.append(e.to_rich("TBD"))
+        # for i, e in enumerate(self.elements["req_client"]):
+        #     if i != 0:
+        #         panel_list.append("\n→\n")
+        #     panel_list.append(e.to_rich("client"))
+        # panel_list.append("\n(network)\n")
+        # for i, e in enumerate(self.elements["req_server"]):
+        #     if i != 0:
+        #         panel_list.append("\n→\n")
+        #     panel_list.append(e.to_rich("server"))
+        # panel_list.append("\n~\n")
         panel_list.append(make_service_rich(self.server))
         return panel_list
+
+    def complete_chain(self) -> List[AbsElement]:
+        return (
+            self.elements["client_grpc"]
+            + self.elements["client_sidecar"]
+            + self.elements["ambient"]
+            + self.elements["server_sidecar"]
+            + self.elements["server_grpc"]
+        )
 
     def optimize(self, opt_level: str, algorithm: str):
         """Run optimization algorithm on the graphir."""
         optimize_func = cost_chain_optimize if algorithm == "cost" else chain_optimize
-        self.elements["req_client"], self.elements["req_server"] = optimize_func(
-            self.elements["req_client"]
-            + [AbsElement("NETWORK")]
-            + self.elements["req_server"],
+        self.elements = optimize_func(
+            self.complete_chain(),
             "request",
             opt_level,
         )
-        # Currently, we don't consider optimization for the response chain,
-        # so the response chain is copied from request chain.
-        self.elements["res_client"] = deepcopy(self.elements["req_client"])
-        self.elements["res_server"] = deepcopy(self.elements["res_server"])

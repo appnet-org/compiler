@@ -35,7 +35,10 @@ def extract_proto_message_names(
     assert len(services) == 1, "Only one service definition is supported"
 
     # Regular expression to find rpc definitions, including stream
-    rpcs = re.findall(r"rpc\s+(\w+)\s*\((stream\s+)?(\w+)\)\s*returns\s*\((stream\s+)?(\w+)\)", services[0])
+    rpcs = re.findall(
+        r"rpc\s+(\w+)\s*\((stream\s+)?(\w+)\)\s*returns\s*\((stream\s+)?(\w+)\)",
+        services[0],
+    )
     for rpc in rpcs:
         method_name, _, request_message_name, _, response_message_name = rpc
         if method_name == target_method_name:
