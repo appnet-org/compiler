@@ -45,7 +45,7 @@ def scriptgen_grpc(
     client_elements: Dict[str, set[AbsElement]] = {}
     server_elements: Dict[str, set[AbsElement]] = {}
     for gir in girs.values():
-        for element in gir.elements["req_client"] + gir.elements["req_server"]:
+        for element in gir.elements["client_grpc"] + gir.elements["server_grpc"]:
             # If the element is stateful and requires strong consistency, deploy a webdis instance
             if (
                 # hasattr(element, "_prop") and
@@ -69,13 +69,12 @@ def scriptgen_grpc(
                 ] = f"webdis-test-{element.lib_name}"
                 webdis_yml_list.append(webdis_service_copy)
                 webdis_yml_list.append(webdis_deploy_copy)
-        # assuming req_client/res_client and req_server/res_server contain same elements
-        for element in gir.elements["req_client"]:
+        for element in gir.elements["client_grpc"]:
             try:
                 client_elements[gir.client].add(element)
             except KeyError:
                 client_elements[gir.client] = {element}
-        for element in gir.elements["req_server"]:
+        for element in gir.elements["server_grpc"]:
             try:
                 server_elements[gir.server].add(element)
             except KeyError:
@@ -100,9 +99,7 @@ def scriptgen_grpc(
             execute_local(
                 [
                     "cp",
-                    os.path.join(
-                        local_gen_dir, f"{element.lib_name}_grpc", "interceptor.go"
-                    ),
+                    os.path.join(local_gen_dir, element.compile_dir, "interceptor.go"),
                     os.path.join(service_dir, f"{element.lib_name}.go"),
                 ]
             )
@@ -211,11 +208,9 @@ def scriptgen_grpc(
             ]
         )
 
-        # Create and attach pv/pvcs for services
-        webdis_yml_list.extend(attach_volumes(app_manifest_file, deploy_dir))
         # Dump the final manifest file (somehow there is a None)
         yml_list = [yml for yml in webdis_yml_list if yml is not None]
-        with open(os.path.join(deploy_dir, "install.yml"), "w") as f:
+        with open(os.path.join(deploy_dir, "grpc-install.yml"), "w") as f:
             yaml.dump_all(yml_list, f, default_flow_style=False)
 
         # Copy to all nodes
@@ -229,7 +224,7 @@ def scriptgen_grpc(
             )
 
     GRAPH_BACKEND_LOG.info(
-        "Element compilation complete. The generated element is deployed."
+        "gRPC compilation complete. The generated element is deployed."
     )
 
 
@@ -243,86 +238,3 @@ def extract_full_method_name(elements: list[AbsElement]) -> str:
     package_name = extract_proto_package_name(proto)
     service_name = extract_proto_service_name(proto)
     return f"/{package_name}.{service_name}/{first_el.method}"
-
-
-def attach_volumes(app_manifest_file: str, deploy_dir: str) -> list[any]:
-
-    with open(app_manifest_file, "r") as f:
-        yml_list = list(yaml.safe_load_all(f))
-
-    # Find all services
-    services_all = list()
-    for yml in yml_list:
-        if yml and "kind" in yml and yml["kind"] == "Service":
-            services_all.append(yml["metadata"]["name"])
-    services = list(
-        filter(
-            lambda s: "mongodb" not in s and "memcached" not in s and "jaeger" not in s,
-            services_all,
-        )
-    )
-
-    # Load pv and pvc template
-    with open(os.path.join(BACKEND_CONFIG_DIR, "volume_template.yml"), "r") as f:
-        pv, pvc = list(yaml.safe_load_all(f))
-
-    # Create and attach volume
-    for service in services:
-        pv_copy, pvc_copy = deepcopy(pv), deepcopy(pvc)
-        pv_copy["metadata"]["name"] = f"{service}-interceptor-pv"
-        pv_copy["spec"]["hostPath"]["path"] = "/tmp/appnet/interceptors"
-        pvc_copy["metadata"]["name"] = f"{service}-interceptor-pvc"
-        pvc_copy["spec"]["volumeName"] = f"{service}-interceptor-pv"
-        yml_list.append(pv_copy)
-        yml_list.append(pvc_copy)
-
-        # Find the corresponding service in the manifest
-        target_service_yml = find_target_yml(yml_list, service)
-
-        # Attach the element to the sidecar using volumes
-        if "volumes" not in target_service_yml["spec"]["template"]["spec"]:
-            target_service_yml["spec"]["template"]["spec"]["volumes"] = []
-
-        if (
-            "volumeMounts"
-            not in target_service_yml["spec"]["template"]["spec"]["containers"][0]
-        ):
-            target_service_yml["spec"]["template"]["spec"]["containers"][0][
-                "volumeMounts"
-            ] = []
-
-        target_service_yml["spec"]["template"]["spec"]["containers"][0][
-            "volumeMounts"
-        ].append(
-            {
-                "mountPath": "/interceptors",
-                "name": f"{service}-interceptor-volume",
-            }
-        )
-        target_service_yml["spec"]["template"]["spec"]["volumes"].append(
-            {
-                "persistentVolumeClaim": {"claimName": f"{service}-interceptor-pvc"},
-                "name": f"{service}-interceptor-volume",
-            }
-        )
-        
-        target_service_yml["spec"]["template"]["spec"]["containers"][0][
-            "volumeMounts"
-        ].append(
-            {
-                "mountPath": f"/etc/config-version",
-                "name": f"config-version",
-            }
-        )
-
-        target_service_yml["spec"]["template"]["spec"]["volumes"].append(
-            {
-                "hostPath": {
-                    "path": f"/tmp/appnet/config-version",
-                    "type": "File",
-                },
-                "name": f"config-version",
-            }
-        )
-
-    return yml_list
