@@ -186,15 +186,15 @@ class FlowGraph:
                 report += "\n"
 
             da = DropAnalyzer(targets, direction)
-            no_drop = da.visitBlock(path_nodes, None)
-            random_drop = da.random_included and not no_drop
+            may_drop = da.visitBlock(path_nodes, None)
+            random_drop = da.random_included and may_drop
 
             if random_drop:
                 report += "Random Drop(Block)\n"
                 ret.block = True
             else:
-                report += "No Drop" if no_drop else "Possible Drop"
-                ret.drop = ret.drop or (not no_drop)
+                report += "No Drop" if may_drop else "Possible Drop"
+                ret.drop = ret.drop or may_drop
                 report += "\n"
 
             ca = CopyAnalyzer(targets)
