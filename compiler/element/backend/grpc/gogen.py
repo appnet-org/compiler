@@ -331,7 +331,7 @@ class GoGenerator(Visitor):
 
     def visitStatement(self, node: Statement, ctx):
         if node.stmt == None:
-            return "// NULL_STMT"
+            return "// NULL_STMT" + "\n"
         else:
             if isinstance(node.stmt, Expr) or isinstance(node.stmt, Send):
                 return node.stmt.accept(self, ctx) + ";"
