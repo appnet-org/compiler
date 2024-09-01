@@ -58,38 +58,60 @@ class GraphIR:
         # balanced #element in grpc/sidecar
         c_id, s_id = -1, len(chain)
         for i, element in enumerate(chain):
-            if "position" in element and element["position"] == "C":
+            if "position" in element and element["position"] == "client":
                 c_id = max(c_id, i)
-            elif "position" in element and element["position"] == "S":
+            elif "position" in element and element["position"] == "server":
                 s_id = min(s_id, i)
         if c_id >= s_id:
             raise ValueError("invalid client/server position requirements")
         # "C/S" goes to ambient
         for i in range(c_id + 1, s_id):
-            self.elements["ambient"].append(AbsElement(chain[i], server=server))
+            self.elements["ambient"].append(
+                AbsElement(
+                    chain[i],
+                    server=server,
+                    initial_position="ambient",
+                    initial_target="ambient_wasm",
+                )
+            )
         client_chain, server_chain = chain[: c_id + 1], chain[s_id:]
-        current_mode = "client_grpc"
-        for i, element in enumerate(client_chain):
-            if "processor" in element and element["processor"] == "sidecar":
-                current_mode = "client_sidecar"
+        current_mode = "sidecar"
+        for element in client_chain[::-1]:
             if (
                 "processor" in element
-                and element["processor"] == "grpc"
-                and current_mode == "client_sidecar"
+                and "grpc" in element["processor"]
+                and "sidecar" not in element["processor"]
             ):
+                current_mode = "grpc"
+            if "processor" in element and current_mode not in element["processor"]:
                 raise ValueError("invalid grpc/sidecar requirements")
-            self.elements[current_mode].append(AbsElement(element, server=server))
-        current_mode = "server_sidecar"
+            self.elements["client_" + current_mode].insert(
+                0,
+                AbsElement(
+                    element,
+                    server=server,
+                    initial_position="client",
+                    initial_target="grpc" if "grpc" in current_mode else "sidecar_wasm",
+                ),
+            )
+        current_mode = "sidecar"
         for i, element in enumerate(server_chain):
-            if "processor" in element and element["processor"] == "grpc":
-                current_mode = "server_grpc"
             if (
                 "processor" in element
-                and element["processor"] == "sidecar"
-                and current_mode == "server_grpc"
+                and "grpc" in element["processor"]
+                and "sidecar" not in element["processor"]
             ):
+                current_mode = "grpc"
+            if "processor" in element and current_mode not in element["processor"]:
                 raise ValueError("invalid grpc/sidecar requirements")
-            self.elements[current_mode].append(AbsElement(element, server=server))
+            self.elements["server_" + current_mode].append(
+                AbsElement(
+                    element,
+                    server=server,
+                    initial_position="server",
+                    initial_target="grpc" if "grpc" in current_mode else "sidecar_wasm",
+                )
+            )
 
         # add element pairs to c/s sides
         for pdict in pair:
@@ -110,10 +132,23 @@ class GraphIR:
                 "path": pdict["path2"],
             }
             self.elements["client_sidecar"].append(
-                AbsElement(edict1, partner=pdict["name2"], server=server)
+                AbsElement(
+                    edict1,
+                    partner=pdict["name2"],
+                    server=server,
+                    initial_position="client",
+                    initial_target="sidecar_wasm",
+                )
             )
             self.elements["server_sidecar"].insert(
-                0, AbsElement(edict2, partner=pdict["name1"], server=server)
+                0,
+                AbsElement(
+                    edict2,
+                    partner=pdict["name1"],
+                    server=server,
+                    initial_position="server",
+                    initial_target="sidecar_wasm",
+                ),
             )
 
     @property
@@ -121,10 +156,9 @@ class GraphIR:
         return f"{self.client}->{self.server}"
 
     def __str__(self):
-        s = f"{self.client}->{self.server} request GraphIR: "
-        s += " -> ".join(map(str, self.elements["req_client"]))
-        s += " (network) "
-        s += " -> ".join(map(str, self.elements["req_server"]))
+        s = f"{self.client}->{self.server} GraphIR: \n"
+        for pos, subchain in self.elements.items():
+            s += pos + ": " + " -> ".join(map(str, subchain)) + "\n"
         return s
 
     def to_rich(self) -> List[Union[Panel, str]]:
