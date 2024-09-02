@@ -40,7 +40,7 @@ def codegen_from_template(output_dir, snippet, lib_name, proto_path):
     with open(f"{output_dir}/build.sh", "w") as f:
         f.write(build_sh.format(**snippet))
 
-    template_path = os.path.join(COMPILER_ROOT, "element/backend/envoy_wasm/templates")
+    template_path = os.path.join(COMPILER_ROOT, "element/backend/istio_wasm/templates")
 
     # Add the proto file to the generated code
     with open(f"{template_path}/build.rs", "r") as file:
