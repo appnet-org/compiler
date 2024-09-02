@@ -2,19 +2,19 @@ import os
 from typing import Dict, List
 
 from compiler import *
-from compiler.element.backend.envoy_native.finalizer import finalize as NativeFinalize
-from compiler.element.backend.envoy_native.nativegen import (
-    NativeContext,
-    NativeGenerator,
-)
-from compiler.element.backend.envoy_wasm.analyzer import (
-    AccessAnalyzer as WasmAccessAnalyzer,
-)
-from compiler.element.backend.envoy_wasm.finalizer import finalize as WasmFinalize
-from compiler.element.backend.envoy_wasm.wasmgen import WasmContext, WasmGenerator
 from compiler.element.backend.grpc.analyzer import AccessAnalyzer as GoAccessAnalyzer
 from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
 from compiler.element.backend.grpc.gogen import GoContext, GoGenerator
+from compiler.element.backend.istio_native.finalizer import finalize as NativeFinalize
+from compiler.element.backend.istio_native.nativegen import (
+    NativeContext,
+    NativeGenerator,
+)
+from compiler.element.backend.istio_wasm.analyzer import (
+    AccessAnalyzer as WasmAccessAnalyzer,
+)
+from compiler.element.backend.istio_wasm.finalizer import finalize as WasmFinalize
+from compiler.element.backend.istio_wasm.wasmgen import WasmContext, WasmGenerator
 from compiler.element.backend.mrpc.finalizer import finalize as RustFinalize
 from compiler.element.backend.mrpc.rustgen import RustContext, RustGenerator
 from compiler.element.frontend import ElementCompiler
@@ -75,7 +75,14 @@ def gen_code(
             raise ValueError(f"Method {method_name} not found in {proto_path}.")
     proto = os.path.basename(proto_path).replace(".proto", "")
 
-    assert backend_name in ("mrpc", "envoy", "grpc", "ambient", "envoy_native")
+    assert backend_name in (
+        "mrpc",
+        "grpc",
+        "sidecar_wasm",
+        "sidecar_native",
+        "ambient_wasm",
+        "ambient_native",
+    )
     compiler = ElementCompiler()
 
     # Find the request and response message names.
@@ -95,7 +102,7 @@ def gen_code(
         finalize = RustFinalize
         # TODO(XZ): Add configurable proto for mRPC codegen
         ctx = RustContext()
-    elif backend_name in ("envoy", "ambient"):
+    elif "wasm" in backend_name:
         generator = WasmGenerator(placement)
         finalize = WasmFinalize
         # TODO(XZ): We assume there will be only one method being used in an element.
@@ -124,7 +131,7 @@ def gen_code(
             message_field_types=message_field_types,
             tag=tag,
         )
-    elif backend_name == "envoy_native":
+    elif "native" in backend_name:
         generator = NativeGenerator(placement)
         finalize = NativeFinalize
         ctx = NativeContext(
@@ -168,13 +175,16 @@ def gen_code(
 
     LOG.info(f"Generating {backend_name} code")
     # TODO: Extend access analysis to all backends
-    if backend_name in ("envoy", "ambient"):
+    if "wasm" in backend_name:
         assert isinstance(ctx, WasmContext), "Inconsistent context type"
         # Do a pass to analyze the IR and generate the access operation
         consolidated.accept(WasmAccessAnalyzer(placement), ctx)
-    if backend_name == "grpc":
+    elif backend_name == "grpc":
         assert isinstance(ctx, GoContext), "Inconsistent context type"
         consolidated.accept(GoAccessAnalyzer(placement), ctx)
+    elif "native" in backend_name:
+        assert isinstance(ctx, NativeContext), "Inconsistent context type"
+        consolidated.accept(Native)
 
     # Second pass to generate the code
     consolidated.accept(generator, ctx)

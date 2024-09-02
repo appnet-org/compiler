@@ -2,9 +2,9 @@ import os
 from typing import Dict
 
 from compiler.config import COMPILER_ROOT
-from compiler.element.backend.envoy_wasm.boilerplate import *
-from compiler.element.backend.envoy_wasm.wasmgen import WasmContext
-from compiler.element.backend.envoy_wasm.wasmtype import WasmGlobalFunctions
+from compiler.element.backend.istio_wasm.boilerplate import *
+from compiler.element.backend.istio_wasm.wasmgen import WasmContext
+from compiler.element.backend.istio_wasm.wasmtype import WasmGlobalFunctions
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 
