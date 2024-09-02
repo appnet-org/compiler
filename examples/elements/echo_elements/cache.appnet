@@ -13,13 +13,18 @@ req(rpc):
             match name:
                 'cached' =>
                     send(err('cache'), Up)
-                _ =>
+                'bomb' =>
                     send(err('bomb'), Up)
 		None =>
-            set(record, rpc_id(), body)
-			send(rpc, Down)
+            pass
+    set(record, rpc_id(), body)
+	send(rpc, Down)
 
 resp(rpc):
     body = get(record, rpc_id())
-    set(cache, body, 'cached')
+    match body:
+        Some(name) => 
+            set(cache, name, 'cached')
+        _ =>
+            pass
 	send(rpc, Up)
