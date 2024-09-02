@@ -64,14 +64,6 @@ def parse_args():
         action="store_true",
     )
     parser.add_argument(
-        "-b",
-        "--backend",
-        help="Backend name",
-        type=str,
-        required=True,
-        choices=["mrpc", "envoy", "grpc", "ambient", "envoy_native"],
-    )
-    parser.add_argument(
         "--mrpc_dir",
         help="Path to mrpc repo",
         type=str,
@@ -127,10 +119,6 @@ def compile_impl(
     gen_name = (
         server + "".join(element_names)[:24]
     )  # Envoy does not allow long struct names
-    if backend in ["mrpc", "grpc"]:
-        gen_dir = os.path.join(gen_dir, f"{gen_name}_{placement}_{backend}")
-    else:
-        gen_dir = os.path.join(gen_dir, f"{gen_name}_{backend}")
     os.system(f"mkdir -p {gen_dir}")
     gen_code(
         element_names,
@@ -158,6 +146,15 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
         for element in gir.complete_chain():
             # For each element in the edge
             identifier = element.lib_name + element.final_position
+            gen_name = element.server + "".join(element.name)[:24]
+            if element.target in ["mrpc", "grpc"]:
+                element.compile_dir = os.path.join(
+                    gen_dir, f"{gen_name}_{element.final_position}_{element.target}"
+                )
+            else:
+                element.compile_dir = os.path.join(
+                    gen_dir, f"{gen_name}_{element.target}"
+                )
             if identifier not in compiled_name:
                 if pseudo_impl:
                     pseudo_compile(
@@ -170,7 +167,7 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
                     compile_impl(
                         element.name,
                         element.path,
-                        gen_dir,
+                        element.compile_dir,
                         element.target,
                         element.final_position,
                         element.proto,
@@ -212,7 +209,7 @@ def main(args):
     for gir in graphirs.values():
         # Each gir represests an edge in the application (a pair of communicating services)
         # pseudo_property is set to True when we want to use hand-coded properties instead of auto-generated ones
-        for element in gir.elements["req_client"] + gir.elements["req_server"]:
+        for element in gir.complete_chain():
             element.set_property_source(args.pseudo_property)
         if args.opt_level != "no":
             gir.optimize(args.opt_level, args.opt_algorithm)
@@ -231,12 +228,17 @@ def main(args):
     # Dump graphir summary (in yaml)
     gen_dir = os.path.join(graph_base_dir, "generated")
     os.makedirs(gen_dir, exist_ok=True)
-    graphir_summary = {"graphir": []}
+    # graphir_summary = {"graphir": []}
+    # for gir in graphirs.values():
+    # graphir_summary["graphir"].append(str(gir))
+    graphir_summary = ""
     for gir in graphirs.values():
-        graphir_summary["graphir"].append(str(gir))
+        graphir_summary += str(gir)
+    print(graphir_summary)
     # We should safe them as yaml file, but it messes up the kubectl apply command.
     with open(os.path.join(gen_dir, "gir_summary"), "w") as f:
-        f.write(yaml.dump(graphir_summary, default_flow_style=False, indent=4))
+        f.write(graphir_summary)
+        # f.write(yaml.dump(graphir_summary, default_flow_style=False, indent=4))
 
     # graphir rich display in terminal
     if args.verbose:

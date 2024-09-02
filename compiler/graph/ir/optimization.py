@@ -340,7 +340,8 @@ def cost(chain: List[AbsElement]) -> float:
     # network overhead
     if len(subchains["ambient"]) > 0:
         c += transmission_overhead_config["network"] * 2
-    # TODO: re-compute network overhead
+    else:
+        c += transmission_overhead_config["network"]
     if len(subchains["client_sidecar"]) > 0:
         c += transmission_overhead_config["ipc"]
     if len(subchains["server_sidecar"]) > 0:
@@ -388,17 +389,25 @@ def find_min_cost(chain: List[AbsElement]):
     length = len(chain)
     min_cost = 1000000
     best_processor_list, best_position_list = [], []
-    # TODO: rename variables
-    for ipc1 in range(length + 1):
-        for network1 in range(ipc1, length + 1):
-            for network2 in range(network1, length + 1):
-                for ipc2 in range(network2, length + 1):
+    # Enumerate positions of ipc_client/server and network_client/server
+    # * ipc_client: client application ~ client sidecar
+    # * network_client: client sidecar ~ ambient
+    # * network_server: ambient ~ server sidecar
+    # * ipc_server: server_sidecar ~ server application
+    for ipc_client in range(length + 1):
+        for network_client in range(ipc_client, length + 1):
+            for network_server in range(network_client, length + 1):
+                for ipc_server in range(network_server, length + 1):
                     options_list = []
                     position_list = []
                     try:
                         for i in range(length):
                             position, processor = get_processor_and_position(
-                                i, ipc1, network1, network2, ipc2
+                                i,
+                                ipc_client,
+                                network_client,
+                                network_server,
+                                ipc_server,
                             )
                             position_list.append(position)
                             if (
@@ -446,13 +455,9 @@ def find_min_cost(chain: List[AbsElement]):
 def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str):
     init_dependency(chain, path)
     min_cost = cost(chain)
-    # print(min_cost)
     final_chain = deepcopy(chain)
     for new_chain in permutations(chain):
         if equivalent(chain, new_chain, path, opt_level):
-            # for e in new_chain:
-            #     print(e.lib_name, end=" ")
-            # print("")
             new_chain = deepcopy(new_chain)
             new_min_cost = find_min_cost(new_chain)
             if new_min_cost < min_cost:
