@@ -26,8 +26,8 @@ from compiler.graph.logger import GRAPH_BACKEND_LOG
 def scriptgen_grpc(
     girs: Dict[str, GraphIR],
     app_name: str,
-    app_manifest_file: str,
-    app_edges: List[Tuple[str, str]],
+    _app_install_file: str,
+    _app_edges: List[Tuple[str, str]],
 ):
     global local_gen_dir
     local_gen_dir = os.path.join(graph_base_dir, "generated")
@@ -208,9 +208,9 @@ def scriptgen_grpc(
             ]
         )
 
-        # Dump the final manifest file (somehow there is a None)
+        # Dump the webdis file (somehow there is a None)
         yml_list = [yml for yml in webdis_yml_list if yml is not None]
-        with open(os.path.join(deploy_dir, "grpc-install.yml"), "w") as f:
+        with open(os.path.join(deploy_dir, "grpc-webdis.yml"), "w") as f:
             yaml.dump_all(yml_list, f, default_flow_style=False)
 
         # Copy to all nodes
