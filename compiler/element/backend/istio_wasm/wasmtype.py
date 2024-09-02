@@ -152,7 +152,7 @@ class WasmSyncMapType(WasmType):
                         "webdis-service-{ename}", // or your service name
                         vec![
                             (":method", "GET"),
-                            (":path", &format!("/SET/{{}}/{{}}", {args[0]} + "_{vname}", {args[1]})),
+                            (":path", &format!("/SET/{{}}_{vname}/{{}}", {args[0]}, {args[1]})),
                             // (":path", "/SET/redis/hello"),
                             (":authority", "webdis-service-{ename}"), // Replace with the appropriate authority if needed
                         ],
