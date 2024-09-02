@@ -23,9 +23,9 @@ from compiler.element.frontend.util import (
     extract_message_field_types,
     extract_proto_message_names,
 )
+from compiler.element.ir.consolidate import consolidate
+from compiler.element.ir.props.flow import FlowGraph, Property
 from compiler.element.logger import ELEMENT_LOG as LOG
-from compiler.element.optimize.consolidate import consolidate
-from compiler.element.props.flow import FlowGraph, Property
 
 
 def gen_code(
@@ -184,7 +184,7 @@ def gen_code(
         consolidated.accept(GoAccessAnalyzer(placement), ctx)
     elif "native" in backend_name:
         assert isinstance(ctx, NativeContext), "Inconsistent context type"
-        consolidated.accept(Native)
+        consolidated.accept()
 
     # Second pass to generate the code
     consolidated.accept(generator, ctx)
