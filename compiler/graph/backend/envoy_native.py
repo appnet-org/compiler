@@ -177,8 +177,36 @@ def scriptgen_envoy_native(
     with open(ROOT_BUILD_FILE, "w") as f:
         f.writelines(lines)
 
+    # Dirty hack for handmade filters.
+    # Example.
+    # APPNET_OVERWRITE_FILTERS=/mnt/appnet/compiler/compiler/graph/handmade_filters/servercachestrong
+    # then we will copy the servercachestrong folder into {generated_istio_proxy_path}/source/extensions/filters/http/servercachestrong
+    overwrite_from_env = os.getenv("APPNET_OVERWRITE_FILTERS")
+    if overwrite_from_env is not None:
+        # copy that file to the generated filter directory, overwriting the existing one.
+        for handmade_filter_path in overwrite_from_env.split(","):
+            folder_name = handmade_filter_path.split("/")[-1]
+
+            # remove the original folder
+            original_path = os.path.join(generated_istio_proxy_path, "source/extensions/filters/http", folder_name)
+            os.system(
+                f"rm -rf {original_path}"
+            )
+
+            execute_local(
+                [
+                    "cp",
+                    "-r",
+                    handmade_filter_path,
+                    os.path.join(generated_istio_proxy_path, "source/extensions/filters/http", folder_name),
+                ]
+            )
+            GRAPH_BACKEND_LOG.warn(f"Overwriting filter. dst {original_path}, src {handmade_filter_path}.")
+
+
     GRAPH_BACKEND_LOG.info(f"The istio envoy source code is generated successfully in {generated_istio_proxy_path}.")
     
+
     # Compile the istio envoy.
 
     image_name = f"jokerwyt/istio-proxy-1.22:latest"

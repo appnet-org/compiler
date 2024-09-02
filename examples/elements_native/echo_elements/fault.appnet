@@ -1,0 +1,15 @@
+state:
+	prob: float
+
+init():
+	prob = 0.95
+
+req(rpc):
+	match randomf(0, 1) < prob:
+		true =>
+			send(rpc, Down)
+		false =>
+			send(err('fault_injected'), Up)
+
+resp(rpc):
+    send(rpc, Up)

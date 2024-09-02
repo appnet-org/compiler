@@ -1,0 +1,14 @@
+state:
+	record_req: Vec<string>
+	record_resp: Vec<string>
+
+init():
+	pass
+
+req(rpc):
+	set(record_req, size(record_req), get(rpc, 'body'))
+	send(rpc, Down)
+
+resp(rpc):
+	set(record_resp, size(record_resp), get(rpc, 'body'))
+	send(rpc, Up)
