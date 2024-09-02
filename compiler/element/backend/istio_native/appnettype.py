@@ -3,7 +3,21 @@
 
 from typing import Optional
 
-from compiler.element.backend.istio_native.types import *
+from compiler.element.backend.istio_native.nativetype import RPC as NativeRPC
+from compiler.element.backend.istio_native.nativetype import Bool as NativeBool
+from compiler.element.backend.istio_native.nativetype import Bytes as NativeBytes
+from compiler.element.backend.istio_native.nativetype import Float as NativeFloat
+from compiler.element.backend.istio_native.nativetype import Int as NativeInt
+from compiler.element.backend.istio_native.nativetype import Map as NativeMap
+from compiler.element.backend.istio_native.nativetype import NativeType, NativeVariable
+from compiler.element.backend.istio_native.nativetype import Option as NativeOption
+from compiler.element.backend.istio_native.nativetype import Pair as NativePair
+from compiler.element.backend.istio_native.nativetype import String as NativeString
+from compiler.element.backend.istio_native.nativetype import (
+    Timepoint as NativeTimepoint,
+)
+from compiler.element.backend.istio_native.nativetype import UInt as NativeUInt
+from compiler.element.backend.istio_native.nativetype import Vec as NativeVec
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 DEFAULT_DECORATOR = {
