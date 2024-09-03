@@ -1736,9 +1736,43 @@ class Encrypt(AppNetBuiltinFuncProto):
     super().__init__("encrypt")
 
 
+class Decrypt(AppNetBuiltinFuncProto):
+  # func(msg: str, password: str) -> new_msg: str
+  def instantiate(self, args: List[AppNetType]) -> bool:
+    ret = len(args) == 2 and args[0].is_string() and args[1].is_string()
+    if ret:
+      self.prepared = True
+      self.appargs = args
+    return ret
+  
+  def ret_type(self) -> AppNetType:
+    return AppNetString()
+  
+  def gen_code(self, ctx: NativeContext, msg: NativeVariable, password: NativeVariable) -> NativeVariable:
+    self.native_arg_sanity_check([msg, password])
+
+    res_native_var, native_decl_stmt,  \
+      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+    ctx.push_code(native_decl_stmt)
+
+    ctx.push_code("{")
+    ctx.push_code(f"std::string __tmp_str;")
+    ctx.push_code(f"std::string __password_str = {password.name};")
+    ctx.push_code(f"std::string __msg_str = {msg.name};")
+    ctx.push_code(f"for (size_t i = 0; i < __msg_str.size(); i++)")
+    ctx.push_code("{")
+    ctx.push_code(f"  __tmp_str.push_back(__msg_str[i] ^ __password_str[i % __password_str.size()]);")
+    ctx.push_code("}")
+    ctx.push_code(f"{res_native_var.name} = __tmp_str;")
+    ctx.push_code("}")
+
+    return res_native_var
+  
+  def __init__(self):
+    super().__init__("decrypt")
 
 APPNET_BUILTIN_FUNCS = [
   GetRPCField, GetMap, CurrentTime, TimeDiff, Min, Max, SetMap, 
   ByteSize, RandomF, SetVector, SizeVector, SetRPCField, RPCID,
   GetMapStrongConsistency, SetMapStrongConsistency, GetBackEnds, RandomChoices,
-  GetLoad, GetRPCHeader, SetRPCHeader, DeleteMap, GetMetadata, SetMetadata, Encrypt]
+  GetLoad, GetRPCHeader, SetRPCHeader, DeleteMap, GetMetadata, SetMetadata, Encrypt, Decrypt]

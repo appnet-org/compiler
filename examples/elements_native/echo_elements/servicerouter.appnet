@@ -17,7 +17,12 @@ req(rpc):
     foreach(backends, lambda(backend):
         match get(load_map, backend):
             None =>
-                pass
+                (backend_load_new, last_ts_new) = get_load(backend)
+                set(load_map, backend, (backend_load_new, last_ts_new))
+
+                backend_load = backend_load_new
+                last_ts = last_ts_new
+                
             Some(pair) =>
                 (backend_load, last_ts) = pair
 

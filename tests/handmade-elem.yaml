@@ -44,13 +44,13 @@ edge:
   #   proto_mod_name: ""
   #   proto_mod_location: ""
 
-  - method: echo
-    name: metrics
-    path: /mnt/appnet/compiler/examples/elements_native/echo_elements/metrics.appnet
-    position: C
-    proto: /mnt/appnet/config/samples/echo/echo.proto
-    proto_mod_name: ""
-    proto_mod_location: ""
+  # - method: echo
+  #   name: metrics
+  #   path: /mnt/appnet/compiler/examples/elements_native/echo_elements/metrics.appnet
+  #   position: C
+  #   proto: /mnt/appnet/config/samples/echo/echo.proto
+  #   proto_mod_name: ""
+  #   proto_mod_location: ""
 
   # - method: echo
   #   name: bandwidthlimit
@@ -100,6 +100,13 @@ edge:
   #   proto_mod_name: ""
   #   proto_mod_location: ""
 
+  - method: echo
+    name: decrypt
+    path: /mnt/appnet/compiler/examples/elements_native/echo_elements/decrypt.appnet
+    position: C
+    proto: /mnt/appnet/config/samples/echo/echo.proto
+    proto_mod_name: ""
+    proto_mod_location: ""
 
   # - method: echo
   #   name: servicerouter
