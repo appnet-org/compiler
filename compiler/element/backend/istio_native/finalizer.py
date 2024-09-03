@@ -12,23 +12,23 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
     if os.path.exists(output_dir) == False or len(os.listdir(output_dir)) == 0:
         os.system(f"mkdir -p {output_dir}")
         os.system(
-            f"bash -c 'cp -r {COMPILER_ROOT}/element/backend/envoy_native/template/{{.,}}* {output_dir}'"
+            f"bash -c 'cp -r {COMPILER_ROOT}/element/backend/istio_native/template/{{.,}}* {output_dir}'"
         )
         LOG.info(
-            f"New template copied from {COMPILER_ROOT}/element/backend/envoy_native/template to {output_dir}"
+            f"New template copied from {COMPILER_ROOT}/element/backend/istio_native/template to {output_dir}"
         )
     else:
         os.system(f"rm -f {output_dir}/appnet_filter/appnet_filter.cc")
         os.system(f"rm -f {output_dir}/appnet_filter/appnet_filter.h")
         os.system(f"rm -f {output_dir}/appnet_filter/appnet_filter_config.cc")
         os.system(
-            f"cp {COMPILER_ROOT}/element/backend/envoy_native/template/appnet_filter/appnet_filter.cc {output_dir}/appnet_filter/appnet_filter.cc"
+            f"cp {COMPILER_ROOT}/element/backend/istio_native/template/appnet_filter/appnet_filter.cc {output_dir}/appnet_filter/appnet_filter.cc"
         )
         os.system(
-            f"cp {COMPILER_ROOT}/element/backend/envoy_native/template/appnet_filter/appnet_filter.h {output_dir}/appnet_filter/appnet_filter.h"
+            f"cp {COMPILER_ROOT}/element/backend/istio_native/template/appnet_filter/appnet_filter.h {output_dir}/appnet_filter/appnet_filter.h"
         )
         os.system(
-            f"cp {COMPILER_ROOT}/element/backend/envoy_native/template/appnet_filter/appnet_filter_config.cc {output_dir}/appnet_filter/appnet_filter_config.cc"
+            f"cp {COMPILER_ROOT}/element/backend/istio_native/template/appnet_filter/appnet_filter_config.cc {output_dir}/appnet_filter/appnet_filter_config.cc"
         )
 
     if ctx.on_tick_code != []:
