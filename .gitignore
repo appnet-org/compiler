@@ -25,4 +25,5 @@ Cargo.lock
 
 Python*/
 
+experiments/
 examples/chain/*.yaml
