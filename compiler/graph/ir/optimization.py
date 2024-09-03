@@ -439,15 +439,15 @@ def find_min_cost(chain: List[AbsElement]):
                             element.target = processor_list[i]
                             element.final_position = position_list[i]
                         new_cost = cost(chain)
-                        # print(ipc1, network2, network2, ipc2, processor_list, new_cost)
                         if new_cost < min_cost:
                             min_cost = new_cost
                             best_processor_list = deepcopy(processor_list)
                             best_position_list = deepcopy(position_list)
 
-    for i in range(length):
-        chain[i].target = best_processor_list[i]
-        chain[i].final_position = best_position_list[i]
+    if best_processor_list != []:
+        for i in range(length):
+            chain[i].target = best_processor_list[i]
+            chain[i].final_position = best_position_list[i]
 
     return min_cost
 
