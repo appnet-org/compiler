@@ -1,9 +1,9 @@
 from copy import deepcopy
 from typing import Dict, List, Optional, Set
 
-from compiler.element.backend.envoy_wasm import *
-from compiler.element.backend.envoy_wasm.boilerplate import on_tick_template
-from compiler.element.backend.envoy_wasm.wasmtype import *
+from compiler.element.backend.istio_wasm import *
+from compiler.element.backend.istio_wasm.boilerplate import on_tick_template
+from compiler.element.backend.istio_wasm.wasmtype import *
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.node import *
 from compiler.element.visitor import Visitor
@@ -355,9 +355,9 @@ class WasmGenerator(Visitor):
             ctx.push_code(f"rpc_hashmap_inner.insert(self.context_id, body_size);")
             placeholder, args, res_init_code, res_get_code = "", "", "", ""
             for i, (sname, arg) in enumerate(ctx.strong_access_args.items()):
-                placeholder += "/{}"
+                placeholder += f"/{{}}_{sname}"
                 args += (
-                    arg.accept(self, ctx) + f'+ "_{sname}", '
+                    arg.accept(self, ctx) + ", "
                 )  # Append the sname to avoid key collision between elements
                 res_init_code += f"let mut {sname}_read: Option<String> = None;\n"
                 res_get_code += f"""{sname}_read = match(mget[{i}]) {{
@@ -800,6 +800,7 @@ class WasmGenerator(Visitor):
                             {status_code},
                             vec![
                                 ("grpc-status", "1"),
+                                ("appnet-local-reply", "appnetsamplefilter"),
                             ],
                             Some(b"{node.msg.msg.value}."),
                         );

@@ -9,11 +9,22 @@ from typing import Dict
 import yaml
 
 from compiler import graph_base_dir
-from compiler.graph.backend.utils import find_target_yml
+from compiler.graph.backend.utils import (
+    execute_local,
+    execute_remote_host,
+    find_target_yml,
+    get_node_names,
+)
 from compiler.graph.ir import GraphIR
+from compiler.graph.logger import GRAPH_BACKEND_LOG
 
 # backends = ["grpc", "sidecar", "ambient"]
-backends = ["grpc"]
+backends = ["grpc", "sidecar"]
+element_count = {
+    "grpc": 0,
+    "sidecar": 0,
+    "ambient": 0,
+}
 
 BACKEND_CONFIG_DIR = os.path.join(Path(__file__).parent, "config")
 
@@ -64,14 +75,11 @@ def attach_volumes(app_manifest_file: str) -> list[any]:
                 "volumeMounts"
             ] = []
 
-        target_service_yml["spec"]["template"]["spec"]["containers"][0][
-            "volumeMounts"
-        ].append(
-            {
-                "mountPath": "/appnet",
-                "name": f"{service}-appnet-volume",
-            }
-        )
+        for d in target_service_yml["spec"]["template"]["spec"]["containers"]:
+            d["volumeMounts"].append(
+                {"mountPath": "/appnet", "name": f"{service}-appnet-volume"}
+            )
+
         target_service_yml["spec"]["template"]["spec"]["volumes"].append(
             {
                 "persistentVolumeClaim": {"claimName": f"{service}-appnet-pvc"},
@@ -93,19 +101,36 @@ def scriptgen(
 
     Args:
         girs: A dictionary mapping edge name to corresponding graphir.
-        backend: backend name.
         app_name: the name of the application (for naming)
         app_manifest_file: the path to the application manifest file
         app_edges: the communication edges of the application
     """
-    for target in backends:
-        module = importlib.import_module(f"compiler.graph.backend.{target}")
-        generator = getattr(module, f"scriptgen_{target}")
-        generator(girs, app_name, app_manifest_file, app_edges)
-
-    app_yml_list = attach_volumes(app_manifest_file)
-
     deploy_dir = os.path.join(graph_base_dir, "generated", f"{app_name}-deploy")
     os.makedirs(deploy_dir, exist_ok=True)
-    with open(os.path.join(deploy_dir, "install.yml"), "w") as f:
+    app_install_file = os.path.join(deploy_dir, "app-install.yml")
+    execute_local(["cp", app_manifest_file, app_install_file])
+
+    GRAPH_BACKEND_LOG.info("Clear gRPC interceptor history files")
+    execute_local(["rm", "-rf", "/tmp/appnet/interceptors/*"])
+    nodes = get_node_names(control_plane=False)
+    for node in nodes:
+        execute_remote_host(node, ["rm", "-rf", "/tmp/appnet/interceptors/*"])
+
+    for gir in girs.values():
+        element_count["grpc"] += len(gir.elements["client_grpc"]) + len(
+            gir.elements["server_grpc"]
+        )
+        element_count["sidecar"] += len(gir.elements["client_sidecar"]) + len(
+            gir.elements["server_sidecar"]
+        )
+        element_count["ambient"] += len(gir.elements["ambient"])
+
+    for target in backends:
+        if element_count[target] > 0:
+            module = importlib.import_module(f"compiler.graph.backend.{target}")
+            generator = getattr(module, f"scriptgen_{target}")
+            generator(girs, app_name, app_install_file, app_edges)
+
+    app_yml_list = attach_volumes(app_install_file)
+    with open(app_install_file, "w") as f:
         yaml.dump_all(app_yml_list, f, default_flow_style=False)

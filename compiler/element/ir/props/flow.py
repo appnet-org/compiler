@@ -1,8 +1,6 @@
 from typing import Dict, List, Optional, Tuple
 
-from compiler.element.node import *
-from compiler.element.node import Expr, Identifier, MethodCall
-from compiler.element.props.analyzer import (
+from compiler.element.ir.props.analyzer import (
     AliasAnalyzer,
     CopyAnalyzer,
     DropAnalyzer,
@@ -10,6 +8,8 @@ from compiler.element.props.analyzer import (
     StateAnalyzer,
     WriteAnalyzer,
 )
+from compiler.element.node import *
+from compiler.element.node import Expr, Identifier, MethodCall
 from compiler.element.visitor import Visitor
 
 

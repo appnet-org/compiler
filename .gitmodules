@@ -1,4 +1,4 @@
-[submodule "compiler/element/backend/envoy_native/template"]
-	path = compiler/element/backend/envoy_native/template
+[submodule "compiler/element/backend/istio_native/template"]
+	path = compiler/element/backend/istio_native/template
 	url = git@github.com:jokerwyt/envoy-appnet.git
 	branch = master

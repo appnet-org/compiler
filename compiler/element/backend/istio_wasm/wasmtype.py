@@ -4,7 +4,7 @@ import copy
 from enum import Enum
 from typing import List, Optional
 
-from compiler.element.backend.envoy_wasm import *
+from compiler.element.backend.istio_wasm import *
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 
@@ -152,7 +152,7 @@ class WasmSyncMapType(WasmType):
                         "webdis-service-{ename}", // or your service name
                         vec![
                             (":method", "GET"),
-                            (":path", &format!("/SET/{{}}/{{}}", {args[0]} + "_{vname}", {args[1]})),
+                            (":path", &format!("/SET/{{}}_{vname}/{{}}", {args[0]}, {args[1]})),
                             // (":path", "/SET/redis/hello"),
                             (":authority", "webdis-service-{ename}"), // Replace with the appropriate authority if needed
                         ],
