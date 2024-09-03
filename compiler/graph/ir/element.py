@@ -58,9 +58,9 @@ class AbsElement:
                 self.upgrade = "any"
             self.target = initial_target
             if self.upgrade == "yes":
-                self.target.replace("native", "wasm")
+                self.target = self.target.replace("native", "wasm")
             elif self.upgrade == "no":
-                self.target.replace("wasm", "native")
+                self.target = self.target.replace("wasm", "native")
             self.final_position = initial_position
             self.proto = info["proto"]
             self.method = info["method"]
