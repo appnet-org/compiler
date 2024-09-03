@@ -138,7 +138,7 @@ def execute_remote_host(host: str, cmd: List[str]) -> str:
     """
     if os.getenv("DRY_RUN") == "1":
         return "xxx"
-    GRAPH_BACKEND_LOG.debug(f"Executing command {' '.join(cmd)} on host {host}...")
+    GRAPH_BACKEND_LOG.debug(f"Executing command \"{' '.join(cmd)}\" on host {host}...")
     res = subprocess.run(["ssh", host] + cmd, capture_output=True)
     error_handling(res, f"Error when executing command")
     return res.stdout.decode("utf-8")
@@ -177,7 +177,7 @@ def execute_local(cmd: List[str], *, cwd=None) -> str:
     Returns:
         The output of the command, or "xxx" if "--dry_run" is provided.
     """
-    GRAPH_BACKEND_LOG.debug(f"Executing command {' '.join(cmd)}...")
+    GRAPH_BACKEND_LOG.debug(f"Executing command \"{' '.join(cmd)}\"...")
     if cwd:
         res = subprocess.run(cmd, cwd=cwd, capture_output=True)
     else:
