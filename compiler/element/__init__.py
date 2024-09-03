@@ -22,6 +22,7 @@ from compiler.element.frontend.printer import Printer
 from compiler.element.frontend.util import (
     extract_message_field_types,
     extract_proto_message_names,
+    extract_proto_package_name,
 )
 from compiler.element.ir.consolidate import consolidate
 from compiler.element.ir.props.flow import FlowGraph, Property
@@ -73,7 +74,8 @@ def gen_code(
 
         if method_name not in proto_def:
             raise ValueError(f"Method {method_name} not found in {proto_path}.")
-    proto = os.path.basename(proto_path).replace(".proto", "")
+    # proto = os.path.basename(proto_path).replace(".proto", "")
+    proto = extract_proto_package_name(proto_path)
 
     assert backend_name in (
         "mrpc",
@@ -183,8 +185,7 @@ def gen_code(
         assert isinstance(ctx, GoContext), "Inconsistent context type"
         consolidated.accept(GoAccessAnalyzer(placement), ctx)
     elif "native" in backend_name:
-        assert isinstance(ctx, NativeContext), "Inconsistent context type"
-        consolidated.accept()
+        pass
 
     # Second pass to generate the code
     consolidated.accept(generator, ctx)
