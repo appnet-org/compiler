@@ -53,7 +53,7 @@ class NativeContext:
         self.global_state_lock_held = False
 
     def insert_envoy_log(self) -> None:
-        # Insert ENVOY_LOG(warn, stmt) after each statement in req and resp
+        # Insert ENVOY_LOG(info, stmt) after each statement in req and resp
         # This is for debugging.
         # Then we will have 2 times more lines of code.
 
@@ -69,7 +69,7 @@ class NativeContext:
                     or "}" in stmt
                 ) == False:
                     trans_stmt = stmt.replace('"', '\\"')
-                    new_code.append(f'ENVOY_LOG(warn, "{trans_stmt}");')
+                    new_code.append(f'ENVOY_LOG(info, "{trans_stmt}");')
 
                 new_code.append(stmt)
 
@@ -176,7 +176,7 @@ class NativeContext:
         assert self.current_procedure in ["req", "resp", "init"]
 
         self.push_code("{")
-        self.push_code(f'   ENVOY_LOG(warn, "[AppNet Filter] Blocking HTTP Request");')
+        self.push_code(f'   ENVOY_LOG(info, "[AppNet Filter] Blocking HTTP Request");')
         self.push_code(f"   Awaiter http_awaiter = Awaiter();")
         self.push_code(f"   this->http_awaiter_ = &http_awaiter;")
         self.push_code(f"   this->external_response_ = nullptr;")
@@ -185,7 +185,7 @@ class NativeContext:
         )
         self.push_code(f"   assert(this->appnet_coroutine_.has_value());")
         self.push_code(
-            f'   ENVOY_LOG(warn, "[AppNet Filter] Blocking HTTP Request Sent");'
+            f'   ENVOY_LOG(info, "[AppNet Filter] Blocking HTTP Request Sent");'
         )
 
         if self.global_state_lock_held:
@@ -197,7 +197,7 @@ class NativeContext:
             self.push_code(f"   lock.lock();")
 
         self.push_code(
-            f'   ENVOY_LOG(warn, "[AppNet Filter] Blocking HTTP Request Done");'
+            f'   ENVOY_LOG(info, "[AppNet Filter] Blocking HTTP Request Done");'
         )
         self.push_code("}")
 
@@ -210,7 +210,7 @@ class NativeContext:
 
         self.push_code("{")
         self.push_code(
-            f'  ENVOY_LOG(warn, "[AppNet Filter] Non-Blocking Webdis Request");'
+            f'  ENVOY_LOG(info, "[AppNet Filter] Non-Blocking Webdis Request");'
         )
         # make sure url start with SET
         self.push_code(f"  this->sendWebdisRequest({url.name}, *empty_callback_);")
@@ -290,7 +290,7 @@ class NativeGenerator(Visitor):
                         "Only map<string, string> can have weak consistency for now"
                     )
                 # for (auto& [key, value] : cache) {
-                #   ENVOY_LOG(warn, "[AppNet Filter] cache key={}, value={}", key, value);
+                #   ENVOY_LOG(info, "[AppNet Filter] cache key={}, value={}", key, value);
                 # }
                 # this->sendWebdisRequest(const std::string path, int &callback)
                 # path="/MGET/a/b/c/d"       to get a,b,c,d
@@ -1104,7 +1104,7 @@ class GetMapStrongConsistency(AppNetBuiltinFuncProto):
             f"std::string response_str = this->external_response_->bodyAsString();"
         )
         ctx.push_code(
-            f'ENVOY_LOG(warn, "[AppNet Filter] Webdis Response: {{}}", response_str);'
+            f'ENVOY_LOG(info, "[AppNet Filter] Webdis Response: {{}}", response_str);'
         )
 
         # nlohmann::json j = nlohmann::json::parse(body);
@@ -1676,7 +1676,7 @@ class GetBackEnds(AppNetBuiltinFuncProto):
             f"std::string response_str = this->external_response_->bodyAsString();"
         )
         ctx.push_code(
-            f'ENVOY_LOG(warn, "[AppNet Filter] Shard Manager Response: {{}}", response_str);'
+            f'ENVOY_LOG(info, "[AppNet Filter] Shard Manager Response: {{}}", response_str);'
         )
         ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
         ctx.push_code(f'if (j.contains("replica_id"))')
@@ -1803,7 +1803,7 @@ class GetLoad(AppNetBuiltinFuncProto):
             f"std::string response_str = this->external_response_->bodyAsString();"
         )
         ctx.push_code(
-            f'ENVOY_LOG(warn, "[AppNet Filter] Load Manager Response: {{}}", response_str);'
+            f'ENVOY_LOG(info, "[AppNet Filter] Load Manager Response: {{}}", response_str);'
         )
         ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
         # we need to cast backend_id into string
