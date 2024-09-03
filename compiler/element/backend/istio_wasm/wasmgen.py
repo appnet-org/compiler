@@ -800,6 +800,7 @@ class WasmGenerator(Visitor):
                             {status_code},
                             vec![
                                 ("grpc-status", "1"),
+                                ("appnet-local-reply", "appnetsamplefilter"),
                             ],
                             Some(b"{node.msg.msg.value}."),
                         );
