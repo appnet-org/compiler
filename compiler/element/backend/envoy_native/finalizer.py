@@ -28,8 +28,7 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
         ctx.on_tick_code = ['std::unique_lock<std::mutex> lock(global_state_lock);'] \
             + ctx.on_tick_code
     
-    if ctx.envoy_verbose: # type: ignore
-        ctx.insert_envoy_log()
+    ctx.enable_or_disable_envoy_logging()
 
     replace_dict = {
         "// !APPNET_STATE": ctx.global_var_def,
@@ -59,8 +58,18 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
     for key, value in replace_dict.items():
         appnet_filter = appnet_filter.replace(key, "\n".join(value))
 
+    appnet_filter_lines_old = appnet_filter.split("\n")
+    appnet_filter_lines_new = []
+
+    for line in appnet_filter_lines_old:
+        if ctx.envoy_verbose == False:
+            if line.count("ENVOY_LOG") == 0:
+                appnet_filter_lines_new.append(line)
+        else:
+            appnet_filter_lines_new.append(line)
+
     with open(f"{output_dir}/appnet_filter/appnet_filter.cc", "w") as file:
-        file.write(appnet_filter)
+        file.write("\n".join(appnet_filter_lines_new))
 
     # remove .git to prevent strange bazel build behavior
     os.system(f"rm -rf {output_dir}/.git")

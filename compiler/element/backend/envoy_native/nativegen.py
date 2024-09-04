@@ -49,20 +49,28 @@ class NativeContext:
     self.envoy_verbose = envoy_verbose
     self.global_state_lock_held = False
 
-  def insert_envoy_log(self) -> None:
-    # Insert ENVOY_LOG(warn, stmt) after each statement in req and resp
-    # This is for debugging.
-    # Then we will have 2 times more lines of code.
+  def enable_or_disable_envoy_logging(self) -> None:
+    # Check self.envoy_verbose option.
+    # If enable:
+    #   Insert ENVOY_LOG(warn, stmt) after each statement in req and resp
+    # If disable:
+    #   Remove all lines that contain ENVOY_LOG in req and resp
 
     def process(codes: List[str]) -> List[str]:
       new_code = []
       for stmt in codes:
-        if ('for' in stmt or 'if' in stmt or 'else' in stmt or 'while' in stmt or '{' in stmt or '}' in stmt) \
-          == False:
-          trans_stmt = stmt.replace("\"", "\\\"")
-          new_code.append(f"ENVOY_LOG(warn, \"{trans_stmt}\");")
+        if self.envoy_verbose == False:
+          if "ENVOY_LOG" in stmt:
+            continue
+          new_code.append(stmt)
           
-        new_code.append(stmt)
+        else:
+          if ('for' in stmt or 'if' in stmt or 'else' in stmt or 'while' in stmt or '{' in stmt or '}' in stmt) \
+            == False:
+            trans_stmt = stmt.replace("\"", "\\\"")
+            new_code.append(f"ENVOY_LOG(warn, \"{trans_stmt}\");")
+            
+          new_code.append(stmt)
 
       return new_code
     
