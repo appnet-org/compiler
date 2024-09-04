@@ -19,7 +19,7 @@ from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_BACKEND_LOG
 
 # backends = ["grpc", "sidecar", "ambient"]
-backends = ["grpc", "sidecar"]
+backends = ["grpc", "sidecar", "ambient"]
 element_count = {
     "grpc": 0,
     "sidecar": 0,
@@ -29,7 +29,7 @@ element_count = {
 BACKEND_CONFIG_DIR = os.path.join(Path(__file__).parent, "config")
 
 
-def attach_volumes(app_manifest_file: str) -> list[any]:
+def attach_volumes_and_adjust_replica(app_manifest_file: str) -> list[any]:
     # Load application manifest
     with open(app_manifest_file, "r") as f:
         yml_list = list(yaml.safe_load_all(f))
@@ -62,6 +62,11 @@ def attach_volumes(app_manifest_file: str) -> list[any]:
 
         # Find the corresponding service in the manifest
         target_service_yml = find_target_yml(yml_list, service)
+
+        # Adjust replica count if SERVICE_REPLICA exists
+        replica = os.getenv("SERVICE_REPLICA")
+        if replica is not None:
+            target_service_yml["spec"]["replicas"] = int(replica)
 
         # Attach the element to the sidecar using volumes
         if "volumes" not in target_service_yml["spec"]["template"]["spec"]:
@@ -131,6 +136,7 @@ def scriptgen(
             generator = getattr(module, f"scriptgen_{target}")
             generator(girs, app_name, app_install_file, app_edges)
 
-    app_yml_list = attach_volumes(app_install_file)
+    app_yml_list = attach_volumes_and_adjust_replica(app_install_file)
+
     with open(app_install_file, "w") as f:
         yaml.dump_all(app_yml_list, f, default_flow_style=False)

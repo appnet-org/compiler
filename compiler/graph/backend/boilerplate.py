@@ -177,7 +177,7 @@ config_string = \'\'\'
 
 # Envoy templates
 
-attach_yml = """apiVersion: networking.istio.io/v1alpha3
+attach_yml_sidecar_wasm = """apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
   name: {metadata_name}
@@ -235,7 +235,7 @@ spec:
 """
 
 
-attach_yml_ambient = """apiVersion: networking.istio.io/v1alpha3
+attach_yml_ambient_wasm = """apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
   name: {metadata_name}
@@ -293,8 +293,95 @@ spec:
 """
 
 
+attach_yml_ambient_native = """apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: {metadata_name}
+  namespace: default
+spec:
+  workloadSelector:
+    labels:
+      gateway.networking.k8s.io/gateway-name: {service}-waypoint
+  configPatches:
+  - applyTo: HTTP_FILTER
+    match:
+      context: {bound}
+      listener:
+        filterChain:
+          filter:
+            name: "envoy.filters.network.http_connection_manager"
+            subFilter:
+              name: "envoy.filters.http.router"
+    patch:
+      operation: INSERT_BEFORE
+      value:
+        name: appnet{ename}
+        typed_config:
+          "@type": "type.googleapis.com/xds.type.v3.TypedStruct"
+          type_url: "type.googleapis.com/appnet{ename}.FilterConfig"
+  - applyTo: CLUSTER
+    match:
+        context: SIDECAR_OUTBOUND
+    patch:
+      operation: ADD
+      value:
+        name: "webdis-service-{ename}"
+        connect_timeout: 5s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: webdis-service-{ename}
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: webdis-service-{ename}
+                        port_value: 7379
+  - applyTo: CLUSTER
+    match:
+        context: SIDECAR_OUTBOUND
+    patch:
+      operation: ADD
+      value:
+        name: "load-manager"
+        connect_timeout: 5s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: load-manager
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: load-manager
+                        port_value: 8080
 
-attach_yml_native = """apiVersion: networking.istio.io/v1alpha3
+  - applyTo: CLUSTER
+    match:
+        context: SIDECAR_OUTBOUND
+    patch:
+      operation: ADD
+      value:
+        name: "shard-manager"
+        connect_timeout: 5s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: shard-manager
+          endpoints:
+            - lb_endpoints:
+                - endpoint:
+                    address:
+                      socket_address:
+                        address: shard-manager
+                        port_value: 8080
+---
+"""
+
+
+attach_yml_sidecar_native = """apiVersion: networking.istio.io/v1alpha3
 kind: EnvoyFilter
 metadata:
   name: {metadata_name}
@@ -314,7 +401,7 @@ spec:
             subFilter:
               name: "envoy.filters.http.router"
     patch:
-      operation: INSERT_BEFORE
+      operation: INSERT_FIRST
       value:
         name: appnet{ename}
         typed_config:

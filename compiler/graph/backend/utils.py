@@ -103,7 +103,7 @@ def extract_service_account_mapping(yaml_list: List[Dict]) -> Dict[str, str]:
     """
     mapping = {}
     for yml in yaml_list:
-        if yml.get("kind", "") == "Deployment":
+        if yml is not None and yml.get("kind", "") == "Deployment":
             deployment_name = yml["metadata"]["name"]
             service_account_name = yml["spec"]["template"]["spec"].get(
                 "serviceAccountName", ""
