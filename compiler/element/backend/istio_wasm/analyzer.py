@@ -27,8 +27,8 @@ class AccessAnalyzer(
     # The operations are then used to avoid unnecessary locks and RPC decode when generating the corresponding WASM code.
     def __init__(self, placement: str):
         self.placement = placement
-        if placement != "client" and placement != "server":
-            raise Exception("placement should be sender or receiver")
+        if placement not in ["client", "server", "ambient"]:
+            raise ValueError(f"invalid placement {placement}")
 
     def visitNode(self, node: Node, ctx: WasmContext) -> str:
         pass
