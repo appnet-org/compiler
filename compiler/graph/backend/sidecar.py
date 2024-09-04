@@ -10,7 +10,10 @@ import yaml
 
 from compiler import graph_base_dir
 from compiler.graph.backend import BACKEND_CONFIG_DIR
-from compiler.graph.backend.boilerplate import attach_yml, attach_yml_native
+from compiler.graph.backend.boilerplate import (
+    attach_yml_sidecar_native,
+    attach_yml_sidecar_wasm,
+)
 from compiler.graph.backend.utils import *
 from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_BACKEND_LOG
@@ -497,13 +500,6 @@ def scriptgen_sidecar(
     #     # no optimization: keep everything unchanged so that no sidecar will be bypassed
     #     pass
 
-    # Adjust replica count
-    replica = os.getenv("SERVICE_REPLICA")
-    if replica is not None:
-        for sname in services:
-            target_yml = find_target_yml(yml_list_istio, sname)
-            target_yml["spec"]["replicas"] = int(replica)
-
     # Dump the final manifest file (somehow there is a None)
     webdis_configs = [wbs for wbs in webdis_configs if wbs is not None]
     if len(webdis_configs) > 0:
@@ -520,9 +516,11 @@ def scriptgen_sidecar(
     attach_all_yml = ""
     for gir in girs.values():
         elist = [
-            (e, gir.client, "client", e.target) for e in gir.elements["client_sidecar"]
+            (e, gir.client, "client", e.target)
+            for e in gir.elements["client_sidecar"][::-1]
         ] + [
-            (e, gir.server, "server", e.target) for e in gir.elements["server_sidecar"]
+            (e, gir.server, "server", e.target)
+            for e in gir.elements["server_sidecar"][::-1]
         ]
         for (e, sname, placement, target) in elist:
             contents = {
@@ -539,9 +537,9 @@ def scriptgen_sidecar(
                 "service_label": service_to_label[sname],
             }
             if "wasm" in target:
-                attach_all_yml += attach_yml.format(**contents)
+                attach_all_yml += attach_yml_sidecar_wasm.format(**contents)
             elif "native" in target:
-                attach_all_yml += attach_yml_native.format(**contents)
+                attach_all_yml += attach_yml_sidecar_native.format(**contents)
             else:
                 raise ValueError(f"Unrecognized target: {target}")
     with open(os.path.join(deploy_dir, "sidecar-attach.yml"), "w") as f:
