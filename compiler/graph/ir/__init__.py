@@ -65,16 +65,17 @@ class GraphIR:
         if c_id >= s_id:
             raise ValueError("invalid client/server position requirements")
         # "C/S" goes to ambient
-        for i in range(c_id + 1, s_id):
-            self.elements["ambient"].append(
-                AbsElement(
-                    chain[i],
-                    server=server,
-                    initial_position="ambient",
-                    initial_target="ambient_wasm",
-                )
-            )
-        client_chain, server_chain = chain[: c_id + 1], chain[s_id:]
+        # for i in range(c_id + 1, s_id):
+        #     self.elements["ambient"].append(
+        #         AbsElement(
+        #             chain[i],
+        #             server=server,
+        #             initial_position="ambient",
+        #             initial_target="ambient_wasm",
+        #         )
+        #     )
+        mid = (c_id + s_id) // 2
+        client_chain, server_chain = chain[: mid + 1], chain[mid + 1 :]
         current_mode = "sidecar"
         for element in client_chain[::-1]:
             if (
