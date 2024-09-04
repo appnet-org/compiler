@@ -110,11 +110,11 @@ mget_args_{state_name} := ""
 for key := range {state_name} {{
 	mget_args_{state_name} += fmt.Sprint("/", key, "_{state_name}")
 }}
-remote_read, err := http.Get("http://webdis-service-{element_name}:7379/MGET" + mget_args_{state_name})
+remote_read_{state_name}, err := http.Get("http://webdis-service-{element_name}:7379/MGET" + mget_args_{state_name})
 if err == nil {{
-	body, _ := io.ReadAll(remote_read.Body)
-	remote_read.Body.Close()
-	if remote_read.StatusCode < 300 {{
+	body, _ := io.ReadAll(remote_read_{state_name}.Body)
+	remote_read_{state_name}.Body.Close()
+	if remote_read_{state_name}.StatusCode < 300 {{
 		_ = json.Unmarshal(body, &res)
 		i := 0
 		for key := range {state_name} {{
@@ -124,7 +124,7 @@ if err == nil {{
       i++
 		}}
 	}} else {{
-		log.Println(remote_read.StatusCode)
+		log.Println(remote_read_{state_name}.StatusCode)
 	}}
 }}
 """
