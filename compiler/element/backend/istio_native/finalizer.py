@@ -7,6 +7,15 @@ from compiler.element.logger import ELEMENT_LOG as LOG
 
 
 def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
+
+    template_path = f"{COMPILER_ROOT}/element/backend/istio_native/template"
+
+    # check if the template directory exists, if not, git clone.
+    if os.path.exists(template_path) == False or len(os.listdir(output_dir)) == 0:
+        # git clone from git@github.com:appnet-org/envoy-appnet.git, master branch
+        os.system(f"git clone git@github.com:appnet-org/envoy-appnet.git {template_path} --branch master")
+        LOG.info(f"New template cloned from git repo to {output_dir}")
+
     # check if the output directory exists, if not, copy the template to the output directory
     # if the directory exists and non-empty, just rewrite the appnet_filter/appnet_filter.cc file and its .h file
     if os.path.exists(output_dir) == False or len(os.listdir(output_dir)) == 0:
