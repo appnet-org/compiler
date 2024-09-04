@@ -944,7 +944,7 @@ class NativeGenerator(Visitor):
                             "std::function<void(ResponseHeaderMap& headers)> modify_headers = [](ResponseHeaderMap& headers) {"
                         )
                         ctx.push_code(
-                            '  headers.addCopy(LowerCaseString("appnet-local-reply"), "appnetsamplefilter");'
+                            '  headers.addCopy(LowerCaseString("grpc-status"), "1");'
                         )
                         ctx.push_code("};")
 
