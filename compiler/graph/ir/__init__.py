@@ -64,18 +64,25 @@ class GraphIR:
                 s_id = min(s_id, i)
         if c_id >= s_id:
             raise ValueError("invalid client/server position requirements")
-        # "C/S" goes to ambient
-        # for i in range(c_id + 1, s_id):
-        #     self.elements["ambient"].append(
-        #         AbsElement(
-        #             chain[i],
-        #             server=server,
-        #             initial_position="ambient",
-        #             initial_target="ambient_wasm",
-        #         )
-        #     )
-        mid = (c_id + s_id) // 2
-        client_chain, server_chain = chain[: mid + 1], chain[mid + 1 :]
+        ambient_min, ambient_max = s_id + 1, c_id - 1
+        for i in range(c_id + 1, s_id):
+            if "processor" in chain[i] and chain[i]["processor"] == ["ambient"]:
+                ambient_min = min(ambient_min, i)
+                ambient_max = max(ambient_max, i)
+        if ambient_min <= ambient_max:
+            for i in range(ambient_min, ambient_max + 1):
+                self.elements["ambient"].append(
+                    AbsElement(
+                        chain[i],
+                        server=server,
+                        initial_position="ambient",
+                        initial_target="ambient_wasm",
+                    )
+                )
+            client_chain, server_chain = chain[:ambient_min], chain[ambient_max + 1 :]
+        else:
+            mid = (c_id + s_id) // 2
+            client_chain, server_chain = chain[: mid + 1], chain[mid + 1 :]
         current_mode = "sidecar"
         for element in client_chain[::-1]:
             if (
@@ -119,7 +126,7 @@ class GraphIR:
             edict1 = {
                 "name": pdict["name1"],
                 "config": pdict["config1"] if "config1" in pdict else [],
-                "position": "C",
+                "position": "client",
                 "proto": pdict["proto"],
                 "method": pdict["method"],
                 "path": pdict["path1"],
@@ -127,7 +134,7 @@ class GraphIR:
             edict2 = {
                 "name": pdict["name2"],
                 "config": pdict["config2"] if "config2" in pdict else [],
-                "position": "S",
+                "position": "server",
                 "proto": pdict["proto"],
                 "method": pdict["method"],
                 "path": pdict["path2"],
