@@ -229,11 +229,12 @@ class DataType(EnumNode):
 
 class MethodType(EnumNode):
     GET = 1
-    SET = 2
-    DELETE = 3
-    SIZE = 4
-    BYTE_SIZE = 5
-    FOR_EACH = 6
+    METAGET = 2
+    SET = 3
+    DELETE = 4
+    SIZE = 5
+    BYTE_SIZE = 6
+    FOR_EACH = 7
 
 
 class ContainerType(EnumNode):

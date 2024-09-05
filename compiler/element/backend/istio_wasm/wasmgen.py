@@ -748,6 +748,8 @@ class WasmGenerator(Visitor):
             match node.method:
                 case MethodType.GET:
                     ret = proto_gen_get(var.name, args, ctx)
+                case MethodType.METAGET:
+                    ret = proto_gen_get(var.name, args, ctx)
                 case MethodType.SET:
                     ret = proto_gen_set(var.name, args, ctx)
                 case MethodType.DELETE:

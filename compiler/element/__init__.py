@@ -97,6 +97,8 @@ def gen_code(
     message_field_types = extract_message_field_types(
         proto_path, request_message_name, response_message_name
     )
+    # admission control uses a header field 'meta_status'
+    message_field_types["response"]["meta_status"] = "string"
 
     # Choose the appropriate generator and context based on the backend
     if backend_name == "mrpc":

@@ -539,10 +539,9 @@ class GoGenerator(Visitor):
         if var.rpc:
             match node.method:
                 case MethodType.GET:
-                    if args[0].strip('"').startswith("meta_status"):
-                        ret = 'func() string {if err == nil{ return "success"} else {return "failure"}}()'
-                    else:
-                        ret += t.gen_get(args, var.name, ctx.element_name)
+                    ret += t.gen_get(args, var.name, ctx.element_name)
+                case MethodType.METAGET:
+                    ret = 'func() string {if err == nil{ return "success"} else {return "failure"}}()'
                 case MethodType.SET:
                     ret += t.gen_set(
                         args, var.name, ctx.element_name, ctx.current_procedure

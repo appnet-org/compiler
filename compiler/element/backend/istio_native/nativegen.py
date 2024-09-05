@@ -883,6 +883,7 @@ class NativeGenerator(Visitor):
     def genGeneralFuncCall(
         self,
         fname: str,
+        node: MethodCall,
         args: List[Tuple[AppNetType, NativeVariable]],
         ctx: NativeContext,
     ) -> Tuple[AppNetType, NativeVariable]:
@@ -890,6 +891,11 @@ class NativeGenerator(Visitor):
             func_instance: AppNetBuiltinFuncProto = func()
             if func_instance.appnet_name != fname:
                 continue
+
+            if fname == "metaget":
+                for arg in node.args:
+                    if isinstance(arg, Literal) and "meta" in arg.value:
+                        func_instance.set_field_name(arg.value)
 
             # Check if the arguments match
             if not func_instance.instantiate([arg[0] for arg in args]):
@@ -908,7 +914,7 @@ class NativeGenerator(Visitor):
     ) -> Tuple[AppNetType, Optional[NativeVariable]]:
         args = [self.visitGeneralExpr(arg, ctx) for arg in node.args]
         fname = node.name.name
-        return self.genGeneralFuncCall(fname, args, ctx)
+        return self.genGeneralFuncCall(fname, node, args, ctx)
 
     def visitMethodCall(
         self, node: MethodCall, ctx: NativeContext
@@ -922,7 +928,7 @@ class NativeGenerator(Visitor):
 
         assert obj_appnet_var.native_var is not None
         return self.genGeneralFuncCall(
-            fname, [(obj_appnet_var.type, obj_appnet_var.native_var)] + args, ctx
+            fname, node, [(obj_appnet_var.type, obj_appnet_var.native_var)] + args, ctx
         )
 
     def visitSend(self, node: Send, ctx: NativeContext):
@@ -1267,6 +1273,67 @@ class Min(AppNetBuiltinFuncProto):
 
     def __init__(self):
         super().__init__("min")
+
+
+class GetRPCMeta(AppNetBuiltinFuncProto):
+    def __init__(self):
+        super().__init__("metaget")
+        self.field_name: str = ""
+
+    def set_field_name(self, field_name: str):
+        self.field_name = field_name
+
+    def instantiate(self, args: List[AppNetType]) -> bool:
+        ret = (
+            len(args) == 2
+            and isinstance(args[0], AppNetRPC)
+            and isinstance(args[1], AppNetString)
+        )
+        if ret:
+            self.prepared = True
+            self.appargs = args
+        return ret
+
+    def ret_type(self) -> AppNetType:
+        assert isinstance(self.msg_type_dict, dict)
+        assert isinstance(self.appargs[1], AppNetString)
+        field = self.appargs[1]
+        assert isinstance(field.literal, str)
+        return proto_type_to_appnet_type(self.msg_type_dict[field.literal])
+
+    def gen_code(
+        self, ctx: NativeContext, rpc: NativeVariable, field: NativeVariable
+    ) -> NativeVariable:
+        self.msg_type_dict = ctx.get_current_msg_fields()
+        self.native_arg_sanity_check([rpc, field])
+
+        header_path = ctx.getHeaderPath()
+        if "meta_status" in self.field_name:
+            ctx.resp_hdr_code.append(
+                f"""
+                auto __status_tmp = this->{header_path}->get(LowerCaseString(":status"))[0]->value().getStringView();
+                std::string status_value = std::string(__status_tmp.data(), __status_tmp.size());
+                if (status_value == "200") {{
+                    this->{header_path}->setCopy(LowerCaseString("meta_status"), "success");
+                }} else {{
+                    this->{header_path}->setCopy(LowerCaseString("meta_status"), "failure");
+                }}
+                """
+            )
+
+        (
+            res_native_var,
+            native_decl_stmt,
+        ) = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+        ctx.push_code(
+            f"auto __tmp = this->{header_path}->get(LowerCaseString({field.name}))[0]->value().getStringView();"
+        )
+        ctx.push_code(native_decl_stmt)
+        ctx.push_code(
+            f"{res_native_var.name} = std::string(__tmp.data(), __tmp.size());"
+        )
+
+        return res_native_var
 
 
 class GetRPCField(AppNetBuiltinFuncProto):
@@ -2124,6 +2191,7 @@ class Encrypt(AppNetBuiltinFuncProto):
 
 
 APPNET_BUILTIN_FUNCS = [
+    GetRPCMeta,
     GetRPCField,
     GetMap,
     CurrentTime,
