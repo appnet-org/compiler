@@ -274,67 +274,8 @@ def scriptgen_ambient(
     if native_not_empty:
         compile_native_image()
 
-    # for file_or_dir in os.listdir(app_manifest_dir):
-    #     if app_name not in file_or_dir:
-    #         execute_local(
-    #             [
-    #                 "cp",
-    #                 "-r",
-    #                 os.path.join(app_manifest_dir, file_or_dir),
-    #                 os.path.join(deploy_dir, file_or_dir),
-    #             ]
-    #         )
 
-    # Generate the istio manifest file for the application.
-    GRAPH_BACKEND_LOG.info("Generating the istio manifest file for the application...")
-    istio_injected_file = os.path.join(local_gen_dir, app_name + "_istio.yml")
-    execute_local(
-        [
-            "istioctl",
-            "kube-inject",
-            "-f",
-            app_install_file,
-            "-o",
-            istio_injected_file,
-        ]
-    )
-    if native_not_empty:
-        # Use custom istio-proxy-sidecar image in the generated manifest file
-        with open(istio_injected_file, "r") as f:
-            content = f.readlines()
-            # replace
-            # docker.io/istio/proxyv2:<version_number>
-            # with
-            # docker.io/{image_name}
-            for i, line in enumerate(content):
-                if "docker.io/istio/proxyv2" in line:
-                    content[i] = (
-                        line.split("docker.io/istio/proxyv2")[0]
-                        + f"docker.io/{native_image_name}"
-                        + "\n"
-                    )
-        with open(istio_injected_file, "w") as f:
-            f.writelines(content)
-
-        # Set pull policy always
-        with open(istio_injected_file, "r") as f:
-            yml_list = list(yaml.safe_load_all(f))
-            for obj_yml in yml_list:
-                if obj_yml and "kind" in obj_yml and obj_yml["kind"] == "Deployment":
-                    for container_yaml in (
-                        obj_yml["spec"]["template"]["spec"]["containers"]
-                        + obj_yml["spec"]["template"]["spec"]["initContainers"]
-                    ):
-                        # if the image is our custom image, set the pull policy to Always
-                        if container_yaml["image"] == f"docker.io/{native_image_name}":
-                            container_yaml["imagePullPolicy"] = "Always"
-        with open(istio_injected_file, "w") as f:
-            yaml.dump_all(yml_list, f, default_flow_style=False)
-    GRAPH_BACKEND_LOG.info(
-        f"The istio-injected file is generated successfully at {istio_injected_file}."
-    )
-
-    with open(istio_injected_file, "r") as f:
+    with open(app_install_file, "r") as f:
         yml_list_istio = list(yaml.safe_load_all(f))
     with open(os.path.join(BACKEND_CONFIG_DIR, "webdis_template.yml"), "r") as f:
         webdis_service, webdis_deploy = list(yaml.safe_load_all(f))
@@ -355,59 +296,6 @@ def scriptgen_ambient(
             services_all,
         )
     )
-
-    # Load pv and pvc template
-    # with open(os.path.join(BACKEND_CONFIG_DIR, "volume_template.yml"), "r") as f:
-    #     pv, pvc = list(yaml.safe_load_all(f))
-
-    # Attach the version number config file
-    # for service in services:
-    #     target_service_yml = find_target_yml(yml_list_istio, service)
-
-    #     if "volumeMounts" not in target_service_yml["spec"]["template"]["spec"]["containers"][0]:
-    #         target_service_yml["spec"]["template"]["spec"]["containers"][0]["volumeMounts"] = []
-
-    #     target_service_yml["spec"]["template"]["spec"]["containers"][0][
-    #         "volumeMounts"
-    #     ].append(
-    #         {
-    #             "mountPath": f"/etc/config-version",
-    #             "name": f"config-version",
-    #         }
-    #     )
-    #     target_service_yml["spec"]["template"]["spec"]["volumes"].append(
-    #         {
-    #             "hostPath": {
-    #                 "path": f"/tmp/appnet/config-version",
-    #                 "type": "File",
-    #             },
-    #             "name": f"config-version",
-    #         }
-    #     )
-
-    #     pv_copy, pvc_copy = deepcopy(pv), deepcopy(pvc)
-    #     pv_copy["metadata"]["name"] = f"{service}-pv"
-    #     pv_copy["spec"]["hostPath"]["path"] = "/tmp/appnet"
-    #     pvc_copy["metadata"]["name"] = f"{service}-pvc"
-    #     pvc_copy["spec"]["volumeName"] = f"{service}-pv"
-    #     yml_list_istio.append(pv_copy)
-    #     yml_list_istio.append(pvc_copy)
-
-    #     target_service_yml["spec"]["template"]["spec"]["containers"][1][
-    #         "volumeMounts"
-    #     ].append(
-    #         {
-    #             "mountPath": "/etc/appnet",
-    #             "name": f"{service}-volume",
-    #         }
-    #     )
-
-    #     target_service_yml["spec"]["template"]["spec"]["volumes"].append(
-    #         {
-    #             "persistentVolumeClaim": {"claimName": f"{service}-pvc"},
-    #             "name": f"{service}-volume",
-    #         }
-    #     )
 
     # Attach elements to the sidecar pods using volumes
     webdis_configs = []
@@ -460,8 +348,6 @@ def scriptgen_ambient(
     yml_list_istio = [yml for yml in yml_list_istio if yml is not None]
     with open(app_install_file, "w") as f:
         yaml.dump_all(yml_list_istio, f, default_flow_style=False)
-    # TODO: we probably should just pipe the output of istioctl
-    execute_local(["rm", istio_injected_file])
 
     # Generate script to attach elements.
     attach_all_yml = ""
