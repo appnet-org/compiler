@@ -257,7 +257,7 @@ def scriptgen_envoy_native(
         # docker.io/{image_name}
         for i, line in enumerate(content):
             if "docker.io/istio/proxyv2" in line:
-                content[i] = line.split("docker.io/istio/proxyv2")[0] + f"docker.io/{image_name}" + "\n"
+                content[i] = line.split("docker.io/istio/proxyv2")[0] + f"{image_name}" + "\n"
     with open(istio_injected_file, "w") as f:
         f.writelines(content)
 
@@ -268,7 +268,7 @@ def scriptgen_envoy_native(
             if obj_yml and "kind" in obj_yml and obj_yml["kind"] == "Deployment":
                 for container_yaml in obj_yml["spec"]["template"]["spec"]["containers"] + obj_yml["spec"]["template"]["spec"]["initContainers"]:
                     # if the image is our custom image, set the pull policy to Always
-                    if container_yaml["image"] == f"docker.io/{image_name}":
+                    if container_yaml["image"] == image_name:
                         container_yaml["imagePullPolicy"] = "Always"
 
     # Dump back

@@ -306,12 +306,12 @@ def scriptgen_sidecar(
             # replace
             # docker.io/istio/proxyv2:<version_number>
             # with
-            # docker.io/{image_name}
+            # native_image_name
             for i, line in enumerate(content):
                 if "docker.io/istio/proxyv2" in line:
                     content[i] = (
                         line.split("docker.io/istio/proxyv2")[0]
-                        + f"docker.io/{native_image_name}"
+                        + native_image_name
                         + "\n"
                     )
         with open(istio_injected_file, "w") as f:
@@ -327,7 +327,7 @@ def scriptgen_sidecar(
                         + obj_yml["spec"]["template"]["spec"]["initContainers"]
                     ):
                         # if the image is our custom image, set the pull policy to Always
-                        if container_yaml["image"] == f"docker.io/{native_image_name}":
+                        if container_yaml["image"] == native_image_name:
                             container_yaml["imagePullPolicy"] = "Always"
         with open(istio_injected_file, "w") as f:
             yaml.dump_all(yml_list, f, default_flow_style=False)
