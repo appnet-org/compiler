@@ -195,6 +195,11 @@ class ElementTransformer(Transformer):
             f (list): [method_type, [identifier, ...]]
         """
         f = f[0]
+        # check meta get
+        if f[0] == MethodType.GET and any(
+            isinstance(arg, Literal) and "meta" in arg.value for arg in f[1][1:]
+        ):
+            return MethodCall(MethodType.METAGET, f[1][0], f[1][1:])
         return MethodCall(f[0], f[1][0], f[1][1:])
 
     def func(self, f) -> FuncCall:

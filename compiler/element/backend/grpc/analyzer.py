@@ -9,6 +9,10 @@ def set_method(name: str, ctx: GoContext, method: MethodType):
     if name not in ctx.state_names:
         return
 
+    if name == "rpc" and method == MethodType.METAGET:
+        # getting metadata (headers) is not relevant to RPC deserializing.
+        return
+
     if (
         name not in ctx.access_ops[ctx.current_procedure]
         or ctx.access_ops[ctx.current_procedure][name] != MethodType.SET
