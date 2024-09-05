@@ -5,7 +5,7 @@ import os
 from copy import deepcopy
 from pprint import pprint
 from typing import Dict, List, Tuple
-from configs import HUB_NAME
+from compiler.graph.backend.imagehub import HUB_NAME
 
 import yaml
 
