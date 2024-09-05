@@ -195,7 +195,7 @@ def generate_native_element_image(girs: Dict[str, GraphIR]):
 
 def compile_native_image():
     global native_image_name
-    native_image_name = f"appnetorg/istio-proxy-1.22-ambient:latest"
+    native_image_name = f"appnetorg/proxyv2:1.22.3-distroless"
     if os.getenv("APPNET_NO_BAKE") != "1":
         GRAPH_BACKEND_LOG.info("Building the istio ambient...")
         execute_local(

@@ -209,7 +209,7 @@ def scriptgen_envoy_native(
 
     # Compile the istio envoy.
 
-    image_name = f"jokerwyt/istio-proxy-1.22:latest"
+    image_name = f"appnetorg/proxyv2:1.22.3-distroless"
     if os.getenv("APPNET_NO_BAKE") != "1":
         GRAPH_BACKEND_LOG.info("Building the istio envoy...")
         execute_local(
