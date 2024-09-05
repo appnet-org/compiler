@@ -5,6 +5,7 @@ import os
 from copy import deepcopy
 from pprint import pprint
 from typing import Dict, List, Tuple
+from configs import HUB_NAME
 
 import yaml
 
@@ -209,7 +210,7 @@ def scriptgen_envoy_native(
 
     # Compile the istio envoy.
 
-    image_name = f"appnetorg/proxyv2:1.22.3-distroless"
+    image_name = f"{HUB_NAME}/proxyv2:1.22.3-distroless"
     if os.getenv("APPNET_NO_BAKE") != "1":
         GRAPH_BACKEND_LOG.info("Building the istio envoy...")
         execute_local(
@@ -218,14 +219,14 @@ def scriptgen_envoy_native(
         # Bake the istio proxy image.
         GRAPH_BACKEND_LOG.info("Building the istio proxy image...")
         execute_local(
-            ["docker", "build", "-t", f"docker.io/{image_name}", "-f", "Dockerfile.istioproxy", "."],
+            ["docker", "build", "-t", f"{image_name}", "-f", "Dockerfile.istioproxy", "."],
             cwd=generated_istio_proxy_path,
         )
         GRAPH_BACKEND_LOG.info(f"Docker image {image_name} is built successfully.")
 
         # Push the image to the docker hub.
         GRAPH_BACKEND_LOG.info("Pushing the istio proxy image to the docker hub...")
-        execute_local(["docker", "push", f"docker.io/{image_name}"])
+        execute_local(["docker", "push", f"{image_name}"])
         GRAPH_BACKEND_LOG.info(f"Docker image {image_name} is pushed successfully.")
     else:
         GRAPH_BACKEND_LOG.info("Skip building and pushing the istio proxy image.")

@@ -5,6 +5,7 @@ import os
 from copy import deepcopy
 from pprint import pprint
 from typing import Dict, List, Tuple
+from configs import HUB_NAME
 
 import yaml
 
@@ -195,7 +196,7 @@ def generate_native_element_image(girs: Dict[str, GraphIR]):
 
 def compile_native_image():
     global native_image_name
-    native_image_name = f"appnetorg/proxyv2:1.22.3-distroless"
+    native_image_name = f"{HUB_NAME}/proxyv2:1.22.3-distroless"
     if os.getenv("APPNET_NO_BAKE") != "1":
         GRAPH_BACKEND_LOG.info("Building the istio ambient...")
         execute_local(
@@ -209,7 +210,7 @@ def compile_native_image():
                 "docker",
                 "build",
                 "-t",
-                f"docker.io/{native_image_name}",
+                f"{native_image_name}",
                 "-f",
                 "Dockerfile.istioproxy",
                 ".",
@@ -222,7 +223,7 @@ def compile_native_image():
 
         # Push the image to the docker hub.
         GRAPH_BACKEND_LOG.info("Pushing the istio proxy image to the docker hub...")
-        execute_local(["docker", "push", f"docker.io/{native_image_name}"])
+        execute_local(["docker", "push", native_image_name])
         GRAPH_BACKEND_LOG.info(
             f"Docker image {native_image_name} is pushed successfully."
         )
