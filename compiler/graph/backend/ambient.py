@@ -5,7 +5,6 @@ import os
 from copy import deepcopy
 from pprint import pprint
 from typing import Dict, List, Tuple
-from compiler.graph.backend.imagehub import HUB_NAME
 
 import yaml
 
@@ -15,6 +14,7 @@ from compiler.graph.backend.boilerplate import (
     attach_yml_ambient_native,
     attach_yml_ambient_wasm,
 )
+from compiler.graph.backend.imagehub import HUB_NAME
 from compiler.graph.backend.utils import *
 from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_BACKEND_LOG
@@ -241,10 +241,12 @@ def scriptgen_ambient(
     local_gen_dir = os.path.join(graph_base_dir, "generated")
     native_gen_dir = os.path.join(graph_base_dir, "generated_native")
     deploy_dir = os.path.join(local_gen_dir, f"{app_name}-deploy")
+    attach_dir = os.path.join(local_gen_dir, f"sidecar-ambient-attach")
 
     os.makedirs(local_gen_dir, exist_ok=True)
     os.makedirs(native_gen_dir, exist_ok=True)
     os.makedirs(deploy_dir, exist_ok=True)
+    os.makedirs(attach_dir, exist_ok=True)
     os.makedirs("/tmp/appnet", exist_ok=True)
 
     GRAPH_BACKEND_LOG.info("Compiling elements for ambient. This might take a while...")
@@ -274,7 +276,6 @@ def scriptgen_ambient(
     generate_native_element_image(girs)
     if native_not_empty:
         compile_native_image()
-
 
     with open(app_install_file, "r") as f:
         yml_list_istio = list(yaml.safe_load_all(f))
@@ -351,11 +352,11 @@ def scriptgen_ambient(
         yaml.dump_all(yml_list_istio, f, default_flow_style=False)
 
     # Generate script to attach elements.
-    attach_all_yml = ""
     for gir in girs.values():
         for e in gir.elements["ambient"][::-1]:
+            metadata_name = f"{e.lib_name}-{gir.server}-ambient"
             contents = {
-                "metadata_name": f"{e.lib_name}-{gir.server}-ambient",
+                "metadata_name": metadata_name,
                 "name": f"{e.lib_name}-ambient",
                 "ename": e.lib_name,
                 "service": service_to_service_account[gir.server],
@@ -364,13 +365,17 @@ def scriptgen_ambient(
                 "filename": f"/appnet/{e.lib_name}.wasm",
             }
             if "wasm" in e.target:
-                attach_all_yml += attach_yml_ambient_wasm.format(**contents)
+                attach_yml = attach_yml_ambient_wasm.format(**contents)
             elif "native" in e.target:
-                attach_all_yml += attach_yml_ambient_native.format(**contents)
+                attach_yml = attach_yml_ambient_native.format(**contents)
             else:
                 raise ValueError(f"Unrecognized target: {e.target}")
-    with open(os.path.join(deploy_dir, "ambient-attach.yml"), "w") as f:
-        f.write(attach_all_yml)
+            with open(os.path.join(attach_dir, f"{metadata_name}.yml"), "w") as f:
+                f.write(attach_yml)
+            with open(os.path.join(attach_dir, "attach.sh"), "a") as f:
+                f.write(
+                    f"kubectl apply -f {os.path.join(attach_dir, f'{metadata_name}.yml')}\n"
+                )
 
     # Generate script to create and delete ambient waypoint proxies
     service_to_delete = [
@@ -400,5 +405,10 @@ def scriptgen_ambient(
         "Element compilation and manifest generation complete. The generated files are in the 'generated' directory."
     )
     GRAPH_BACKEND_LOG.info(
-        f"To deploy the application and attach the elements, run kubectl apply -Rf {deploy_dir}"
+        f"""To deploy the application and attach the elements, run
+    bash {os.path.join(attach_dir, "attach.sh")}
+and then
+    kubectl apply -Rf {deploy_dir}
+and finally
+    bash {os.path.join(deploy_dir, "waypoint-create.sh")}"""
     )

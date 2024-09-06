@@ -53,6 +53,12 @@ def gen_dependency(chain: List[AbsElement], path: str):
                 writer_table[f].append(element.lib_name)
     for f in fields:
         dep["read"][("OUTPUT", f)] = deepcopy(writer_table[f])
+
+    # droptrace and blocktrace are sets, not list
+    for _t, d in dep.items():
+        for ename_fname, contents in d.items():
+            if ename_fname[1] in ["droptrace", "blocktrace", "copytrace"]:
+                d[ename_fname] = set(contents)
     return dep
 
 
@@ -297,6 +303,15 @@ def split_chain(chain: List[AbsElement]) -> Dict[str, List[AbsElement]]:
     return subchains
 
 
+def in_nonlocal_position(element: AbsElement, pos: str) -> bool:
+    state_dependence = element.prop["state"]["state_dependence"]
+    if pos == "ambient" and (
+        "client_service" in state_dependence or "server_service" in state_dependence
+    ):
+        return False
+    return True
+
+
 def cost(chain: List[AbsElement]) -> float:
     c = 0
     element_overhead_config = {
@@ -318,13 +333,23 @@ def cost(chain: List[AbsElement]) -> float:
         "network": 1,
     }
     state_sync_config = {
-        "client_grpc": 5.0,
-        "client_sidecar": 5.0,
-        "ambient": 2.0,
-        "server_sidecar": 5.0,
-        "server_grpc": 5.0,
+        "strong": {
+            "client_grpc": 5.0,
+            "client_sidecar": 5.0,
+            "ambient": 2.0,
+            "server_sidecar": 5.0,
+            "server_grpc": 5.0,
+        },
+        "weak": {
+            "client_grpc": 1.0,
+            "client_sidecar": 1.0,
+            "ambient": 1.0,
+            "server_sidecar": 1.0,
+            "server_grpc": 1.0,
+        },
     }
     d = 0.1
+    wasm_invocation = 0.5
 
     workload = 1.0
 
@@ -360,10 +385,20 @@ def cost(chain: List[AbsElement]) -> float:
             ):
                 r_pt += 1
             for i in range(l_pt, r_pt + 1):
-                if subchain[i].prop["state"]["consistency"] == "strong":
-                    c += state_sync_config[pos]
+                consistency = subchain[i].prop["state"]["consistency"]
+                if consistency in ["strong", "weak"] and in_nonlocal_position(
+                    subchain[i], pos
+                ):
+                    c += state_sync_config[consistency][pos]
                     break
             l_pt = r_pt + 1
+        # wasm invocation overhead
+        if "sidecar" in pos or "ambient" in pos:
+            for i, element in enumerate(subchain):
+                if "wasm" in element.target and (
+                    i == 0 or "wasm" not in subchain[i - 1].target
+                ):
+                    c += wasm_invocation
 
     return c
 
@@ -457,7 +492,14 @@ def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str):
     min_cost = cost(chain)
     final_chain = deepcopy(chain)
     for new_chain in permutations(chain):
+        for e in new_chain:
+            print(e.name, end=" ")
+        print("")
         if equivalent(chain, new_chain, path, opt_level):
+            print("haha!", end=" ")
+            for e in new_chain:
+                print(e.name, end=" ")
+            print("")
             new_chain = deepcopy(new_chain)
             new_min_cost = find_min_cost(new_chain)
             if new_min_cost < min_cost:
@@ -466,6 +508,17 @@ def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str):
 
     # split and consolidate
     subchains = split_chain(final_chain)
+
+    # modify ambient element sync level
+    replace_strong_weak = lambda s: s.replace("strong", "").replace("weak", "")
+    for element in subchains["ambient"]:
+        if element.prop["state"]["consistency"] in [
+            "strong",
+            "weak",
+        ] and not in_nonlocal_position(element, "ambient"):
+            element.name = list(map(replace_strong_weak, element.name))
+            element.path = list(map(replace_strong_weak, element.path))
+
     for pos, subchain in subchains.items():
         l_pt, r_pt = 0, 0
         consolidated_chain = []

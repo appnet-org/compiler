@@ -235,7 +235,7 @@ def compile_element_property(
     consistency = None
     combiner = "LWW"
     persistence = False
-    state_dependence = None
+    state_dependence = []
 
     for element_name, element_path in zip(element_names, element_paths):
         LOG.info(f"(Property Analyzer) Parsing {element_name}")
@@ -279,10 +279,10 @@ def compile_element_property(
                 combiner = combiner or state[3].name
                 persistence = persistence or state[4].name
                 # TODO: this is a temp hack
-                if "client_replica" in state[0].name:
-                    state_dependence = state_dependence or "client_replica"
-                elif "server_replica" in state[0].name:
-                    state_dependence = state_dependence or "server_replica"
+                if "client_service" in state[0].name:
+                    state_dependence.append("client_service")
+                if "server_service" in state[0].name:
+                    state_dependence.append("server_service")
 
     ret[0].check()
     ret[1].check()

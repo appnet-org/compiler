@@ -191,15 +191,17 @@ def print_gir_summary(graphirs: Dict[str, GraphIR]):
         console.print(Columns(["\n :snail: :\n"] + summary["pre-optimized"]))
         console.print(Columns(["\n :rocket: :\n"] + summary["post-optimized"]))
 
+
 def replace_strong(lst):
     strong_found = False
     for i in range(len(lst)):
-        if 'strong' in lst[i]:
+        if "strong" in lst[i]:
             if strong_found:
-                lst[i] = lst[i].replace('strong', '')
+                lst[i] = lst[i].replace("strong", "")
             else:
                 strong_found = True
     return lst
+
 
 def handle_state(graphirs: Dict[str, GraphIR]):
     for gir in graphirs.values():
@@ -207,6 +209,7 @@ def handle_state(graphirs: Dict[str, GraphIR]):
             for element in chain:
                 replace_strong(element.name)
                 replace_strong(element.path)
+
 
 def main(args):
     # Step 1: Parse the spec file and generate graph IRs (see examples/graph_spec for details about spec format)
@@ -229,8 +232,9 @@ def main(args):
             element.set_property_source(args.pseudo_property)
         if args.opt_level != "no":
             gir.optimize(args.opt_level, args.opt_algorithm)
-    
-    handle_state(graphirs)
+
+    if args.opt_level != "no":
+        handle_state(graphirs)
 
     # Step 3: Generate backend code for the elements and deployment scripts.
     if not args.dry_run:
