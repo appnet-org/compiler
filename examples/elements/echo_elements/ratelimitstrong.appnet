@@ -1,0 +1,17 @@
+state:
+    @consistency(strong) @combiner(sum) @persistence(true)
+    rate_map_client_service_server_service: Map<string, string>
+
+init():
+    set(rate_map_client_service_server_service, 'echo', '999')
+
+req(rpc):
+    rate = get(rate_map_client_service_server_service, 'echo')
+    match rate:
+		Some(r) =>
+			send(rpc, Down)
+		None =>
+			send(err('ratelimit'), Up)
+
+resp(rpc):
+    send(rpc, Up)
