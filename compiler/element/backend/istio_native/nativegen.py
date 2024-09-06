@@ -69,7 +69,7 @@ class NativeContext:
                     or "}" in stmt
                 ) == False:
                     trans_stmt = stmt.replace('"', '\\"')
-                    new_code.append(f'ENVOY_LOG(info, "{trans_stmt}");')
+                    new_code.append(f'ENVOY_LOG(warn, "{trans_stmt}");')
 
                 new_code.append(stmt)
 
