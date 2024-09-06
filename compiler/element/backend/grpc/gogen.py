@@ -54,6 +54,7 @@ class GoContext:
             GoVariable
         ] = []  # List of weak consistency variables
         self.name2var: Dict[str, GoVariable] = {}  # Mapping from names to variables
+        self.var2var_tag: Dict[str, int] = {}  # Mapping from variable names to variable tags (used for go assignment - := and =)
 
         # Maps to store the state (incl. RPC) operations on request/response headers and bodies
         self.access_ops: Dict[str, Dict[str, MethodType]] = {
@@ -151,7 +152,7 @@ class GoContext:
     def clear_temps(self) -> None:
         new_dic = {}
         for k, v in self.name2var.items():
-            if not v.temp:
+            if v and not v.temp:
                 new_dic[k] = v
         self.name2var = new_dic
 
@@ -173,6 +174,11 @@ class GoContext:
             return self.name2var[name]
         else:
             return None
+    
+    def get_var_tag(self, name: str) -> int:
+        var_tag = self.var2var_tag[name] if name in self.var2var_tag else 0
+        self.var2var_tag[name] = var_tag + 1
+        return str(var_tag)
 
     def gen_global_var_def(self) -> str:
         ret = ""
@@ -257,19 +263,20 @@ class GoGenerator(Visitor):
                                 }}\n"""  # assumes one key read per map
 
             # TODO(nikolabo): support consolidated sync read with different value types
+            remote_read_tag = ctx.get_var_tag("remote_read")
             prefix_strong_read = f"""if remote_values, ok := func() ([]*{var_type.value.name}, bool) {{
-                                            remote_read, err := http.Get("http://webdis-service-{ctx.element_name}:7379/MGET" {args})
+                                            remote_read_{remote_read_tag}, err := http.Get("http://webdis-service-{ctx.element_name}:7379/MGET" {args})
                                             var res struct {{
                                                 MGET []*{var_type.value.name}
                                             }}
                                             if err == nil {{
-                                                body, _ := io.ReadAll(remote_read.Body)
-                                                remote_read.Body.Close()
-                                                if remote_read.StatusCode < 300 {{
+                                                body, _ := io.ReadAll(remote_read_{remote_read_tag}.Body)
+                                                remote_read_{remote_read_tag}.Body.Close()
+                                                if remote_read_{remote_read_tag}.StatusCode < 300 {{
                                                     _ = json.Unmarshal(body, &res)
                                                     return res.MGET, true
                                                 }} else {{
-                                                    log.Println(remote_read.StatusCode)
+                                                    log.Println(remote_read_{remote_read_tag}.StatusCode)
                                                 }}
                                             }}
                                             return res.MGET, false
@@ -357,8 +364,9 @@ class GoGenerator(Visitor):
 
             # Idiomatic check if key present in go
             # TODO(nikolabo): avoid clashing with user vars named ok?
-            ret = f"""expr_eval := {node.expr.accept(self, ctx)}
-                        if {name}, ok := expr_eval.value, expr_eval.ok; ok {{
+            expr_eval_tag = ctx.get_var_tag("expr_eval")
+            ret = f"""expr_eval_{expr_eval_tag} := {node.expr.accept(self, ctx)}
+                        if {name}, ok := expr_eval_{expr_eval_tag}.value, expr_eval_{expr_eval_tag}.ok; ok {{
                             _ = {name} // allow unused some() vars
                             {some_statements}
                         }} else {{

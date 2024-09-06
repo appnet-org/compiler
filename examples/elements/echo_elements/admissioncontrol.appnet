@@ -15,9 +15,9 @@ req(rpc):
 
 	match randomf(0, 1) < prob:
 		true =>
-			send(rpc, Down)
-		false =>
 			send(err('admission control'), Up)
+		false =>
+			send(rpc, Down)
 
 resp(rpc):
 	match get(rpc, 'meta_status') == 'success':

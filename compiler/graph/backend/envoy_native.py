@@ -5,6 +5,7 @@ import os
 from copy import deepcopy
 from pprint import pprint
 from typing import Dict, List, Tuple
+from compiler.graph.backend.imagehub import HUB_NAME
 
 import yaml
 
@@ -209,7 +210,7 @@ def scriptgen_envoy_native(
 
     # Compile the istio envoy.
 
-    image_name = f"jokerwyt/istio-proxy-1.22:latest"
+    image_name = f"{HUB_NAME}/proxyv2:1.22.3-distroless"
     if os.getenv("APPNET_NO_BAKE") != "1":
         GRAPH_BACKEND_LOG.info("Building the istio envoy...")
         execute_local(
@@ -218,14 +219,14 @@ def scriptgen_envoy_native(
         # Bake the istio proxy image.
         GRAPH_BACKEND_LOG.info("Building the istio proxy image...")
         execute_local(
-            ["docker", "build", "-t", f"docker.io/{image_name}", "-f", "Dockerfile.istioproxy", "."],
+            ["docker", "build", "-t", f"{image_name}", "-f", "Dockerfile.istioproxy", "."],
             cwd=generated_istio_proxy_path,
         )
         GRAPH_BACKEND_LOG.info(f"Docker image {image_name} is built successfully.")
 
         # Push the image to the docker hub.
         GRAPH_BACKEND_LOG.info("Pushing the istio proxy image to the docker hub...")
-        execute_local(["docker", "push", f"docker.io/{image_name}"])
+        execute_local(["docker", "push", f"{image_name}"])
         GRAPH_BACKEND_LOG.info(f"Docker image {image_name} is pushed successfully.")
     else:
         GRAPH_BACKEND_LOG.info("Skip building and pushing the istio proxy image.")
@@ -256,7 +257,7 @@ def scriptgen_envoy_native(
         # docker.io/{image_name}
         for i, line in enumerate(content):
             if "docker.io/istio/proxyv2" in line:
-                content[i] = line.split("docker.io/istio/proxyv2")[0] + f"docker.io/{image_name}" + "\n"
+                content[i] = line.split("docker.io/istio/proxyv2")[0] + f"{image_name}" + "\n"
     with open(istio_injected_file, "w") as f:
         f.writelines(content)
 
@@ -267,7 +268,7 @@ def scriptgen_envoy_native(
             if obj_yml and "kind" in obj_yml and obj_yml["kind"] == "Deployment":
                 for container_yaml in obj_yml["spec"]["template"]["spec"]["containers"] + obj_yml["spec"]["template"]["spec"]["initContainers"]:
                     # if the image is our custom image, set the pull policy to Always
-                    if container_yaml["image"] == f"docker.io/{image_name}":
+                    if container_yaml["image"] == image_name:
                         container_yaml["imagePullPolicy"] = "Always"
 
     # Dump back

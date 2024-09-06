@@ -5,6 +5,7 @@ import os
 from copy import deepcopy
 from pprint import pprint
 from typing import Dict, List, Tuple
+from compiler.graph.backend.imagehub import HUB_NAME
 
 import yaml
 
@@ -195,7 +196,7 @@ def generate_native_element_image(girs: Dict[str, GraphIR]):
 
 def compile_native_image():
     global native_image_name
-    native_image_name = f"appnetorg/istio-proxy-1.22-sidecar:latest"
+    native_image_name = f"{HUB_NAME}/istio-proxy-1.22-sidecar:latest"
     if os.getenv("APPNET_NO_BAKE") != "1":
         GRAPH_BACKEND_LOG.info("Building the istio sidecar...")
         execute_local(
@@ -209,7 +210,7 @@ def compile_native_image():
                 "docker",
                 "build",
                 "-t",
-                f"docker.io/{native_image_name}",
+                f"{native_image_name}",
                 "-f",
                 "Dockerfile.istioproxy",
                 ".",
@@ -222,7 +223,7 @@ def compile_native_image():
 
         # Push the image to the docker hub.
         GRAPH_BACKEND_LOG.info("Pushing the istio proxy image to the docker hub...")
-        execute_local(["docker", "push", f"docker.io/{native_image_name}"])
+        execute_local(["docker", "push", f"{native_image_name}"])
         GRAPH_BACKEND_LOG.info(
             f"Docker image {native_image_name} is pushed successfully."
         )
@@ -305,12 +306,12 @@ def scriptgen_sidecar(
             # replace
             # docker.io/istio/proxyv2:<version_number>
             # with
-            # docker.io/{image_name}
+            # native_image_name
             for i, line in enumerate(content):
                 if "docker.io/istio/proxyv2" in line:
                     content[i] = (
                         line.split("docker.io/istio/proxyv2")[0]
-                        + f"docker.io/{native_image_name}"
+                        + native_image_name
                         + "\n"
                     )
         with open(istio_injected_file, "w") as f:
@@ -326,7 +327,7 @@ def scriptgen_sidecar(
                         + obj_yml["spec"]["template"]["spec"]["initContainers"]
                     ):
                         # if the image is our custom image, set the pull policy to Always
-                        if container_yaml["image"] == f"docker.io/{native_image_name}":
+                        if container_yaml["image"] == native_image_name:
                             container_yaml["imagePullPolicy"] = "Always"
         with open(istio_injected_file, "w") as f:
             yaml.dump_all(yml_list, f, default_flow_style=False)
