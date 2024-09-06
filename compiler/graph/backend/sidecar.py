@@ -5,7 +5,6 @@ import os
 from copy import deepcopy
 from pprint import pprint
 from typing import Dict, List, Tuple
-from compiler.graph.backend.imagehub import HUB_NAME
 
 import yaml
 
@@ -15,6 +14,7 @@ from compiler.graph.backend.boilerplate import (
     attach_yml_sidecar_native,
     attach_yml_sidecar_wasm,
 )
+from compiler.graph.backend.imagehub import HUB_NAME
 from compiler.graph.backend.utils import *
 from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_BACKEND_LOG
@@ -241,10 +241,12 @@ def scriptgen_sidecar(
     local_gen_dir = os.path.join(graph_base_dir, "generated")
     native_gen_dir = os.path.join(graph_base_dir, "generated_native")
     deploy_dir = os.path.join(local_gen_dir, f"{app_name}-deploy")
+    attach_dir = os.path.join(local_gen_dir, f"sidecar-ambient-attach")
 
     os.makedirs(local_gen_dir, exist_ok=True)
     os.makedirs(native_gen_dir, exist_ok=True)
     os.makedirs(deploy_dir, exist_ok=True)
+    os.makedirs(attach_dir, exist_ok=True)
     os.makedirs("/tmp/appnet", exist_ok=True)
 
     GRAPH_BACKEND_LOG.info("Compiling elements for sidecar. This might take a while...")
@@ -514,7 +516,6 @@ def scriptgen_sidecar(
     execute_local(["rm", istio_injected_file])
 
     # Generate script to attach elements.
-    attach_all_yml = ""
     for gir in girs.values():
         elist = [
             (e, gir.client, "client", e.target)
@@ -524,8 +525,9 @@ def scriptgen_sidecar(
             for e in gir.elements["server_sidecar"][::-1]
         ]
         for (e, sname, placement, target) in elist:
+            metadata_name = f"{e.lib_name}-{sname}-{placement}"
             contents = {
-                "metadata_name": f"{e.lib_name}-{sname}-{placement}",
+                "metadata_name": metadata_name,
                 "name": f"{e.lib_name}-{placement}",
                 "ename": e.lib_name,
                 "service": sname,
@@ -538,17 +540,24 @@ def scriptgen_sidecar(
                 "service_label": service_to_label[sname],
             }
             if "wasm" in target:
-                attach_all_yml += attach_yml_sidecar_wasm.format(**contents)
+                attach_yml = attach_yml_sidecar_wasm.format(**contents)
             elif "native" in target:
-                attach_all_yml += attach_yml_sidecar_native.format(**contents)
+                attach_yml = attach_yml_sidecar_native.format(**contents)
             else:
                 raise ValueError(f"Unrecognized target: {target}")
-    with open(os.path.join(deploy_dir, "sidecar-attach.yml"), "w") as f:
-        f.write(attach_all_yml)
+            with open(os.path.join(attach_dir, f"{metadata_name}.yml"), "w") as f:
+                f.write(attach_yml)
+            with open(os.path.join(attach_dir, "attach.sh"), "a") as f:
+                f.write(
+                    f"kubectl apply -f {os.path.join(attach_dir, f'{metadata_name}.yml')}\n"
+                )
 
     GRAPH_BACKEND_LOG.info(
         "Element compilation and manifest generation complete. The generated files are in the 'generated' directory."
     )
     GRAPH_BACKEND_LOG.info(
-        f"To deploy the application and attach the elements, run kubectl apply -Rf {deploy_dir}"
+        f"""To deploy the application and attach the elements, run
+    bash {os.path.join(attach_dir, "attach.sh")}
+and then, run
+    kubectl apply -Rf {deploy_dir}"""
     )
