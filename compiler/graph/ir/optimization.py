@@ -492,14 +492,7 @@ def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str):
     min_cost = cost(chain)
     final_chain = deepcopy(chain)
     for new_chain in permutations(chain):
-        for e in new_chain:
-            print(e.name, end=" ")
-        print("")
         if equivalent(chain, new_chain, path, opt_level):
-            print("haha!", end=" ")
-            for e in new_chain:
-                print(e.name, end=" ")
-            print("")
             new_chain = deepcopy(new_chain)
             new_min_cost = find_min_cost(new_chain)
             if new_min_cost < min_cost:

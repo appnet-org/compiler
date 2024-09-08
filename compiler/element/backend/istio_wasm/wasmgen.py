@@ -724,7 +724,12 @@ class WasmGenerator(Visitor):
             LOG.error(f"{node.obj.name} is not declared")
             raise Exception(f"object {node.obj.name} not found")
         t = var.type
-        args = [i.accept(self, ctx) for i in node.args]
+        args = []
+        for arg in node.args:
+            code = arg.accept(self, ctx)
+            if isinstance(arg, Identifier) and not code.endswith("to_string()"):
+                code += ".to_string()"
+            args.append(code)
 
         if not var.rpc:
             new_arg = []
