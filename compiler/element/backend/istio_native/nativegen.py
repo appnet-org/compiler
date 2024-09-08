@@ -69,7 +69,7 @@ class NativeContext:
                     or "}" in stmt
                 ) == False:
                     trans_stmt = stmt.replace('"', '\\"')
-                    new_code.append(f'ENVOY_LOG(info, "{trans_stmt}");')
+                    new_code.append(f'ENVOY_LOG(warn, "{trans_stmt}");')
 
                 new_code.append(stmt)
 
@@ -1576,6 +1576,7 @@ class SetRPCField(AppNetBuiltinFuncProto):
 
 
 class RPCID(AppNetBuiltinFuncProto):
+    # func() -> uint
     def instantiate(self, args: List[AppNetType]) -> bool:
         ret = len(args) == 0
         if ret:
@@ -1583,18 +1584,20 @@ class RPCID(AppNetBuiltinFuncProto):
         return ret
 
     def ret_type(self) -> AppNetType:
-        return AppNetInt()
+        return AppNetUInt()
 
     def gen_code(self, ctx: NativeContext) -> NativeVariable:
-        raise NotImplementedError("Use get_rpc_header(rpc, 'appnet-rpc-id') instead.")
-        # self.native_arg_sanity_check([])
+        rpc_id_str, decl = ctx.declareNativeVar(ctx.new_temporary_name(), NativeString())
+        ctx.push_code(decl)
+        ctx.push_code(f"{rpc_id_str.name} = \"appnet-rpc-id\";")
 
-        # res_native_var, native_decl_stmt,  \
-        #   = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
-        # ctx.push_code(native_decl_stmt)
-        # ctx.push_code( f"{res_native_var.name} = 0;")
+        rpcHeaderFunc: GetRPCHeader = GetRPCHeader()
+        # Mock instantiate
+        ret = rpcHeaderFunc.instantiate([AppNetRPC(), AppNetString()])
+        assert(ret == True)
 
-        # return res_native_var
+        ret = rpcHeaderFunc.gen_code(ctx, None, rpc_id_str, forced_ret_type=AppNetUInt()) # type: ignore
+        return ret
 
     def __init__(self):
         super().__init__("rpc_id")
@@ -1920,12 +1923,26 @@ class GetRPCHeader(AppNetBuiltinFuncProto):
         assert self.ret_type_inferred is not None
         return self.ret_type_inferred
 
+    def native_arg_sanity_check(self, native_args: List[NativeVariable]):
+
+        assert self.prepared
+        assert len(native_args) == 2
+        assert native_args[1].type.is_string()
+
     def gen_code(
-        self, ctx: NativeContext, rpc: NativeVariable, field: NativeVariable
+        self, ctx: NativeContext, _rpc: NativeVariable, field: NativeVariable, *, forced_ret_type: Optional[AppNetType] = None
     ) -> NativeVariable:
-        self.native_arg_sanity_check([rpc, field])
-        assert ctx.most_recent_assign_left_type is not None
-        self.ret_type_inferred = ctx.most_recent_assign_left_type
+        # Note that we specialize the native arg check for this function because 
+        # 1. We don't really use RPC in the function body.
+        # 2. RPCID will pass a None to here.
+        self.native_arg_sanity_check([_rpc, field])
+
+        if forced_ret_type is not None:
+            self.ret_type_inferred = forced_ret_type
+        else:
+            assert ctx.most_recent_assign_left_type is not None
+            self.ret_type_inferred = ctx.most_recent_assign_left_type
+
 
         (
             res_native_var,
@@ -1958,7 +1975,7 @@ class GetRPCHeader(AppNetBuiltinFuncProto):
             )
             ctx.push_code("}")
         else:
-            raise NotImplementedError("only int type is supported for now")
+            raise NotImplementedError("only int/uint type is supported for now")
 
         ctx.push_code("}")
 

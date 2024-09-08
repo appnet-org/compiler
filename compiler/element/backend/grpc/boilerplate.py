@@ -27,7 +27,6 @@ func {FilterName}ClientInterceptor() grpc.UnaryClientInterceptor {{
 		rpc_id, _ := strconv.ParseUint(md.Get("appnet-rpc-id")[0], 10, 32)
 		_ = rpc_id
         tag := md.Get("appnet-config-version")[0]
-		log.Println("executing, tag: ", tag)
         if tag != "{Tag}" {{
 			// version mismatch, skip
 			return invoker(ctx, method, req, reply, cc, opts...)
