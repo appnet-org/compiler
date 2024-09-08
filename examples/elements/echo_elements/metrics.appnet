@@ -1,6 +1,6 @@
 state:
     record: Map<uint, Instant>
-    latency: Vec<float>
+    latency: Vec<string>
 
 init():
     pass
