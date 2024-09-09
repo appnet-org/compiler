@@ -214,7 +214,7 @@ spec:
               allow_precompiled: false
   - applyTo: CLUSTER
     match:
-        context: SIDECAR_OUTBOUND
+        context: {bound}
     patch:
       operation: ADD
       value:
