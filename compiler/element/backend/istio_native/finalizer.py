@@ -13,7 +13,9 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
     # check if the template directory exists, if not, git clone.
     if os.path.exists(template_path) == False or len(os.listdir(template_path)) == 0:
         # git clone from git@github.com:appnet-org/envoy-appnet.git, master branch
-        os.system(f"git clone git@github.com:appnet-org/envoy-appnet.git {template_path} --branch master")
+        os.system(
+            f"git clone git@github.com:appnet-org/envoy-appnet.git {template_path} --branch master"
+        )
         LOG.info(f"New template cloned from git repo to {template_path}")
 
     # check if the output directory exists, if not, copy the template to the output directory
@@ -82,6 +84,20 @@ def codegen_from_template(output_dir, ctx: NativeContext, lib_name, proto_path):
 
     # clang format
     os.system(f"clang-format -i {output_dir}/appnet_filter/appnet_filter.cc")
+
+    # TODO: smarter way to define unique symbol name
+    # Rename base64_encode and base64_decode to avoid symbol confliction
+    files = [
+        os.path.join(output_dir, "appnet_filter/appnet_filter.cc"),
+        os.path.join(output_dir, "appnet_filter/thirdparty/base64.h"),
+    ]
+    for filename in files:
+        with open(filename, "r") as f:
+            content = f.read()
+        content = content.replace("base64_encode", f"base64_encode_{lib_name}")
+        content = content.replace("base64_decode", f"base64_decode_{lib_name}")
+        with open(filename, "w") as f:
+            f.write(content)
 
     LOG.info(
         f"Backend code for {lib_name} generated. You can find the source code at {output_dir}"
