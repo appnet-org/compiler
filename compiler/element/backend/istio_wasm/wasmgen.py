@@ -728,7 +728,9 @@ class WasmGenerator(Visitor):
         for arg in node.args:
             code = arg.accept(self, ctx)
             if isinstance(arg, Identifier) and not code.endswith("to_string()"):
-                code += ".to_string()"
+                # TODO: temp hack: don't add to_string() in metrics
+                if "latency" not in node.obj.accept(self, ctx):
+                    code += ".to_string()"
             args.append(code)
 
         if not var.rpc:
