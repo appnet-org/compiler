@@ -192,12 +192,12 @@ def print_gir_summary(graphirs: Dict[str, GraphIR]):
         console.print(Columns(["\n :rocket: :\n"] + summary["post-optimized"]))
 
 
-def replace_strong(lst):
+def replace_state(lst, state_name):
     strong_found = False
     for i in range(len(lst)):
         if "strong" in lst[i]:
             if strong_found:
-                lst[i] = lst[i].replace("strong", "")
+                lst[i] = lst[i].replace(state_name, "")
             else:
                 strong_found = True
     return lst
@@ -207,8 +207,10 @@ def handle_state(graphirs: Dict[str, GraphIR]):
     for gir in graphirs.values():
         for chain in gir.elements.values():
             for element in chain:
-                replace_strong(element.name)
-                replace_strong(element.path)
+                replace_state(element.name, "strong")
+                replace_state(element.path, "strong")
+                replace_state(element.path, "weak")
+                replace_state(element.path, "weak")
 
 
 def main(args):
