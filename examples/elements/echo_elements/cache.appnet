@@ -24,6 +24,6 @@ resp(rpc):
     match body:
         Some(name) => 
             set(cache, name, 'cached')
-        _ =>
+        None =>
             pass
 	send(rpc, Up)
