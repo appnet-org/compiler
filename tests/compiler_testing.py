@@ -9,7 +9,7 @@ import yaml
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
 
 from compiler.graph.backend.utils import execute_local
-from compiler.graph.logger import TEST_LOG, GRAPH_LOG
+from compiler.graph.logger import TEST_LOG, GRAPH_LOG, init_logging
 from compiler import root_base_dir
 
 element_tested = [
@@ -109,6 +109,7 @@ if __name__ == "__main__":
         choices=["wasm", "native"]
     )
     args = parser.parse_args()
+    init_logging(False)
 
     tmp_gen_dir = os.path.join(str(Path(__file__).parent), "tmp_gen")
     os.makedirs(tmp_gen_dir, exist_ok=True)
@@ -121,22 +122,14 @@ if __name__ == "__main__":
             with open(os.path.join(tmp_gen_dir, f"{element_name}.yaml"), "w") as f:
                 yaml.dump(yaml_dict, f, default_flow_style=False)
             try:
-                # execute_local([
-                #     "python3", os.path.join(root_base_dir, "compiler", "main.py"),
-                #     "-s",
-                #     os.path.join(tmp_gen_dir, "spec.yaml"),
-                #     "--opt_level",
-                #     "weak",
-                # ])
-                # subprocess.run([
-                os.system(' '.join([
-                    "python3",
+                execute_local([
+                    "python3", 
                     os.path.join(root_base_dir, "compiler", "main.py"),
                     "-s",
                     os.path.join(tmp_gen_dir, f"{element_name}.yaml"),
                     "--opt_level",
-                    "weak"
-                ]))
+                    "weak",
+                ])
                 TEST_LOG.info(f"{element_name} succeed")
             except:
                 TEST_LOG.critical(f"{element_name} failed")
