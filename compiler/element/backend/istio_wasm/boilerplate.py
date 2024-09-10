@@ -56,7 +56,7 @@ impl Context for {FilterName}Root {{}}
 
 impl RootContext for {FilterName}Root {{
     fn on_vm_start(&mut self, _: usize) -> bool {{
-        log::warn!("executing on_vm_start");
+        log::warn!("{FilterName} initializing");
         {Init}
         true
     }}
