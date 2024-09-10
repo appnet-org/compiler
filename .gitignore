@@ -27,3 +27,4 @@ Python*/
 
 experiments/
 examples/chain/*.yaml
+tests/tmp_gen/
