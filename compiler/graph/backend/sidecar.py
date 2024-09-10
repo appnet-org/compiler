@@ -8,7 +8,7 @@ from typing import Dict, List, Tuple
 
 import yaml
 
-from compiler import graph_base_dir
+from compiler import graph_base_dir, root_base_dir
 from compiler.graph.backend import BACKEND_CONFIG_DIR
 from compiler.graph.backend.boilerplate import (
     attach_yml_sidecar_native,
@@ -264,7 +264,7 @@ def scriptgen_sidecar(
                 "git",
                 "clone",
                 # TODO: move to appnet-org in future
-                "git@github.com:jokerwyt/istio-proxy.git",
+                "git@github.com:appnet-org/istio-proxy.git",
                 generated_istio_proxy_path,
             ]
         )
@@ -551,6 +551,22 @@ def scriptgen_sidecar(
                 f.write(
                     f"kubectl apply -f {os.path.join(attach_dir, f'{metadata_name}.yml')}\n"
                 )
+
+    # Disable TLS if client sidecar is not empty and server sidecar is empty
+    # TODO: per-service level disabling tls
+    for gir in girs.values():
+        if (
+            len(gir.elements["client_sidecar"]) > 0
+            and len(gir.elements["server_sidecar"]) == 0
+        ):
+            GRAPH_BACKEND_LOG.info("Disable TLS...")
+            execute_local(
+                [
+                    "cp",
+                    os.path.join(root_base_dir, "utils", "disable_mtls.yaml"),
+                    os.path.join(deploy_dir, "disable_mtls.yaml"),
+                ]
+            )
 
     GRAPH_BACKEND_LOG.info(
         "Element compilation and manifest generation complete. The generated files are in the 'generated' directory."
