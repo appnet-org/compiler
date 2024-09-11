@@ -287,8 +287,9 @@ def kapply_and_sync(file_or_dir: str):
 
 def kdestroy():
     """Destroy all deployments and waypoint proxies"""
-    execute_local(["kubectl", "delete", "envoyfilters,all,pvc,pv,pa", "--all"])
     execute_local(["istioctl", "experimental", "waypoint", "delete", "--all"])
+    execute_local(["kubectl", "delete", "envoyfilters,all,pvc,pv,pa", "--all"])
+
 
 
 def run_remote_command(server: str, command: str):
