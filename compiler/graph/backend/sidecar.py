@@ -358,59 +358,6 @@ def scriptgen_sidecar(
         )
     )
 
-    # Load pv and pvc template
-    # with open(os.path.join(BACKEND_CONFIG_DIR, "volume_template.yml"), "r") as f:
-    #     pv, pvc = list(yaml.safe_load_all(f))
-
-    # Attach the version number config file
-    # for service in services:
-    #     target_service_yml = find_target_yml(yml_list_istio, service)
-
-    #     if "volumeMounts" not in target_service_yml["spec"]["template"]["spec"]["containers"][0]:
-    #         target_service_yml["spec"]["template"]["spec"]["containers"][0]["volumeMounts"] = []
-
-    #     target_service_yml["spec"]["template"]["spec"]["containers"][0][
-    #         "volumeMounts"
-    #     ].append(
-    #         {
-    #             "mountPath": f"/etc/config-version",
-    #             "name": f"config-version",
-    #         }
-    #     )
-    #     target_service_yml["spec"]["template"]["spec"]["volumes"].append(
-    #         {
-    #             "hostPath": {
-    #                 "path": f"/tmp/appnet/config-version",
-    #                 "type": "File",
-    #             },
-    #             "name": f"config-version",
-    #         }
-    #     )
-
-    #     pv_copy, pvc_copy = deepcopy(pv), deepcopy(pvc)
-    #     pv_copy["metadata"]["name"] = f"{service}-pv"
-    #     pv_copy["spec"]["hostPath"]["path"] = "/tmp/appnet"
-    #     pvc_copy["metadata"]["name"] = f"{service}-pvc"
-    #     pvc_copy["spec"]["volumeName"] = f"{service}-pv"
-    #     yml_list_istio.append(pv_copy)
-    #     yml_list_istio.append(pvc_copy)
-
-    #     target_service_yml["spec"]["template"]["spec"]["containers"][1][
-    #         "volumeMounts"
-    #     ].append(
-    #         {
-    #             "mountPath": "/etc/appnet",
-    #             "name": f"{service}-volume",
-    #         }
-    #     )
-
-    #     target_service_yml["spec"]["template"]["spec"]["volumes"].append(
-    #         {
-    #             "persistentVolumeClaim": {"claimName": f"{service}-pvc"},
-    #             "name": f"{service}-volume",
-    #         }
-    #     )
-
     whitelist_port, blacklist_port = {}, {}
     for sname in services_all:
         whitelist_port[(sname, "C")] = set()
@@ -418,7 +365,7 @@ def scriptgen_sidecar(
         blacklist_port[(sname, "C")] = []
         blacklist_port[(sname, "S")] = []
 
-    # Attach elements to the sidecar pods using volumes
+    # Generate webdis configs and collect bypass info
     webdis_configs = []
     for gir in girs.values():
         elist = [(e, gir.client) for e in gir.elements["client_sidecar"]] + [
@@ -457,11 +404,12 @@ def scriptgen_sidecar(
 
             # Copy the wasm binary to the remote hosts (except the control plane node)
             # We need to copy to all hosts because we don't know where the service will be scheduled
-            nodes = get_node_names(control_plane=False)
-            for node in nodes:
-                copy_remote_host(
-                    node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet"
-                )
+            if "wasm" in element.target:
+                nodes = get_node_names(control_plane=False)
+                for node in nodes:
+                    copy_remote_host(
+                        node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet"
+                    )
 
     if os.getenv("APPNET_NO_OPTIMIZE") != "1":
         # has optimization: exclude ports that has no element attached to
