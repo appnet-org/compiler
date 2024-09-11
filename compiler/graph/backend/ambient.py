@@ -264,7 +264,7 @@ def scriptgen_ambient(
                 "git",
                 "clone",
                 # TODO: move to appnet-org in future
-                "git@github.com:jokerwyt/istio-proxy.git",
+                "git@github.com:appnet-org/istio-proxy.git",
                 generated_istio_proxy_path,
             ]
         )
@@ -299,7 +299,7 @@ def scriptgen_ambient(
         )
     )
 
-    # Attach elements to the sidecar pods using volumes
+    # Generate webdis configs
     webdis_configs = []
     service_account_set = set()
     for gir in girs.values():
@@ -335,11 +335,12 @@ def scriptgen_ambient(
 
             # Copy the wasm binary to the remote hosts (except the control plane node)
             # We need to copy to all hosts because we don't know where the service will be scheduled
-            nodes = get_node_names(control_plane=False)
-            for node in nodes:
-                copy_remote_host(
-                    node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet"
-                )
+            if "wasm" in element.target:
+                nodes = get_node_names(control_plane=False)
+                for node in nodes:
+                    copy_remote_host(
+                        node, f"/tmp/appnet/{element.lib_name}.wasm", "/tmp/appnet"
+                    )
 
     # Dump the webdis file (somehow there is a None)
     webdis_configs = [wbs for wbs in webdis_configs if wbs is not None]
