@@ -1,0 +1,29 @@
+app_name: "hotel_reservation"
+app_manifest: /mnt/appnet/config/samples/hotel/hotel_reservation.yaml
+app_structure:
+-   "frontend->search"
+-   "frontend->reservation"
+-   "frontend->profile"
+-   "search->geo"
+-   "search->rate"
+-   "rate->memcached-rate"
+-   "rate->mongodb-rate"
+-   "reservation->memcached-reserve"
+-   "reservation->mongodb-reservation"
+-   "profile->memcached-profile"
+-   "profile->mongodb-profile"
+-   "geo->mongodb-geo"
+edge:
+  frontend->search:
+  - method: Nearby
+    name: cache
+    path: /mnt/appnet/compiler/examples/elements/search_elements/cache.appnet
+    position: client
+    proto: /mnt/appnet/compiler/examples/proto/search.proto
+    proto_mod_name: github.com/appnetorg/HotelReservation/services/search/proto
+    proto_mod_location: /users/xzhu/HotelReservation/services/search/proto
+    upgrade: true
+    envoy_native: false
+    processor:
+      - sidecar
+link: {}

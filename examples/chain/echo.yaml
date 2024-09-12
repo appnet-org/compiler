@@ -7,22 +7,34 @@ edge:
   - method: echo
     name: fault
     path: <COMPILER_DIR>/examples/elements/echo_elements/fault.appnet
-    position: C
+    position: client
     proto: <APPNET_GO_LIB_DIR>/sample/echo-pb/echo.proto
     proto_mod_name: github.com/appnet-org/golib/sample/echo-pb
     proto_mod_location: <APPNET_GO_LIB_DIR>/sample/echo-pb
+    upgrade: true
+    envoy_native: false
+    processor:
+        - sidecar
   - method: echo
     name: logging
     path: <COMPILER_DIR>/examples/elements/echo_elements/logging.appnet
-    position: C
+    position: client
     proto: <APPNET_GO_LIB_DIR>/sample/echo-pb/echo.proto
     proto_mod_name: github.com/appnet-org/golib/sample/echo-pb
     proto_mod_location: <APPNET_GO_LIB_DIR>/sample/echo-pb
+    upgrade: true
+    envoy_native: false
+    processor:
+        - sidecar
   - method: echo
     name: firwall
     path: <COMPILER_DIR>/examples/elements/echo_elements/firewall.appnet
-    position: S
+    position: client
     proto: <APPNET_GO_LIB_DIR>/sample/echo-pb/echo.proto
     proto_mod_name: github.com/appnet-org/golib/sample/echo-pb
     proto_mod_location: <APPNET_GO_LIB_DIR>/sample/echo-pb
+    upgrade: true
+    envoy_native: false
+    processor:
+        - sidecar
 link: {}
