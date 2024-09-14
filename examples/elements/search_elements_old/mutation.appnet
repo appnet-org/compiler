@@ -1,0 +1,13 @@
+state{}
+
+fn init() {}
+
+fn req(rpc) {
+  mutation_body := rpc.get('in_date');
+  rpc.set('in_date', mutation_body);
+  send(rpc, Down);
+}
+
+fn resp(rpc) {
+	send(rpc, Up);
+}

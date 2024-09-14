@@ -1,0 +1,33 @@
+state
+{
+    @consistency(strong) @combiner(sum) @persistence(true)
+	cache: Map<string, string>
+}
+
+fn init() {
+    cache.set('2015-04-10', 'cached');
+}
+
+
+fn req(rpc) {
+    res := cache.get(rpc.get('in_date'));
+	match (res) {
+		Some(name) => {
+            match (name) {
+                'cached' => {
+                    send(err('200'), Up);
+                }
+                _ => {
+                    send(err('403'), Up);
+                }
+            };
+		}
+		None => {
+			send(rpc, Down);
+		}
+	};
+}
+
+fn resp(rpc) {
+	send(rpc, Up);
+}

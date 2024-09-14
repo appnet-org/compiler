@@ -1,28 +1,22 @@
-state {
+state:
 	max_concurrent_req: int
     pending_req: int
     drop_count: int
-}
-fn init(max_concurrent_req) {
-	max_concurrent_req := 20;
-    pending_req := 0;
-    drop_count := 0;
-}
 
-fn req(rpc) {
-	match(pending_req <= max_concurrent_req) {
-		true => {
-            pending_req := pending_req + 1;
-			send(rpc, Down);
-		}
-		false => {
-            drop_count := drop_count + 1;
-			send(err('circuit breaker'), Up);
-		}
-	};
-}
+init():
+	max_concurrent_req = 1
+    pending_req = 0
+    drop_count = 0
 
-fn resp(rpc) {
-	result := rpc.get('meta_response');
-    send(rpc, Up);
-}
+req(rpc):
+	match pending_req <= max_concurrent_req:
+		true =>
+            pending_req = pending_req + 1
+			send(rpc, Down)
+		false =>
+            drop_count = drop_count + 1
+			send(err('circuit breaker'), Up)
+
+resp(rpc):
+	pending_req = pending_req - 1
+    send(rpc, Up)
