@@ -1,6 +1,5 @@
 state:
 	record_req: Vec<string>
-	record_resp: Vec<string>
 
 init():
 	pass
@@ -10,5 +9,4 @@ req(rpc):
 	send(rpc, Down)
 
 resp(rpc):
-	set(record_resp, size(record_resp), get(rpc, 'latstring'))
 	send(rpc, Up)
