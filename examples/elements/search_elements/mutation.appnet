@@ -1,13 +1,14 @@
-state{}
+state:
+    pass
 
-fn init() {}
+init():
+    pass
 
-fn req(rpc) {
-  mutation_body := rpc.get('in_date');
-  rpc.set('in_date', mutation_body);
-  send(rpc, Down);
-}
+req(rpc):
+    mutation_body = get(rpc, 'in_date')
+    set(rpc, 'in_date', mutation_body)
+    send(rpc, Down)
 
-fn resp(rpc) {
-	send(rpc, Up);
-}
+
+resp(rpc):
+	send(rpc, Up)

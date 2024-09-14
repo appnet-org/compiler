@@ -1,0 +1,22 @@
+state:
+	cache: Map<string, string>
+    record_cache: Map<uint, string>
+
+init():
+    set(cache, '2015-04-10', 'cached')
+
+req(rpc):
+    res = get(cache, get(rpc, 'in_date'))
+	match res:
+		Some(name) =>
+            match name:
+                'cached' =>
+                    send(err('cached'), Up)
+                _ =>
+                    send(err('bomb'), Up)
+		None =>
+            pass
+	send(rpc, Down)
+
+resp(rpc):
+	send(rpc, Up)

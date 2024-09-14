@@ -1,0 +1,21 @@
+state {
+	prob: float
+}
+fn init(prob) {
+	prob := 0.95;
+}
+
+fn req(rpc) {
+	match(randomf(0,1) < prob) {
+		true => {
+			send(rpc, Down);
+		}
+		false => {
+			send(err('fault_injected'), Up);
+		}
+	};
+}
+
+fn resp(rpc) {
+    send(rpc, Up);
+}

@@ -1,16 +1,14 @@
-state
-{
+state:
 	record_req: Vec<string>
-}
+	record_resp: Vec<string>
 
-fn init() {
-}
+init():
+	pass
 
-fn req(rpc) {
-	record_req.set(record_req.size(), rpc.get('locale'));
-	send(rpc, Down);
-}
+req(rpc):
+	set(record_req, size(record_req), get(rpc, 'locale'))
+	send(rpc, Down)
 
-fn resp(rpc) {
-	send(rpc, Up);
-}
+resp(rpc):
+	set(record_resp, size(record_resp), get(rpc, 'locale'))
+	send(rpc, Up)

@@ -1,0 +1,17 @@
+state {
+	password: string
+}
+fn init() {
+    password := '123456';
+}
+
+fn req(rpc) {
+	ori := rpc.get('lat');
+    encrypted := encrypt(ori, password);
+    rpc.set('lat', encrypted);
+    send(rpc, Down);
+}
+
+fn resp(rpc) {
+    send(rpc, Up);
+}

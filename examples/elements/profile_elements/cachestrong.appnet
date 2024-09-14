@@ -1,33 +1,30 @@
-state
-{
+state:
     @consistency(strong) @combiner(sum) @persistence(true)
 	cache: Map<string, string>
-}
+    recor_cache: Map<uint, string>
 
-fn init() {
-}
+init():
+    set(cache, 'bomb', 'bomb')
 
+req(rpc):
+    res = get(cache, get(rpc, 'locale'))
+	match res:
+		Some(name) =>
+            match name:
+                'cached' =>
+                    send(err('cache'), Up)
+                'bomb' =>
+                    send(err('bomb'), Up)
+		None =>
+            pass
+    set(recor_cache, rpc_id(), get(rpc, 'locale'))
+	send(rpc, Down)
 
-fn req(rpc) {
-    res := cache.get(rpc.get('locale'));
-	match (res) {
-		Some(name) => {
-            match (name) {
-                'cached' => {
-                    send(err('200'), Up);
-                }
-                _ => {
-                    send(err('403'), Up);
-                }
-            };
-		}
-		None => {
-            cache.set(rpc.get('locale'), 'cached');
-			send(rpc, Down);
-		}
-	};
-}
-
-fn resp(rpc) {
-	send(rpc, Up);
-}
+resp(rpc):
+    body = get(recor_cache, rpc_id())
+    match body:
+        Some(name) => 
+            set(cache, name, 'cached')
+        None =>
+            pass
+	send(rpc, Up)

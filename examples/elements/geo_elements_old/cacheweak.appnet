@@ -1,0 +1,33 @@
+state
+{
+	@consistency(weak) @combiner(sum) @persistence(true)
+	cache: Map<string, string>
+}
+
+fn init() {
+}
+
+
+fn req(rpc) {
+    res := cache.get(rpc.get('lat'));
+	match (res) {
+		Some(name) => {
+            match (name) {
+                'cached' => {
+                    send(err('200'), Up);
+                }
+                _ => {
+                    send(err('403'), Up);
+                }
+            };
+		}
+		None => {
+			cache.set(rpc.get('lat'), 'cached');
+			send(rpc, Down);
+		}
+	};
+}
+
+fn resp(rpc) {
+	send(rpc, Up);
+}
