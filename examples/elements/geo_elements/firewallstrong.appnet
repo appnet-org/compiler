@@ -6,7 +6,7 @@ init():
 	set(acl, '0.0', 'No')
 
 req(rpc):
-	match get(acl, get(rpc, 'lat')):
+	match get(acl, get(rpc, 'latstring')):
 		Some(permission) =>
 			match permission:
 				'Yes' =>

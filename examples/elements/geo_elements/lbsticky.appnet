@@ -5,11 +5,11 @@ init():
 	pass
 
 req(rpc):
-    match get(lb_tab, get(rpc, 'lat')):
+    match get(lb_tab, get(rpc, 'latstring')):
 		Some(dst) =>
 			pass
 		None =>
-            set(lb_tab, get(rpc, 'lat'), '1')
+            set(lb_tab, get(rpc, 'latstring'), '1')
 	send(rpc, Down)
 
 resp(rpc):

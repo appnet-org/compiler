@@ -6,9 +6,9 @@ init():
 	pass
 
 req(rpc):
-	set(record_req, size(record_req), get(rpc, 'lat'))
+	set(record_req, size(record_req), get(rpc, 'latstring'))
 	send(rpc, Down)
 
 resp(rpc):
-	set(record_resp, size(record_resp), get(rpc, 'lat'))
+	set(record_resp, size(record_resp), get(rpc, 'latstring'))
 	send(rpc, Up)

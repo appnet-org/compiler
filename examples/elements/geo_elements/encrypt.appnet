@@ -5,7 +5,7 @@ init():
     password = '123456'
 
 req(rpc):
-	ori = get(rpc, 'lat')
+	ori = get(rpc, 'latstring')
     encrypted = encrypt(ori, password)
     set(rpc, 'lat', encrypted)
     send(rpc, Down)

@@ -7,7 +7,7 @@ init():
     set(cache, '0.0', 'bomb')
 
 req(rpc):
-    res = get(cache, get(rpc, 'body'))
+    res = get(cache, get(rpc, 'latstring'))
 	match res:
 		Some(name) =>
             match name:
@@ -17,7 +17,7 @@ req(rpc):
                     send(err('bomb'), Up)
 		None =>
             pass
-    set(record_cache, rpc_id(), get(rpc, 'body'))
+    set(record_cache, rpc_id(), get(rpc, 'latstring'))
 	send(rpc, Down)
 
 resp(rpc):
