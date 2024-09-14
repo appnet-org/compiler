@@ -26,5 +26,5 @@ Cargo.lock
 Python*/
 
 experiments/
-examples/chain/*.yaml
+# examples/chain/*.yaml
 tests/tmp_gen/
