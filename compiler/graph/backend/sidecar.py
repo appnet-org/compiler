@@ -324,6 +324,11 @@ def scriptgen_sidecar(
             yml_list = list(yaml.safe_load_all(f))
             for obj_yml in yml_list:
                 if obj_yml and "kind" in obj_yml and obj_yml["kind"] == "Deployment":
+                    
+                    # Skip the jaeger deployment
+                    if obj_yml["metadata"]["name"] == "jaeger":
+                        continue
+                    
                     for container_yaml in (
                         obj_yml["spec"]["template"]["spec"]["containers"]
                         + obj_yml["spec"]["template"]["spec"]["initContainers"]
@@ -461,7 +466,7 @@ def scriptgen_sidecar(
     with open(app_install_file, "w") as f:
         yaml.dump_all(yml_list_istio, f, default_flow_style=False)
     # TODO: we probably should just pipe the output of istioctl
-    execute_local(["rm", istio_injected_file])
+    # execute_local(["rm", istio_injected_file])
 
     # Generate script to attach elements.
     for gir in girs.values():
