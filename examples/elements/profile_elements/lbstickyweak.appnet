@@ -9,7 +9,7 @@ req(rpc):
     match get(lb_tab, get(rpc, 'locale')):
 		Some(dst) =>
 			pass
-		None =test>
+		None =>
             set(lb_tab, get(rpc, 'locale'), '1')
 	send(rpc, Down)
 
