@@ -898,11 +898,13 @@ def proto_gen_size(rpc: str, args: List[str]) -> str:
 
 
 def proto_gen_bytesize(rpc: str, args: List[str]) -> str:
-    assert len(args) == 0
     # TODO: fix - should return usize.
+    # TODO: return size(rpc) without specifying field name
     # Also, this does not seem to return the actual length of the RPC but the pointer size.
     # return f"mem::size_of_val(&{rpc}) as f64"
-    return f"{rpc}.body.bytes().len() as f64"
+    assert len(args) == 1
+    field_name = args[0].replace('"', "")
+    return f"{rpc}.{field_name}.bytes().len() as f64"
 
 
 def proto_get_arg_type(arg: str, ctx: WasmContext) -> str:

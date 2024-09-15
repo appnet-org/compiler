@@ -13,7 +13,7 @@ init():
 req(rpc):
 	token_bw = min(limit_bw, token_bw + (per_sec_bw * time_diff(current_time(), last_bw)))
 	last_bw = current_time()
-    size_bw = byte_size(rpc)
+    size_bw = byte_size(rpc, 'latstring')
     match token_bw >= size_bw:
 		true =>
 			token_bw = token_bw - size_bw

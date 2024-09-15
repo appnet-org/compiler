@@ -5,8 +5,8 @@ init():
     pass
 
 req(rpc):
-    mutation_body = get(rpc, 'body')
-    set(rpc, 'body', mutation_body)
+    mutation_body = get(rpc, 'latstring')
+    set(rpc, 'latstring', mutation_body)
     send(rpc, Down)
 
 

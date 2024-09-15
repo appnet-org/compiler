@@ -178,7 +178,7 @@ class WriteAnalyzer(Visitor):
             return True
         ret = False
         for a in node.args:
-            if a != None:
+            if a != None and isinstance(a, Node):
                 ret = a.accept(self, ctx) or ret
         return ret
 

@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package search;
+option go_package = "./search";
+
+// Search service returns best hotel chocies for a user.
+service Search {
+  rpc Nearby(NearbyRequest) returns (SearchResult);
+}
+
+message NearbyRequest {
+  float lat = 1;
+  float lon = 2;
+  string inDate = 3;
+  string outDate = 4;
+}
+
+message SearchResult {
+  repeated string hotelIds = 1;
+}
