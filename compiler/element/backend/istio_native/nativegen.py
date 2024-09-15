@@ -1412,7 +1412,8 @@ class SetMap(AppNetBuiltinFuncProto):
 
 class ByteSize(AppNetBuiltinFuncProto):
     def instantiate(self, args: List[AppNetType]) -> bool:
-        ret = len(args) == 1 and isinstance(args[0], AppNetRPC)
+        # TODO: wasm needs field name for now, discarded
+        ret = len(args) == 2 and isinstance(args[0], AppNetRPC)
         if ret:
             self.prepared = True
             self.appargs = args
@@ -1421,8 +1422,10 @@ class ByteSize(AppNetBuiltinFuncProto):
     def ret_type(self) -> AppNetType:
         return AppNetInt()
 
-    def gen_code(self, ctx: NativeContext, rpc: NativeVariable) -> NativeVariable:
-        self.native_arg_sanity_check([rpc])
+    def gen_code(
+        self, ctx: NativeContext, rpc: NativeVariable, field_name: NativeVariable
+    ) -> NativeVariable:
+        self.native_arg_sanity_check([rpc, field_name])
 
         (
             res_native_var,
@@ -1587,16 +1590,18 @@ class RPCID(AppNetBuiltinFuncProto):
         return AppNetUInt()
 
     def gen_code(self, ctx: NativeContext) -> NativeVariable:
-        rpc_id_str, decl = ctx.declareNativeVar(ctx.new_temporary_name(), NativeString())
+        rpc_id_str, decl = ctx.declareNativeVar(
+            ctx.new_temporary_name(), NativeString()
+        )
         ctx.push_code(decl)
-        ctx.push_code(f"{rpc_id_str.name} = \"appnet-rpc-id\";")
+        ctx.push_code(f'{rpc_id_str.name} = "appnet-rpc-id";')
 
         rpcHeaderFunc: GetRPCHeader = GetRPCHeader()
         # Mock instantiate
         ret = rpcHeaderFunc.instantiate([AppNetRPC(), AppNetString()])
-        assert(ret == True)
+        assert ret == True
 
-        ret = rpcHeaderFunc.gen_code(ctx, None, rpc_id_str, forced_ret_type=AppNetUInt()) # type: ignore
+        ret = rpcHeaderFunc.gen_code(ctx, None, rpc_id_str, forced_ret_type=AppNetUInt())  # type: ignore
         return ret
 
     def __init__(self):
@@ -1930,9 +1935,14 @@ class GetRPCHeader(AppNetBuiltinFuncProto):
         assert native_args[1].type.is_string()
 
     def gen_code(
-        self, ctx: NativeContext, _rpc: NativeVariable, field: NativeVariable, *, forced_ret_type: Optional[AppNetType] = None
+        self,
+        ctx: NativeContext,
+        _rpc: NativeVariable,
+        field: NativeVariable,
+        *,
+        forced_ret_type: Optional[AppNetType] = None,
     ) -> NativeVariable:
-        # Note that we specialize the native arg check for this function because 
+        # Note that we specialize the native arg check for this function because
         # 1. We don't really use RPC in the function body.
         # 2. RPCID will pass a None to here.
         self.native_arg_sanity_check([_rpc, field])
@@ -1942,7 +1952,6 @@ class GetRPCHeader(AppNetBuiltinFuncProto):
         else:
             assert ctx.most_recent_assign_left_type is not None
             self.ret_type_inferred = ctx.most_recent_assign_left_type
-
 
         (
             res_native_var,
@@ -2206,40 +2215,48 @@ class Encrypt(AppNetBuiltinFuncProto):
     def __init__(self):
         super().__init__("encrypt")
 
+
 class Decrypt(AppNetBuiltinFuncProto):
-  # func(msg: str, password: str) -> new_msg: str
-  def instantiate(self, args: List[AppNetType]) -> bool:
-    ret = len(args) == 2 and args[0].is_string() and args[1].is_string()
-    if ret:
-      self.prepared = True
-      self.appargs = args
-    return ret
+    # func(msg: str, password: str) -> new_msg: str
+    def instantiate(self, args: List[AppNetType]) -> bool:
+        ret = len(args) == 2 and args[0].is_string() and args[1].is_string()
+        if ret:
+            self.prepared = True
+            self.appargs = args
+        return ret
 
-  def ret_type(self) -> AppNetType:
-    return AppNetString()
+    def ret_type(self) -> AppNetType:
+        return AppNetString()
 
-  def gen_code(self, ctx: NativeContext, msg: NativeVariable, password: NativeVariable) -> NativeVariable:
-    self.native_arg_sanity_check([msg, password])
+    def gen_code(
+        self, ctx: NativeContext, msg: NativeVariable, password: NativeVariable
+    ) -> NativeVariable:
+        self.native_arg_sanity_check([msg, password])
 
-    res_native_var, native_decl_stmt,  \
-      = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
-    ctx.push_code(native_decl_stmt)
+        (
+            res_native_var,
+            native_decl_stmt,
+        ) = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+        ctx.push_code(native_decl_stmt)
 
-    ctx.push_code("{")
-    ctx.push_code(f"std::string __tmp_str;")
-    ctx.push_code(f"std::string __password_str = {password.name};")
-    ctx.push_code(f"std::string __msg_str = {msg.name};")
-    ctx.push_code(f"for (size_t i = 0; i < __msg_str.size(); i++)")
-    ctx.push_code("{")
-    ctx.push_code(f"  __tmp_str.push_back(__msg_str[i] ^ __password_str[i % __password_str.size()]);")
-    ctx.push_code("}")
-    ctx.push_code(f"{res_native_var.name} = __tmp_str;")
-    ctx.push_code("}")
+        ctx.push_code("{")
+        ctx.push_code(f"std::string __tmp_str;")
+        ctx.push_code(f"std::string __password_str = {password.name};")
+        ctx.push_code(f"std::string __msg_str = {msg.name};")
+        ctx.push_code(f"for (size_t i = 0; i < __msg_str.size(); i++)")
+        ctx.push_code("{")
+        ctx.push_code(
+            f"  __tmp_str.push_back(__msg_str[i] ^ __password_str[i % __password_str.size()]);"
+        )
+        ctx.push_code("}")
+        ctx.push_code(f"{res_native_var.name} = __tmp_str;")
+        ctx.push_code("}")
 
-    return res_native_var
+        return res_native_var
 
-  def __init__(self):
-    super().__init__("decrypt")
+    def __init__(self):
+        super().__init__("decrypt")
+
 
 APPNET_BUILTIN_FUNCS = [
     GetRPCMeta,
@@ -2267,5 +2284,5 @@ APPNET_BUILTIN_FUNCS = [
     GetMetadata,
     SetMetadata,
     Encrypt,
-    Decrypt
+    Decrypt,
 ]
