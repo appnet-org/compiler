@@ -1,17 +1,14 @@
-state {
+state:
 	password: string
-}
-fn init() {
-    password := '123456';
-}
 
-fn req(rpc) {
-	ori := rpc.get('customer_name');
-    encrypted := encrypt(ori, password);
-    rpc.set('customer_name', encrypted);
-    send(rpc, Down);
-}
+init():
+    password = '123456'
 
-fn resp(rpc) {
-    send(rpc, Up);
-}
+req(rpc):
+	ori = get(rpc, 'customer_name')
+    encrypted = encrypt(ori, password)
+    set(rpc, 'body', encrypted)
+    send(rpc, Down)
+
+resp(rpc):
+    send(rpc, Up)
