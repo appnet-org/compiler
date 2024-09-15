@@ -1,16 +1,12 @@
-state
-{
+state:
 	record_req: Vec<string>
-}
 
-fn init() {
-}
+init():
+	pass
 
-fn req(rpc) {
-	record_req.set(record_req.size(), rpc.get('customer_name'));
-	send(rpc, Down);
-}
+req(rpc):
+	set(record_req, size(record_req), get(rpc, 'customer_name'))
+	send(rpc, Down)
 
-fn resp(rpc) {
-	send(rpc, Up);
-}
+resp(rpc):
+	send(rpc, Up)
