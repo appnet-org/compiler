@@ -259,10 +259,12 @@ def main(args):
     for gir in graphirs.values():
         graphir_summary += str(gir)
     print(graphir_summary)
+    graphir_summary_dict = {}
+    for edge_name, gir in graphirs.items():
+        graphir_summary_dict[edge_name] = gir.export_summary()
     # We should safe them as yaml file, but it messes up the kubectl apply command.
     with open(os.path.join(gen_dir, "gir_summary"), "w") as f:
-        f.write(graphir_summary)
-        # f.write(yaml.dump(graphir_summary, default_flow_style=False, indent=4))
+        yaml.safe_dump(graphir_summary_dict, f, default_flow_style=False)
 
     # graphir rich display in terminal
     if args.verbose:
