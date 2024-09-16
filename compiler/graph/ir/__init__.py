@@ -169,6 +169,19 @@ class GraphIR:
             s += pos + ": " + " -> ".join(map(str, subchain)) + "\n"
         return s
 
+    def export_summary(self) -> Dict[str, List[str]]:
+        res = {}
+        for pos, subchain in self.elements.items():
+            res[pos] = []
+            for element in subchain:
+                name = "+".join(element.name)
+                if "wasm" in element.target:
+                    name += "(wasm)"
+                if "native" in element.target:
+                    name += "(native)"
+                res[pos].append(name)
+        return res
+
     def to_rich(self) -> List[Union[Panel, str]]:
         # TODO: better visualization
         """Generate rich.panel objects for visualization.
