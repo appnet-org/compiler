@@ -1983,8 +1983,10 @@ class GetRPCHeader(AppNetBuiltinFuncProto):
                 f'  ENVOY_LOG(error, "[AppNet Filter] Failed to convert string to unsigned long");'
             )
             ctx.push_code("}")
+        elif self.ret_type_inferred.is_string():
+            ctx.push_code(f"{res_native_var.name} = __tmp_str;")
         else:
-            raise NotImplementedError("only int/uint type is supported for now")
+            raise NotImplementedError("only int/uint/string type is supported for now")
 
         ctx.push_code("}")
 
