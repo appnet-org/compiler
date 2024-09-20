@@ -21,8 +21,7 @@ req(rpc):
 	send(rpc, Down)
 
 resp(rpc):
-    body = get(recor_cache, rpc_id())
-    match body:
+    match get(recor_cache, rpc_id()):
         Some(name) => 
             set(cache, name, 'cached')
         None =>

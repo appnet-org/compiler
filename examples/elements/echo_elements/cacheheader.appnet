@@ -1,13 +1,14 @@
 state:
-    @consistency(strong) @combiner(sum) @persistence(true)
 	cache: Map<string, string>
-    recor_cache: Map<uint, string>
+    record_cache: Map<uint, string>
 
 init():
-    set(cache, '2015-04-10', 'bomb')
+    set(cache, 'bomb', 'bomb')
 
 req(rpc):
-    res = get(cache, get(rpc, 'in_date'))
+    body_string = ''
+    body_string = get_rpc_header(rpc, 'body')
+    res = get(cache, body_string)
 	match res:
 		Some(name) =>
             match name:
@@ -17,11 +18,12 @@ req(rpc):
                     send(err('bomb'), Up)
 		None =>
             pass
-    set(recor_cache, rpc_id(), get(rpc, 'in_date'))
+    set(record_cache, rpc_id(), body_string)
 	send(rpc, Down)
 
 resp(rpc):
-    match get(recor_cache, rpc_id()):
+    body = get(record_cache, rpc_id())
+    match body:
         Some(name) => 
             set(cache, name, 'cached')
         None =>

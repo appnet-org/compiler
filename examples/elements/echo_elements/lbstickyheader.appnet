@@ -1,0 +1,18 @@
+state:
+    lb_tab: Map<string, string>
+
+init():
+	pass
+
+req(rpc):
+    body_string = ''
+    body_string = get_rpc_header(rpc, 'body')
+    match get(lb_tab, body_string):
+		Some(dst) =>
+			pass
+		None =>
+            set(lb_tab, body_string, '1')
+	send(rpc, Down)
+
+resp(rpc):
+	send(rpc, Up)

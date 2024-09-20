@@ -19,9 +19,8 @@ req(rpc):
     set(record_cache, rpc_id(), get(rpc, 'locale'))
 	send(rpc, Down)
 
-resp(rpc):
-    body = get(record_cache, rpc_id())
-    match body:
+resp(rpc): 
+    match get(record_cache, rpc_id()):
         Some(name) => 
             set(cache, name, 'cached')
         None =>
