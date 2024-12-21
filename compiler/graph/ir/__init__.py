@@ -220,11 +220,22 @@ class GraphIR:
             + self.elements["server_grpc"]
         )
 
-    def optimize(self, opt_level: str, algorithm: str):
+    def optimize(self, opt_level: str, algorithm: str, dump_property: bool):
         """Run optimization algorithm on the graphir."""
-        optimize_func = cost_chain_optimize if algorithm == "cost" else chain_optimize
-        self.elements = optimize_func(
-            self.complete_chain(),
-            "request",
-            opt_level,
+        optimize_func = (
+            cost_chain_optimize if algorithm == "cost" else chain_optimize
         )
+        if opt_level != "no":
+            self.elements = optimize_func(
+                self.complete_chain(),
+                "request",
+                opt_level,
+                dump_property
+            )
+        else:
+            optimize_func(
+                self.complete_chain(),
+                "request", 
+                opt_level,
+                dump_property,
+            )

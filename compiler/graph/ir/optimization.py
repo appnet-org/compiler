@@ -2,9 +2,10 @@ from copy import deepcopy
 from itertools import permutations, product
 from pprint import pprint
 from typing import Dict, List, Tuple
+import os, yaml
 
 from compiler.graph.ir.element import AbsElement
-
+from compiler import graph_base_dir
 
 def init_dependency(chain: List[AbsElement], path: str):
     for element in chain:
@@ -217,6 +218,7 @@ def chain_optimize(
     chain: List[AbsElement],
     path: str,
     opt_level: str,
+    dump_property: bool,
 ) -> Tuple[List[AbsElement], List[AbsElement]]:
     """Optimize an element chain
 
@@ -487,17 +489,49 @@ def find_min_cost(chain: List[AbsElement]):
     return min_cost
 
 
-def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str):
+def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str, dump_property: bool):
     init_dependency(chain, path)
+    if dump_property:
+        properties = []
+        for element in chain:
+            properties.append({
+                "name": element.lib_name,
+                "partner": element.partner,
+                "position": element.position,
+                "processor": element.processor,
+                "upgrade": element.upgrade,
+                "read": element.get_prop("request", "read"),
+                "write": element.get_prop("request", "write"),
+                "record": element.get_prop("request", "record"),
+                "drop_or_block": element.has_prop("request", "drop", "block"),
+                "state_consistency": element.prop["state"]["consistency"],
+                "state_dependency": element.prop["state"]["state_dependence"],
+            })
+        # translate partner name into index
+        for d in properties:
+            if d["partner"] != "":
+                for i, element in enumerate(chain):
+                    if element.lib_name == d["partner"]:
+                        d["partner"] = i
+                        break
+            else:
+                d["partner"] = -1
+            assert isinstance(d["partner"], int)
+        gen_dir = os.path.join(graph_base_dir, "generated")
+        os.makedirs(gen_dir, exist_ok=True)
+        with open(os.path.join(gen_dir, "properties.yaml"), "w") as f:
+            yaml.safe_dump(properties, f, default_flow_style=False, indent=4)
+
     min_cost = cost(chain)
     final_chain = deepcopy(chain)
-    for new_chain in permutations(chain):
-        if equivalent(chain, new_chain, path, opt_level):
-            new_chain = deepcopy(new_chain)
-            new_min_cost = find_min_cost(new_chain)
-            if new_min_cost < min_cost:
-                min_cost = new_min_cost
-                final_chain = new_chain
+    if opt_level != "no" and not dump_property:
+        for new_chain in permutations(chain):
+            if equivalent(chain, new_chain, path, opt_level):
+                new_chain = deepcopy(new_chain)
+                new_min_cost = find_min_cost(new_chain)
+                if new_min_cost < min_cost:
+                    min_cost = new_min_cost
+                    final_chain = new_chain
 
     # split and consolidate
     subchains = split_chain(final_chain)

@@ -75,6 +75,10 @@ def parse_args():
         action="store_true",
     )
     parser.add_argument(
+        "--dump_property",
+        action="store_true",
+    )
+    parser.add_argument(
         "--opt_level",
         help="optimization level",
         type=str,
@@ -232,9 +236,8 @@ def main(args):
         # pseudo_property is set to True when we want to use hand-coded properties instead of auto-generated ones
         for element in gir.complete_chain():
             element.set_property_source(args.pseudo_property)
-        if args.opt_level != "no":
-            gir.optimize(args.opt_level, args.opt_algorithm)
-
+        gir.optimize(args.opt_level, args.opt_algorithm, args.dump_property)
+    
     if args.opt_level != "no":
         handle_state(graphirs)
 
@@ -254,7 +257,7 @@ def main(args):
     os.makedirs(gen_dir, exist_ok=True)
     # graphir_summary = {"graphir": []}
     # for gir in graphirs.values():
-    # graphir_summary["graphir"].append(str(gir))
+    # graphir_summary["graphir"].append(str(gir)) 
     graphir_summary = ""
     for gir in graphirs.values():
         graphir_summary += str(gir)
