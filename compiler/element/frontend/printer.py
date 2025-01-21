@@ -37,6 +37,12 @@ class Printer(Visitor):
             ret += f"{s.accept(self, ctx)}\n"
         return ret
 
+    def visitForeach(self, node: Foreach, ctx):
+        ret = f"foreach {node.func.arg.name} in {node.var.name}\n"
+        for stmt in node.func.body:
+            ret += f"   {stmt.accept(self, ctx)}\n"
+        return ret
+
     def visitStatement(self, node: Statement, ctx):
         if node.stmt == None:
             return "NULL_STMT;\n"
@@ -60,6 +66,9 @@ class Printer(Visitor):
 
     def visitPattern(self, node: Pattern, ctx):
         return node.value.accept(self, ctx)
+
+    def visitPair(self, node: Pair, ctx):
+        return f"( {node.first.accept(self, ctx)}, {node.second.accept(self, ctx)} )"
 
     def visitExpr(self, node: Expr, ctx):
         return (

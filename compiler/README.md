@@ -19,7 +19,7 @@ options:
                         printed on the terminal
   --pseudo_property     If added, use hand-coded properties instead of auto-generated ones
   --pseudo_impl         If added, use hand-coded impl instead of auto-generated ones
-  -b {mrpc,envoy}, --backend {mrpc,envoy}
+  -b, --backend {mrpc, grpc, sidecar_wasm, sidecar_native, ambient_wasm, ambient_native}
                         Backend name
   --mrpc_dir MRPC_DIR   Path to mrpc repo
   --dry_run             If added, the compilation terminates after optimization (i.e., no
