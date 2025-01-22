@@ -1908,6 +1908,67 @@ class GetLoad(AppNetBuiltinFuncProto):
         super().__init__("get_load")
 
 
+class EstimateRIFDistribution(AppNetBuiltinFuncProto):
+    def instantiate(self, args: List[AppNetType]) -> bool:
+        ret = len(args) == 1 and args[0].is_vec() and args[0].type.is_int()
+        if ret:
+            self.prepared = True
+            self.appargs = args
+        return ret
+
+    def ret_type(self) -> AppNetType:
+        return AppNetVec(AppNetInt())
+    
+    def gen_code(self, ctx: NativeContext, backends: NativeVariable) -> NativeVariable:
+        self.native_arg_sanity_check([backends])
+
+        (
+            res_native_var,
+            native_decl_stmt,
+        ) = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+        ctx.push_code(native_decl_stmt)
+        ctx.push_code("{")
+        # generate query url
+        ctx.push_code(f"nlohmann::json jsonlist = {backends.name};")
+        url_native_var, url_decl_str = ctx.declareNativeVar(
+            ctx.new_temporary_name(), NativeString()
+        )
+        ctx.push_code(url_decl_str) 
+        ctx.push_code(
+            f'{url_native_var.name} = "/getEstimatedRIFDistribution?backends=" + jsonlist.dump();'
+        )
+        ctx.genBlockingHttpRequest("prequal-manager", url_native_var)
+
+        # get response
+        ctx.push_code("if (this->external_response_ == nullptr) {")
+        ctx.push_code(
+            '   ENVOY_LOG(error, "[AppNet Filter] prequal manager HTTP Request Failed");'
+        )
+        ctx.push_code("   std::terminate();")
+        ctx.push_code("}")
+        ctx.push_code(
+            f"std::string response_str = this->external_response_->bodyAsString();"
+        )
+        ctx.push_code(
+            f'ENVOY_LOG(info, "[AppNet Filter] Load Manager Response: {{}}", response_str);'
+        )
+
+        # parse response as vec<int>
+        ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
+        ctx.push_code(f"{res_native_var.name} = j.get<std::vector<int>>();")
+        ctx.push_code("}")
+
+        return res_native_var
+
+    def __init__(self):
+        super().__init__("estimate_RIF_distribution")
+
+
+class Quantile(AppNetBuiltinFuncProto):
+    def __init__(self):
+        super().__init__("quantile")
+
+
 class GetRPCHeader(AppNetBuiltinFuncProto):
     # TODO: GetRPCHeader needs to infer the return type from the assign stmt.
     # TODO: For now we use the most recent assign stmt to infer the return type, which is quite dirty.
@@ -2287,4 +2348,6 @@ APPNET_BUILTIN_FUNCS = [
     SetMetadata,
     Encrypt,
     Decrypt,
+    EstimateRIFDistribution,
+    Quantile,
 ]

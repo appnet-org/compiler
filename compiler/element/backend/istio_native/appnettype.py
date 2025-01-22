@@ -79,6 +79,9 @@ class AppNetType:
     def is_pair(self) -> bool:
         return isinstance(self, Pair)
 
+    def is_vec(self) -> bool:
+        return isinstance(self, Vec)
+
 
 def appnet_type_from_str(name: str) -> AppNetType:
     match name.lower():
