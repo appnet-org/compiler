@@ -40,7 +40,7 @@ def compile_wasm_elements(girs: Dict[str, GraphIR]):
                     [
                         "cargo",
                         "build",
-                        "--target=wasm32-wasi",
+                        "--target=wasm32-wasip1",
                         "--manifest-path",
                         os.path.join(impl_dir, "Cargo.toml"),
                         "--release",
@@ -52,7 +52,7 @@ def compile_wasm_elements(girs: Dict[str, GraphIR]):
                         "cp",
                         os.path.join(
                             impl_dir,
-                            f"target/wasm32-wasi/release/{element.lib_name}.wasm",
+                            f"target/wasm32-wasip1/release/{element.lib_name}.wasm",
                         ),
                         "/tmp/appnet",
                     ]
@@ -199,10 +199,11 @@ def compile_native_image():
     native_image_name = f"{HUB_NAME}/proxyv2:1.22.3-distroless"
     if os.getenv("APPNET_NO_BAKE") != "1":
         GRAPH_BACKEND_LOG.info("Building the istio sidecar...")
-        execute_local(
-            ["bash", "build.sh"],
-            cwd=generated_istio_proxy_path,
-        )
+        subprocess.run(["bash", "build.sh"], cwd=generated_istio_proxy_path)
+        # execute_local(
+        #     ["bash", "build.sh"],
+        #     cwd=generated_istio_proxy_path,
+        # )
         # Bake the istio proxy image.
         GRAPH_BACKEND_LOG.info("Building the istio proxy image...")
         execute_local(
