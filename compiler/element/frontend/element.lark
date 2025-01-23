@@ -14,11 +14,11 @@ consistency_decorator: "@consistency" "(" NAME ")"
 combiner_decorator: "@combiner" "(" NAME ")"
 persistence_decorator: "@persistence" "(" bool ")"
 
-type_: single_type
-     | "Vec" "<" (single_type | pair_type) ">" -> vec_type
-     | "Map" "<" single_type "," (single_type | pair_type) ">" -> map_type
-pair_type: "<" single_type "," single_type ">"
 single_type: NAME
+pair_type: "<" single_type "," single_type ">"
+vec_type: "Vec" "<" (single_type | pair_type) ">"
+map_type: "Map" "<" single_type "," (single_type | pair_type | vec_type) ">"
+type_: single_type | pair_type | vec_type | map_type
 
 body: _NEWLINE _INDENT ( simple_stmt | match_stmt | foreach_stmt | _NEWLINE )* _DEDENT
 

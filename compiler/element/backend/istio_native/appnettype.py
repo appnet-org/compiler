@@ -110,6 +110,8 @@ def appnet_type_from_str(name: str) -> AppNetType:
                     )
                 else:
                     raise Exception(f"Unknown type {name} when converting from string")
+            elif name.startswith("Vec"):
+                return Vec(appnet_type_from_str(name[4:-1]))
 
             raise Exception(f"Unknown type {name} when converting from string")
 
