@@ -538,20 +538,24 @@ class NativeGenerator(Visitor):
                     ctx.push_code("else")
 
                 ctx.push_code(f"if ({native_expr.name} == {pattern_embed_str})")
+                ctx.push_appnet_scope()
                 ctx.push_code("{")
                 for stmt in stmts:
                     stmt.accept(self, ctx)
                 ctx.push_code("}")
+                ctx.pop_appnet_scope()
                 first = False
         if empty_pattern is not None:
             assert empty_pattern_stmts is not None
             if first == True:
                 raise Exception("Remove redundant empty pattern please")
             ctx.push_code("else")
+            ctx.push_appnet_scope()
             ctx.push_code("{")
             for stmt in empty_pattern_stmts:
                 stmt.accept(self, ctx)
             ctx.push_code("}")
+            ctx.pop_appnet_scope() 
 
         ctx.pop_appnet_scope()
 
@@ -589,7 +593,17 @@ class NativeGenerator(Visitor):
                     f"{rhs_native_var.name} = std::numeric_limits<int>::max();"
                 )
                 rhs.native_var = rhs_native_var
-
+            elif node.name == "inf_f":
+                rhs = ctx.declareAppNetLocalVariable(node.name, AppNetFloat())
+                rhs_native_var, decl = ctx.declareNativeVar(
+                    ctx.new_temporary_name(), NativeFloat()
+                )
+                ctx.push_code(decl)
+                # set it to the maximum value of float
+                ctx.push_code(
+                    f"{rhs_native_var.name} = std::numeric_limits<float>::max();"
+                )
+                rhs.native_var = rhs_native_var
             else:
                 raise Exception(f"unknown variable {node.name}")
 
@@ -847,11 +861,13 @@ class NativeGenerator(Visitor):
         elif node.name == "Instant":
             return AppNetInstant()
         elif node.name.startswith("Map"):
-            # For now, we only support two types of map:
+            # For now, we only support 3 types of map:
             # Map<keytype, valuetype>
             # Map<keytype, <typea, typeb>>
+            # Map<keytype, Vec<valuetype>>
+            print(node.name)
             if node.name.count(",") == 1:
-                # Map<keytype, valuetype>
+                # Map<keytype, valuetype> / Map<keytype, Vec<valuetype>>
                 keytype_str = node.name[4:-1].split(",")[0].strip()
                 valuetype_str = node.name[4:-1].split(",")[1].strip()
                 key_type = appnet_type_from_str(keytype_str)
@@ -1910,24 +1926,24 @@ class GetLoad(AppNetBuiltinFuncProto):
 
 class EstimateRIFDistribution(AppNetBuiltinFuncProto):
     def instantiate(self, args: List[AppNetType]) -> bool:
-        ret = len(args) == 1 and args[0].is_vec() and args[0].type.is_int()
+        ret = len(args) == 1 and args[0].is_vec()
         if ret:
             self.prepared = True
             self.appargs = args
         return ret
 
     def ret_type(self) -> AppNetType:
-        return AppNetVec(AppNetInt())
+        return AppNetVec(AppNetFloat())
     
     def gen_code(self, ctx: NativeContext, backends: NativeVariable) -> NativeVariable:
         self.native_arg_sanity_check([backends])
-
         (
             res_native_var,
             native_decl_stmt,
         ) = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
         ctx.push_code(native_decl_stmt)
         ctx.push_code("{")
+
         # generate query url
         ctx.push_code(f"nlohmann::json jsonlist = {backends.name};")
         url_native_var, url_decl_str = ctx.declareNativeVar(
@@ -1955,7 +1971,7 @@ class EstimateRIFDistribution(AppNetBuiltinFuncProto):
 
         # parse response as vec<int>
         ctx.push_code(f"nlohmann::json j = nlohmann::json::parse(response_str);")
-        ctx.push_code(f"{res_native_var.name} = j.get<std::vector<int>>();")
+        ctx.push_code(f"{res_native_var.name} = j.get<std::vector<float>>();")
         ctx.push_code("}")
 
         return res_native_var
@@ -1965,6 +1981,38 @@ class EstimateRIFDistribution(AppNetBuiltinFuncProto):
 
 
 class Quantile(AppNetBuiltinFuncProto):
+    def instantiate(self, args: List[AppNetType]) -> bool:
+        ret = (
+            len(args) == 2 and
+            args[0].is_vec() and
+            args[1].is_float()
+        )
+        if ret:
+            self.prepared = True
+            self.appargs = args
+        return ret
+
+    def ret_type(self) -> AppNetType:
+        return self.appargs[0].type 
+    
+    def gen_code(self, ctx: NativeContext, vec: NativeVariable, q: NativeVariable) -> NativeVariable:
+        self.native_arg_sanity_check([vec, q])
+        (
+            res_native_var,
+            native_decl_stmt,
+        ) = ctx.declareNativeVar(ctx.new_temporary_name(), self.ret_type().to_native())
+        ctx.push_code(native_decl_stmt)
+        ctx.push_code("{")
+        # get sorted vector
+        ctx.push_code(f"std::vector<float> sorted_vec = {vec.name};")
+        ctx.push_code("std::sort(sorted_vec.begin(), sorted_vec.end());")
+        # find quantile position
+        ctx.push_code(f"int idx = static_cast<int>({q.name} * sorted_vec.size()) - 1;")
+        ctx.push_code(f"{res_native_var.name} = sorted_vec[idx];")
+        ctx.push_code("}")
+
+        return res_native_var
+
     def __init__(self):
         super().__init__("quantile")
 
