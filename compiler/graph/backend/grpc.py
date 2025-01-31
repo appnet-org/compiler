@@ -214,14 +214,14 @@ def scriptgen_grpc(
             yaml.dump_all(yml_list, f, default_flow_style=False)
 
         # Copy to all nodes
-        # nodes = get_node_names(control_plane=False)
-        # for node in nodes:
-        #     execute_remote_host(node, ["mkdir", "-p", "/tmp/appnet/interceptors"])
-        #     copy_remote_host(
-        #         node,
-        #         f"/tmp/appnet/interceptors/{service + timestamp}",
-        #         "/tmp/appnet/interceptors",
-        #     )
+        nodes = get_node_names(control_plane=False)
+        for node in nodes:
+            execute_remote_host(node, ["mkdir", "-p", "/tmp/appnet/interceptors"])
+            copy_remote_host(
+                node,
+                f"/tmp/appnet/interceptors/{service + timestamp}",
+                "/tmp/appnet/interceptors",
+            )
 
     GRAPH_BACKEND_LOG.info(
         "gRPC compilation complete. The generated element is deployed."
