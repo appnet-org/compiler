@@ -214,14 +214,14 @@ def scriptgen_grpc(
             yaml.dump_all(yml_list, f, default_flow_style=False)
 
         # Copy to all nodes
-        nodes = get_node_names(control_plane=False)
-        for node in nodes:
-            execute_remote_host(node, ["mkdir", "-p", "/tmp/appnet/interceptors"])
-            copy_remote_host(
-                node,
-                f"/tmp/appnet/interceptors/{service + timestamp}",
-                "/tmp/appnet/interceptors",
-            )
+        # nodes = get_node_names(control_plane=False)
+        # for node in nodes:
+        #     execute_remote_host(node, ["mkdir", "-p", "/tmp/appnet/interceptors"])
+        #     copy_remote_host(
+        #         node,
+        #         f"/tmp/appnet/interceptors/{service + timestamp}",
+        #         "/tmp/appnet/interceptors",
+        #     )
 
     GRAPH_BACKEND_LOG.info(
         "gRPC compilation complete. The generated element is deployed."
@@ -236,5 +236,8 @@ def extract_full_method_name(elements: list[AbsElement]) -> str:
     ), "Unsupported: same application has identical method names in different proto services"
     proto = first_el.proto
     package_name = extract_proto_package_name(proto)
-    service_name = extract_proto_service_name(proto)
+    if "boutique" in proto:
+        service_name = first_el.server.capitalize() + "Service"
+    else:
+        service_name = extract_proto_service_name(proto)
     return f"/{package_name}.{service_name}/{first_el.method}"
