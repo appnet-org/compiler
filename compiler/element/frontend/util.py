@@ -25,14 +25,20 @@ def find_type_index(list, target_type) -> int:
 
 
 def extract_proto_message_names(
-    proto_file: str, target_method_name: str
+    proto_file: str,
+    target_method_name: str,
+    service_name: str = "",
 ) -> Tuple[Optional[str], Optional[str]]:
     with open(proto_file, "r") as file:
         proto_content = file.read()
 
     # Regular expression to find service definitions
     services = re.findall(r"service\s+\w+\s+{[^}]+}", proto_content)
-    assert len(services) == 1, "Only one service definition is supported"
+    assert len(services) == 1 or service_name != "", "Only one service definition is supported"
+
+    if service_name != "":
+        services = list(filter(lambda s: service_name in s, services))
+        assert len(services) == 1, "No or more than one services found"
 
     # Regular expression to find rpc definitions, including stream
     rpcs = re.findall(

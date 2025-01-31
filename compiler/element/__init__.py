@@ -88,8 +88,9 @@ def gen_code(
     compiler = ElementCompiler()
 
     # Find the request and response message names.
+    service_name = server.capitalize() + "Service" if "boutique" in proto_module_name else ""
     request_message_name, response_message_name = extract_proto_message_names(
-        proto_path, method_name
+        proto_path, method_name, service_name=service_name
     )
     assert request_message_name is not None and response_message_name is not None
 
