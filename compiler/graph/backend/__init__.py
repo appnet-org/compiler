@@ -92,7 +92,7 @@ def attach_volumes_and_adjust_replica(app_manifest_file: str) -> list[any]:
             }
         )
 
-    return yml_list
+    return [yml for yml in yml_list if yml is not None]
 
 
 def scriptgen(

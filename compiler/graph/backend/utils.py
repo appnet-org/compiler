@@ -82,6 +82,9 @@ def extract_service_label(yml_list: List[Dict]) -> Dict[str, str]:
     for yml in yml_list:
         if yml and yml["kind"] == "Service":
             service_name = yml["metadata"]["name"]
+            # TODO: temp hack to skip cart-redis in boutique
+            if "redis" in service_name:
+                continue
             # We assume the service label value is the same as the service name
             for k, v in yml["metadata"]["labels"].items():
                 if v == service_name:

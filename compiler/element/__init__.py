@@ -29,6 +29,16 @@ from compiler.element.ir.props.flow import FlowGraph, Property
 from compiler.element.logger import ELEMENT_LOG as LOG
 
 
+# TODO: unified naming convention for services in proto
+def generate_service_name(mod_name: str, server: str) -> str:
+    if "boutique" not in mod_name:
+        return ""
+    if "product" in server:
+        return "ProductCatalogService"
+    else:
+        return server.capitalize() + "Service"
+
+
 def gen_code(
     element_names: List[str],
     element_paths: List[str],
@@ -88,7 +98,7 @@ def gen_code(
     compiler = ElementCompiler()
 
     # Find the request and response message names.
-    service_name = server.capitalize() + "Service" if "boutique" in proto_module_name else ""
+    service_name = generate_service_name(proto_module_name, server)
     request_message_name, response_message_name = extract_proto_message_names(
         proto_path, method_name, service_name=service_name
     )
