@@ -21,9 +21,9 @@ package onlineboutique;
 // -----------------Cart service-----------------
 
 service CartService {
-    rpc AddItem(AddItemRequest) returns (Empty) {}
-    rpc GetCart(GetCartRequest) returns (Cart) {}
-    rpc EmptyCart(EmptyCartRequest) returns (Empty) {}
+    rpc AddItem(AddItemRequest) returns (Empty);
+    rpc GetCart(GetCartRequest) returns (Cart);
+    rpc EmptyCart(EmptyCartRequest) returns (Empty);
 }
 
 message CartItem {
@@ -58,7 +58,7 @@ message EmptyUser {
 // ---------------Recommendation service----------
 
 service RecommendationService {
-  rpc ListRecommendations(ListRecommendationsRequest) returns (ListRecommendationsResponse){}
+  rpc ListRecommendations(ListRecommendationsRequest) returns (ListRecommendationsResponse);
 }
 
 message ListRecommendationsRequest {
@@ -73,9 +73,9 @@ message ListRecommendationsResponse {
 // ---------------Product Catalog----------------
 
 service ProductCatalogService {
-    rpc ListProducts(EmptyUser) returns (ListProductsResponse) {}
-    rpc GetProduct(GetProductRequest) returns (Product) {}
-    rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse) {}
+    rpc ListProducts(EmptyUser) returns (ListProductsResponse);
+    rpc GetProduct(GetProductRequest) returns (Product);
+    rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse);
 }
 
 message Product {
@@ -109,8 +109,8 @@ message SearchProductsResponse {
 // ---------------Shipping Service----------
 
 service ShippingService {
-    rpc GetQuote(GetQuoteRequest) returns (GetQuoteResponse) {}
-    rpc ShipOrder(ShipOrderRequest) returns (ShipOrderResponse) {}
+    rpc GetQuote(GetQuoteRequest) returns (GetQuoteResponse);
+    rpc ShipOrder(ShipOrderRequest) returns (ShipOrderResponse);
 }
 
 message GetQuoteRequest {
@@ -142,8 +142,8 @@ message Address {
 // -----------------Currency service-----------------
 
 service CurrencyService {
-    rpc GetSupportedCurrencies(EmptyUser) returns (GetSupportedCurrenciesResponse) {}
-    rpc Convert(CurrencyConversionRequest) returns (Money) {}
+    rpc GetSupportedCurrencies(EmptyUser) returns (GetSupportedCurrenciesResponse);
+    rpc Convert(CurrencyConversionRequest) returns (Money);
 }
 
 // Represents an amount of money with its currency type.
@@ -181,7 +181,7 @@ message CurrencyConversionRequest {
 // -------------Payment service-----------------
 
 service PaymentService {
-    rpc Charge(ChargeRequest) returns (ChargeResponse) {}
+    rpc Charge(ChargeRequest) returns (ChargeResponse);
 }
 
 message CreditCardInfo {
@@ -203,7 +203,7 @@ message ChargeResponse {
 // -------------Email service-----------------
 
 service EmailService {
-    rpc SendOrderConfirmation(SendOrderConfirmationRequest) returns (Empty) {}
+    rpc SendOrderConfirmation(SendOrderConfirmationRequest) returns (Empty);
 }
 
 message OrderItem {
@@ -228,7 +228,7 @@ message SendOrderConfirmationRequest {
 // -------------Checkout service-----------------
 
 service CheckoutService {
-    rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse) {}
+    rpc PlaceOrder(PlaceOrderRequest) returns (PlaceOrderResponse);
 }
 
 message PlaceOrderRequest {
@@ -247,7 +247,7 @@ message PlaceOrderResponse {
 // ------------Ad service------------------
 
 service AdService {
-    rpc GetAds(AdRequest) returns (AdResponse) {}
+    rpc GetAds(AdRequest) returns (AdResponse);
 }
 
 message AdRequest {
