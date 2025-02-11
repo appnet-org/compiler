@@ -215,7 +215,7 @@ class AbsElement:
         )
         # Fuse properties
         # Consolidation is the last step of optimization. Therefore, only state
-        # propertieds needs to be merged.
+        # properties need to be merged.
         self.prop["state"]["stateful"] |= other.prop["state"]["stateful"]
         if other.prop["state"]["consistency"] == "strong":
             self.prop["state"]["consistency"] = "strong"
