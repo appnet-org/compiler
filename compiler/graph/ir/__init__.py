@@ -7,7 +7,7 @@ from rich import box
 from rich.panel import Panel
 
 from compiler.graph.ir.element import AbsElement
-from compiler.graph.ir.optimization import chain_optimize, cost_chain_optimize
+from compiler.graph.ir.optimization import cost_chain_optimize, basic_heuristics
 
 
 def make_service_rich(name: str) -> Panel:
@@ -222,20 +222,17 @@ class GraphIR:
 
     def optimize(self, opt_level: str, algorithm: str, dump_property: bool):
         """Run optimization algorithm on the graphir."""
-        optimize_func = (
-            cost_chain_optimize if algorithm == "cost" else chain_optimize
-        )
-        if opt_level != "no":
-            self.elements = optimize_func(
+        if algorithm == "cost":
+            elements = cost_chain_optimize(
                 self.complete_chain(),
                 "request",
                 opt_level,
-                dump_property
-            )
-        else:
-            optimize_func(
-                self.complete_chain(),
-                "request", 
-                opt_level,
                 dump_property,
             )
+            if opt_level != "no":
+                self.elements = elements
+        elif algorithm == "heuristics":
+            assert opt_level != "no", "conflicting optimization configs"
+            self.elements = basic_heuristics(self.elements)
+        else:
+            raise NotImplementedError(f"Unrecognized optimization algorithm {algorithm}")

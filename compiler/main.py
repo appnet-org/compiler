@@ -101,7 +101,12 @@ def parse_args():
         help="#replica for each service",
         default="1",
     )
-    parser.add_argument("--opt_algorithm", type=str, default="cost")
+    parser.add_argument(
+        "--opt_algorithm",
+        type=str,
+        choices=["cost", "heuristics"],
+        default="cost",
+    )
     parser.add_argument("--debug", help="Print debug info", action="store_true")
 
     return parser.parse_args()
@@ -213,7 +218,7 @@ def handle_state(graphirs: Dict[str, GraphIR]):
             for element in chain:
                 replace_state(element.name, "strong")
                 replace_state(element.path, "strong")
-                replace_state(element.path, "weak")
+                replace_state(element.name, "weak")
                 replace_state(element.path, "weak")
 
 

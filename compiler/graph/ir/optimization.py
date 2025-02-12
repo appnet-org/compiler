@@ -386,13 +386,16 @@ def cost(chain: List[AbsElement]) -> float:
                 and subchain[r_pt + 1].target == subchain[r_pt].target
             ):
                 r_pt += 1
+            sync_level = "no"
             for i in range(l_pt, r_pt + 1):
                 consistency = subchain[i].prop["state"]["consistency"]
-                if consistency in ["strong", "weak"] and in_nonlocal_position(
-                    subchain[i], pos
-                ):
-                    c += state_sync_config[consistency][pos]
-                    break
+                if in_nonlocal_position(subchain[i], pos):
+                    if consistency == "strong":
+                        sync_level = "strong"
+                    elif consistency == "weak" and sync_level != "strong":
+                        sync_level = "weak"
+            if sync_level in ["strong", "weak"]:
+                c += state_sync_config[sync_level][pos]
             l_pt = r_pt + 1
         # wasm invocation overhead
         if "sidecar" in pos or "ambient" in pos:
@@ -562,4 +565,24 @@ def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str, dump
             l_pt = r_pt + 1
         subchains[pos] = consolidated_chain
 
+    return subchains
+
+
+def basic_heuristics(subchains: Dict[str, List[AbsElement]]) -> Dict[str, List[AbsElement]]:
+    # heuristics: move more elements into cheap platform and processor
+    # move elements into grpc
+    while len(subchains["client_sidecar"]) > 0 and "grpc" in subchains["client_sidecar"][0].processor:
+        element = subchains["client_sidecar"].pop(0)
+        element.target = "grpc"
+        subchains["client_grpc"].append(element)
+    while len(subchains["server_sidecar"]) > 0 and "grpc" in subchains["server_sidecar"][-1].processor:
+        element = subchains["server_sidecar"].pop()
+        element.target = "grpc"
+        subchains["server_grpc"].insert(0, element)
+    # switch to native if possible
+    keys = ["client_sidecar", "server_sidecar", "ambient"]
+    for key in keys:
+        for element in subchains[key]:
+            if element.upgrade == "any" and "wasm" in element.target:
+                element.target = element.target.replace("wasm", "native")
     return subchains
