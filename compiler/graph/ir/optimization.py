@@ -307,6 +307,10 @@ def split_chain(chain: List[AbsElement]) -> Dict[str, List[AbsElement]]:
 
 def in_nonlocal_position(element: AbsElement, pos: str) -> bool:
     state_dependence = element.prop["state"]["state_dependence"]
+    if "client" in pos and state_dependence == ["client_service"]:
+        return False
+    if "server" in pos and state_dependence == ["server_service"]:
+        return False
     if pos == "ambient" and (
         "client_service" in state_dependence or "server_service" in state_dependence
     ):
@@ -540,14 +544,8 @@ def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str, dump
     subchains = split_chain(final_chain)
 
     # modify ambient element sync level
-    replace_strong_weak = lambda s: s.replace("strong", "").replace("weak", "")
-    for element in subchains["ambient"]:
-        if element.prop["state"]["consistency"] in [
-            "strong",
-            "weak",
-        ] and not in_nonlocal_position(element, "ambient"):
-            element.name = list(map(replace_strong_weak, element.name))
-            element.path = list(map(replace_strong_weak, element.path))
+    # modify sync level of element w/ correct state dependency - position
+    subchains = modify_sync_level(subchains)
 
     for pos, subchain in subchains.items():
         l_pt, r_pt = 0, 0
@@ -568,6 +566,46 @@ def cost_chain_optimize(chain: List[AbsElement], path: str, opt_level: str, dump
     return subchains
 
 
+def modify_sync_level(subchains: Dict[str, List[AbsElement]]) -> Dict[str, List[AbsElement]]:
+    replace_strong_weak = lambda s: s.replace("strong", "").replace("weak", "")
+    for pos, chain in subchains.items():
+        for element in chain:
+            if element.prop["state"]["consistency"] in [
+                "strong",
+                "weak",
+            ] and not in_nonlocal_position(element, pos):
+                element.name = list(map(replace_strong_weak, element.name))
+                element.path = list(map(replace_strong_weak, element.path)) 
+    return subchains
+
+
+def state_dependency_optimization(subchains: Dict[str, List[AbsElement]], target: str) -> Dict[str, List[AbsElement]]:
+    incorrect_state_dependency = -1
+    for i, element in enumerate(subchains[f"client_{target}"]):
+        if element.prop["state"]["consistency"] in ["strong", "weak"] and element.position == "any" and element.prop["state"]["state_dependence"] == ["server_service"]:
+            movable = True
+            for j in range(i + 1, len(subchains[f"client_{target}"])):
+                if subchains[f"client_{target}"][j].position != "any":
+                    movable = False
+            if movable:
+                incorrect_state_dependency = i
+                break
+    if incorrect_state_dependency >= 0:
+        c1, c2 = subchains[f"client_{target}"][:incorrect_state_dependency], subchains[f"client_{target}"][incorrect_state_dependency:]
+        subchains[f"client_{target}"], subchains[f"server_{target}"] = c1, (c2 + subchains[f"server_{target}"])
+    incorrect_state_dependency = -1
+    for i, element in enumerate(subchains[f"server_{target}"]):
+        if element.position != "any":
+            break
+        if element.prop["state"]["consistency"] in ["strong", "weak"] and element.position == "any" and element.prop["state"]["state_dependence"] == ["client_service"]:
+            incorrect_state_dependency = i
+    if incorrect_state_dependency >= 0:
+        c1, c2 = subchains[f"server_{target}"][:incorrect_state_dependency + 1], subchains[f"server_{target}"][incorrect_state_dependency + 1]
+        subchains[f"client_{target}"], subchains[f"server_{target}"] = (subchains[f"client_{target}"] + c1), c2 
+    
+    return subchains
+
+
 def basic_heuristics(subchains: Dict[str, List[AbsElement]]) -> Dict[str, List[AbsElement]]:
     # heuristics: move more elements into cheap platform and processor
     # move elements into grpc
@@ -585,4 +623,19 @@ def basic_heuristics(subchains: Dict[str, List[AbsElement]]) -> Dict[str, List[A
         for element in subchains[key]:
             if element.upgrade == "any" and "wasm" in element.target:
                 element.target = element.target.replace("wasm", "native")
+    # TODO: the state dependency optimization only support single-platform scenario for now
+    if len(subchains["client_sidecar"]) + len(subchains["server_sidecar"]) + len(subchains["ambient"]) == 0:
+        # grpc only
+        print("here")
+        subchains = state_dependency_optimization(subchains, "grpc")
+    if len(subchains["client_grpc"]) + len(subchains["server_grpc"]) + len(subchains["ambient"]) == 0:
+        # sidecar only
+        subchains = state_dependency_optimization(subchains, "sidecar")
+    
+    for key, chain in subchains.items():
+        for element in chain:
+            element.final_position = key.split("_")[0]
+    
+    subchains = modify_sync_level(subchains)
+
     return subchains
