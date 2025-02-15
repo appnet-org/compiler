@@ -28,59 +28,22 @@ gir_summary = dict()
 def parse_args():
     # Parse command line arguments
     parser = argparse.ArgumentParser()
+
+    # Arguments for users
     parser.add_argument(
         "-s",
         "--spec_path",
-        help="Path to user specification file",
+        help="Path to user specification file.",
         type=str,
         required=True,
-    )
-    parser.add_argument(
-        "-t",
-        "--tag",
-        help="Tag number for the current version",
-        type=str,
-        default="1",
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        help="If added, request graphs (i.e., element chains) on each edge will be printed on the terminal",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--envoy_verbose",
-        help="If added, we will generate verbose logging in envoy native filter",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--pseudo_property",
-        help="If added, use hand-coded properties instead of auto-generated ones",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--pseudo_impl",
-        help="If added, use hand-coded impl instead of auto-generated ones",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--mrpc_dir",
-        help="Path to mrpc repo",
-        type=str,
-        default=os.path.join(os.getenv("HOME"), "phoenix/experimental/mrpc"),
-    )
-    parser.add_argument(
-        "--dry_run",
-        help="If added, the compilation terminates after optimization (i.e., no backend scriptgen)",
-        action="store_true",
-    )
-    parser.add_argument(
-        "--dump_property",
-        action="store_true",
-    )
+    )  
     parser.add_argument(
         "--opt_level",
-        help="optimization level",
+        help="""Optimization level, default is weak.
+                no: no optimization;
+                ignore: aggresive, ignore equivalence requirements;
+                weak: allow differences in drop rate, records, etc.;
+                strong: strict equivalence.""",
         type=str,
         choices=["no", "ignore", "weak", "strong"],
         default="weak",
@@ -90,24 +53,59 @@ def parse_args():
         # strong: strict equivalence
     )
     parser.add_argument(
-        "--no_optimize",
-        help="If added, no optimization will be applied to GraphIR",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
         "--replica",
         type=str,
-        help="#replica for each service",
+        help="the number of replicas for each service, default is 1.",
         default="1",
     )
     parser.add_argument(
+        "-t",
+        "--tag",
+        help="Tag number for the current version, used for seamless upgrades. Usually users don't need to manually configure this.",
+        type=str,
+        default="1",
+    )
+
+    # Arguments for developers
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="[Dev] If added, request graphs (i.e., element chains) on each edge will be printed on the terminal.",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--envoy_verbose",
+        help="[Dev] If added, verbose logging will be generated in envoy native filter.",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--pseudo_property",
+        help="[Dev] If added, use hand-coded properties instead of auto-generated ones.",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--pseudo_impl",
+        help="[Dev] If added, use hand-coded implementations instead of auto-generated ones.",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--dry_run",
+        help="[Dev] If added, the compilation terminates after optimization (i.e., no backend scriptgen).",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--dump_property",
+        help="[Dev] If added, dump the properties of each element in yaml format.",
+        action="store_true",
+    ) 
+    parser.add_argument(
         "--opt_algorithm",
         type=str,
+        help="[Dev] Optimization algorithm, default is cost. If heuristics is chosen, only intra-element optimizations (i.e., placement and processor changes) will be applied.",
         choices=["cost", "heuristics"],
         default="cost",
     )
-    parser.add_argument("--debug", help="Print debug info", action="store_true")
+    parser.add_argument("--debug", help="[Dev] Print debug info.", action="store_true")
 
     return parser.parse_args()
 
