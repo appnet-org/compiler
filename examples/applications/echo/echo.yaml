@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    account: frontend
+  name: echo-frontend
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+spec:
+  clusterIP: 10.96.88.88
+  ports:
+  - name: frontend
+    port: 80
+    targetPort: 8080
+  selector:
+    app: frontend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: frontend
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - image: appnetorg/echo-frontend-grpc:latest
+        name: frontend-grpc
+        imagePullPolicy: Always
+      serviceAccountName: echo-frontend
+  selector:
+    matchLabels:
+      app: frontend
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    account: server
+  name: echo-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  labels:
+    app: server
+spec:
+  clusterIP: 10.96.77.76
+  ports:
+  - name: server
+    port: 9000
+    targetPort: 9000
+    appProtocol: grpc
+  selector:
+    app: server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: server
+      labels:
+        app: server
+    spec:
+      containers:
+      - image: appnetorg/echo-server-grpc:latest
+        name: server-grpc
+        imagePullPolicy: Always
+      serviceAccountName: echo-server
+  selector:
+    matchLabels:
+      app: server
