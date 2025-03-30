@@ -171,6 +171,8 @@ class eBPFContext:
         if name in self.native_var[-1]:
             raise Exception(f"variable {name} already declared")
         self.native_var[-1][name] = NativeVariable(name, rtype, local)
+        if local:
+            return (self.native_var[-1][name], rtype.gen_decl_local(name))
         return (self.native_var[-1][name], rtype.gen_decl(name))
 
     def find_native_var(self, name: str) -> NativeVariable:
@@ -611,7 +613,7 @@ class eBPFGenerator(Visitor):
         print("Enter visitGeneralExpr")
         if isinstance(node, Literal):
             rhs_appnet_type, embed_str = node.accept(self, ctx)
-
+            print(f"type(rhs_appnet_type) = {type(rhs_appnet_type)}, rhs_appnet_type = {rhs_appnet_type}, type(embed_str) = {type(embed_str)}, embed_str = {embed_str}")
             # Create a temporary variable to store the value of the literal
             rhs_native_var, decl = ctx.declareeBPFVar(
                 ctx.new_temporary_name(), rhs_appnet_type.to_native()
@@ -1535,6 +1537,7 @@ class RandomF(AppNetBuiltinFuncProto):
     def gen_code(
         self, ctx: eBPFContext, a: NativeVariable, b: NativeVariable
     ) -> NativeVariable:
+        print(f"a.type = {a.type}, a = {a.name}, b.type = {b.type}, b = {b.name}")
         self.native_arg_sanity_check([a, b])
 
         (
@@ -1544,8 +1547,11 @@ class RandomF(AppNetBuiltinFuncProto):
 
         ctx.push_code(native_decl_stmt)
         # get a random float number between a and b
+        # ctx.push_code(
+        #     f"{res_native_var.name} = {a.name} + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/({b.name} - {a.name})));"
+        # )
         ctx.push_code(
-            f"{res_native_var.name} = {a.name} + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/({b.name} - {a.name})));"
+            f"{res_native_var.name} = {a.name} * 100 + bpf_get_prandom_u32() % ({b.name} * 100 - {a.name} * 100);"
         )
         return res_native_var
 

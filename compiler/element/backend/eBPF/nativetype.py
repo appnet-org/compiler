@@ -11,7 +11,10 @@ from compiler.element.logger import ELEMENT_LOG as LOG
 class NativeType:
     def gen_decl(self, name: str) -> str:
         raise NotImplementedError(f"gen_decl not implemented for {self}")
-
+    
+    def gen_decl_local(self, name: str) -> str:
+        raise NotImplementedError(f"gen_decl_local not implemented for {self}")
+    
     def is_arithmetic(self) -> bool:
         return (
             isinstance(self, Int) or isinstance(self, Float) or isinstance(self, UInt)
@@ -49,6 +52,9 @@ class RPC(NativeType):
 
     def gen_decl(self, name: str) -> str:
         return f"::appnetsamplefilter::Msg {name};"
+    
+    def gen_decl_local(self, name: str) -> str:
+        return f"::appnetsamplefilter::Msg {name};"
 
 
 class Timepoint(NativeType):
@@ -58,6 +64,8 @@ class Timepoint(NativeType):
     def gen_decl(self, name: str) -> str:
         return f"std::chrono::time_point<std::chrono::system_clock> {name};"
 
+    def gen_decl_local(self, name: str) -> str:
+        return f"std::chrono::time_point<std::chrono::system_clock> {name};"
 
 class Int(NativeType):
     def type_name(self) -> str:
@@ -65,7 +73,9 @@ class Int(NativeType):
 
     def gen_decl(self, name: str) -> str:
         return f"BPF_ARRAY({name}, s64, 1);"
-
+    
+    def gen_decl_local(self, name: str) -> str:
+        return f"u32 {name} = 0;"
 
 class UInt(NativeType):
     def type_name(self) -> str:
@@ -73,6 +83,9 @@ class UInt(NativeType):
 
     def gen_decl(self, name: str) -> str:
         return f"BPF_ARRAY({name}, u64, 1);"
+    
+    def gen_decl_local(self, name: str) -> str:
+        return f"u64 {name} = 0;"
 
 
 class Float(NativeType):
@@ -80,6 +93,9 @@ class Float(NativeType):
         return "float"
 
     def gen_decl(self, name: str) -> str:
+        return f"float {name} = 0;"
+    
+    def gen_decl_local(self, name: str) -> str:
         return f"float {name} = 0;"
 
 
@@ -89,6 +105,9 @@ class String(NativeType):
 
     def gen_decl(self, name: str) -> str:
         return f'std::string {name} = "";'
+    
+    def gen_decl_local(self, name: str) -> str:
+        return f'std::string {name} = "";'
 
 
 class Bool(NativeType):
@@ -96,6 +115,9 @@ class Bool(NativeType):
         return "bool"
 
     def gen_decl(self, name: str) -> str:
+        return f"bool {name} = false;"
+    
+    def gen_decl_local(self, name: str) -> str:
         return f"bool {name} = false;"
 
 
@@ -106,6 +128,8 @@ class Bytes(NativeType):
     def gen_decl(self, name: str) -> str:
         return f"std::vector<uint8_t> {name}{{0}};"
 
+    def gen_decl_local(self, name: str) -> str:
+        return f"std::vector<uint8_t> {name}{{0}};"
 
 class Option(NativeType):
     inner: NativeType
@@ -114,6 +138,9 @@ class Option(NativeType):
         self.inner = inner
 
     def gen_decl(self, name: str) -> str:
+        return f"std::optional<{self.inner.type_name()}> {name} = std::nullopt;"
+
+    def gen_decl_local(self, name: str) -> str:
         return f"std::optional<{self.inner.type_name()}> {name} = std::nullopt;"
 
     def is_same(self, other: NativeType) -> bool:
@@ -137,6 +164,11 @@ class Map(NativeType):
         return (
             f"std::map<{self.key.type_name()}, {self.value.type_name()}> {name} = {{}};"
         )
+    
+    def gen_decl_local(self, name: str) -> str:
+        return (
+            f"std::map<{self.key.type_name()}, {self.value.type_name()}> {name} = {{}};"
+        )
 
     def is_same(self, other: NativeType) -> bool:
         if not isinstance(other, Map):
@@ -154,6 +186,9 @@ class Vec(NativeType):
         self.type = type
 
     def gen_decl(self, name: str) -> str:
+        return f"std::vector<{self.type.type_name()}> {name} = {{}};"
+
+    def gen_decl_local(self, name: str) -> str:
         return f"std::vector<{self.type.type_name()}> {name} = {{}};"
 
     def is_same(self, other: NativeType) -> bool:
@@ -174,6 +209,9 @@ class Pair(NativeType):
         self.second = second
 
     def gen_decl(self, name: str) -> str:
+        return f"std::pair<{self.first.type_name()}, {self.second.type_name()}> {name};"
+    
+    def gen_decl_local(self, name: str) -> str:
         return f"std::pair<{self.first.type_name()}, {self.second.type_name()}> {name};"
 
     def is_same(self, other: NativeType) -> bool:
