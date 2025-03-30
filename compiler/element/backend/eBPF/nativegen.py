@@ -454,9 +454,15 @@ class eBPFGenerator(Visitor):
             pass
         elif node.stmt is None:
             ctx.push_code("; // empty statement")
-        elif (
-            isinstance(node.stmt, Send)
-            or isinstance(node.stmt, Assign)
+        elif isinstance(node.stmt, Send):
+            # TODO: deal with Up and Down
+            print(f"type(node.stmt.msg) = {type(node.stmt.msg)}, node.stmt.msg = {node.stmt.msg}")
+            if isinstance(node.stmt.msg, Error):
+                ctx.push_code(f"return XDP_DROP;")
+            else:
+                assert isinstance(node.stmt.msg, Identifier), "currently do not support types beyond Error and Identifier"
+                ctx.push_code(f"return XDP_PASS;")
+        elif (isinstance(node.stmt, Assign)
             or isinstance(node.stmt, Match)
             or isinstance(node.stmt, Expr)
         ):
