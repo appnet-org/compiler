@@ -326,6 +326,7 @@ def cost(chain: List[AbsElement]) -> float:
         "sidecar_wasm": 3.0,
         "ambient_native": 1.0,
         "ambient_wasm": 3.0,
+        "eBPF": 1.0
     }
     basic_overhead_config = {
         "client_grpc": 0.5,

@@ -51,6 +51,8 @@ class GraphIR:
             "ambient": [],
             "server_sidecar": [],
             "server_grpc": [],
+            "client_eBPF" : [],
+            "server_eBPF" : [],
         }
         # determine an initial assignment
         # principle:
@@ -85,21 +87,29 @@ class GraphIR:
             client_chain, server_chain = chain[: mid + 1], chain[mid + 1 :]
         current_mode = "sidecar"
         for element in client_chain[::-1]:
-            if (
-                "processor" in element
+            if ("processor" in element
+                and "eBPF" in element["processor"]
+                and "sidecar" not in element["processor"]):
+                current_mode = "eBPF"
+            elif ("processor" in element
                 and "grpc" in element["processor"]
-                and "sidecar" not in element["processor"]
-            ):
-                current_mode = "grpc"
+                and "sidecar" not in element["processor"]):
+                current_mode = "sidecar"
             if "processor" in element and current_mode not in element["processor"]:
                 raise ValueError("invalid grpc/sidecar requirements")
+            if current_mode == "eBPF":
+                TARGET = "eBPF"
+            elif "grpc" in  current_mode:
+                TARGET = "grpc"
+            else:
+                TARGET = "sidecar_wasm"
             self.elements["client_" + current_mode].insert(
                 0,
                 AbsElement(
                     element,
                     server=server,
                     initial_position="client",
-                    initial_target="grpc" if "grpc" in current_mode else "sidecar_wasm",
+                    initial_target=TARGET,
                 ),
             )
         current_mode = "sidecar"
@@ -218,6 +228,8 @@ class GraphIR:
             + self.elements["ambient"]
             + self.elements["server_sidecar"]
             + self.elements["server_grpc"]
+            + self.elements["client_eBPF"]
+            + self.elements["server_eBPF"]
         )
 
     def optimize(self, opt_level: str, algorithm: str, dump_property: bool):

@@ -33,7 +33,7 @@ class AbsElement:
             server(str): used for generating unique element name
                 consider "cache" on both A->B and A->C
             initial_position(str): "client" or "server" or "ambient"
-            initial_target(str): "grpc" or ["sidecar", "ambient"] * ["wasm", "native"]
+            initial_target(str): "grpc" or ["sidecar", "ambient"] * ["wasm", "native"] or "eBPF"
         """
         if info == "NETWORK" or info == "IPC":
             self.name = info
