@@ -236,5 +236,8 @@ def extract_full_method_name(elements: list[AbsElement]) -> str:
     ), "Unsupported: same application has identical method names in different proto services"
     proto = first_el.proto
     package_name = extract_proto_package_name(proto)
-    service_name = extract_proto_service_name(proto)
+    if "boutique" in proto:
+        service_name = first_el.server.capitalize() + "Service"
+    else:
+        service_name = extract_proto_service_name(proto)
     return f"/{package_name}.{service_name}/{first_el.method}"

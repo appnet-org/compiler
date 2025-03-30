@@ -14,7 +14,8 @@ edge:
     upgrade: true
     envoy_native: false
     processor:
-        - sidecar
+      - grpc
+      - sidecar
   - method: echo
     name: logging
     path: <COMPILER_DIR>/examples/elements/echo_elements/logging.appnet
@@ -25,9 +26,10 @@ edge:
     upgrade: true
     envoy_native: false
     processor:
-        - sidecar
+      - grpc
+      - sidecar
   - method: echo
-    name: firwall
+    name: firewall
     path: <COMPILER_DIR>/examples/elements/echo_elements/firewall.appnet
     position: client
     proto: <APPNET_GO_LIB_DIR>/sample/echo-pb/echo.proto
@@ -36,5 +38,6 @@ edge:
     upgrade: true
     envoy_native: false
     processor:
-        - sidecar
+      - grpc
+      - sidecar
 link: {}

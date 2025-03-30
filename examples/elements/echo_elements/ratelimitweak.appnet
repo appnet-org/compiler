@@ -1,12 +1,12 @@
 state:
     @consistency(weak) @combiner(sum) @persistence(true)
-    rate_map_client_service_server_service: Map<string, string>
+    rate_map_server_service: Map<string, string>
 
 init():
-    set(rate_map_client_service_server_service, 'echo', '999')
+    set(rate_map_server_service, 'echo', '999')
 
 req(rpc):
-    rate = get(rate_map_client_service_server_service, 'echo')
+    rate = get(rate_map_server_service, 'echo')
     match rate:
         Some(r) =>
             send(rpc, Down)
