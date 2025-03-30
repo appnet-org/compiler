@@ -659,6 +659,7 @@ class eBPFGenerator(Visitor):
             rhs_appnet_type = rhs.type
 
         elif isinstance(node, Expr):  # Maybe subclass of Expr
+            # print(f"node.lhs = {node.lhs}, node.op = {node.op}, node.rhs = {node.rhs}")
             rhs_appnet_type, rhs_native_var = node.accept(self, ctx)
 
         else:
@@ -1055,6 +1056,8 @@ class eBPFGenerator(Visitor):
     def visitLiteral(self, node: Literal, ctx: eBPFContext) -> Tuple[AppNetType, str]:
         # Return a string that can be embedded in the C++ code directly.
         # A literal is a string, int, float, or bool
+        print("Enter visitLiteral")
+        print("node.type =", node.type, "node.value =", node.value, "type(node.value) =", type(node.value))
         if node.type == DataType.STR:
             # replace ' into "
             new_str = node.value.replace("'", '"')
@@ -1062,7 +1065,8 @@ class eBPFGenerator(Visitor):
         elif node.type == DataType.INT:
             return (AppNetInt(), str(node.value))
         elif node.type == DataType.FLOAT:
-            return (AppNetInt(), str(node.value * 100))
+            print(f"Come here, str(node.value * 100) = {str(int(float(node.value) * 100))}")
+            return (AppNetInt(), str(int(float(node.value) * 100)))
             # return (AppNetFloat(), str(node.value))
         elif node.type == DataType.BOOL:
             return (AppNetBool(), str(node.value).lower())
@@ -1079,6 +1083,7 @@ class eBPFGenerator(Visitor):
                     t(node.value)
                     LOG.warning(f"cast {node.value} into a {t}")
                     if appnet_type == AppNetFloat():
+                        print("return (AppNetInt(), str(node.value * 100))")
                         return (AppNetInt(), str(node.value * 100))
                     return (appnet_type, str(node.value))
                 except:

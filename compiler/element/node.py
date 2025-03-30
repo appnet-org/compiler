@@ -161,6 +161,12 @@ class Type(Node):
         self.persistence = persistence
 
 
+import re
+def is_integer(s):
+    return re.fullmatch(r"-?\d+", s) is not None
+def is_float(s):
+    return re.fullmatch(r"-?\d+\.\d+", s) is not None
+
 class Literal(Node):
     def __init__(self, value: str):
         self.value = value
@@ -168,6 +174,10 @@ class Literal(Node):
         # currently only String and Bool are supported.
         if value.startswith("'") and value.endswith("'"):
             self.type = DataType.STR
+        elif is_integer(value):
+            self.type = DataType.INT
+        elif is_float(value):
+            self.type = DataType.FLOAT
         elif value in ["true", "false"]:
             self.type = DataType.BOOL
         else:
