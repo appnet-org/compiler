@@ -1,7 +1,0 @@
-lark
-tomli
-tomli_w
-colorlog
-rich
-kubernetes
-pyyaml
