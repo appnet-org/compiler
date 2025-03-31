@@ -10,7 +10,7 @@ from compiler.element.node import *
 from compiler.element.node import Identifier, Pattern
 from compiler.element.visitor import Visitor
 
-
+import traceback
 class eBPFContext:
     def __init__(
         self,
@@ -394,7 +394,6 @@ class eBPFGenerator(Visitor):
             # )
 
         for stmt in node.body:
-            print(f"stmt = {stmt}")
             stmt.accept(self, ctx)
 
         if node.name == "init":
@@ -456,14 +455,23 @@ class eBPFGenerator(Visitor):
             ctx.push_code("; // empty statement")
         elif isinstance(node.stmt, Send):
             # TODO: deal with Up and Down
-            print(f"type(node.stmt.msg) = {type(node.stmt.msg)}, node.stmt.msg = {node.stmt.msg}")
+            # TODO: support hooks in addition to the XDP hook
             if isinstance(node.stmt.msg, Error):
                 ctx.push_code(f"return XDP_DROP;")
             else:
                 assert isinstance(node.stmt.msg, Identifier), "currently do not support types beyond Error and Identifier"
                 ctx.push_code(f"return XDP_PASS;")
-        elif (isinstance(node.stmt, Assign)
-            or isinstance(node.stmt, Match)
+        elif isinstance(node.stmt, Assign):
+            print(f"// stmt {node.stmt}")
+            ctx.push_code(f"// stmt {node.stmt}")
+            ctx.print_content()
+            retval = node.stmt.accept(self, ctx)
+            ctx.print_content()
+            if not isinstance(retval, list):
+                retval = [retval]
+            print("Exit visitStatement")
+            return retval
+        elif (isinstance(node.stmt, Match)
             or isinstance(node.stmt, Expr)
         ):
             ctx.push_code(f"// stmt {node.stmt}")
@@ -567,6 +575,7 @@ class eBPFGenerator(Visitor):
         # ====== Generate basic types match (no binding) ====
         # print("After")
         # ctx.print_content()
+        # exit(0)
         first = True
 
         empty_pattern = None
@@ -588,7 +597,6 @@ class eBPFGenerator(Visitor):
                     empty_pattern = pattern
                     empty_pattern_stmts = stmts
                     continue
-
                 if first == False:
                     ctx.push_code("else")
                 ctx.push_code(f"if ({native_expr.name} == {pattern_embed_str})")
@@ -668,6 +676,10 @@ class eBPFGenerator(Visitor):
 
         elif isinstance(node, Expr):  # Maybe subclass of Expr
             # print(f"node.lhs = {node.lhs}, node.op = {node.op}, node.rhs = {node.rhs}")
+            print("isinstance(node, Expr)")
+            if isinstance(node, FuncCall):
+                print(f"node.name = {node.name}, node.args = {node.args}")
+                print(node.__str__())
             rhs_appnet_type, rhs_native_var = node.accept(self, ctx)
 
         else:
@@ -679,15 +691,19 @@ class eBPFGenerator(Visitor):
         return (rhs_appnet_type, rhs_native_var)
 
     def visitAssign(self, node: Assign, ctx: eBPFContext) -> None:
+        print("Enter visitAssign")
         assert isinstance(node.left, Identifier) or isinstance(node.left, Pair)
-
+        
         if isinstance(node.left, Identifier):
             print("isinstance(node.left, Identifier)")
             lhs_name = node.left.name
             rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
             assert isinstance(rhs_appnet_type, AppNetType)
             assert isinstance(rhs_native_var, NativeVariable)
-            ctx.push_code(f"{lhs_name}[0] = {rhs_native_var.name};")
+            if ctx.find_appnet_var(lhs_name):
+                ctx.push_code(f"{lhs_name}[0] = {rhs_native_var.name};")
+            else:
+                ctx.push_code(f"{lhs_name} = {rhs_native_var.name};")
             # if ctx.find_appnet_var(lhs_name) is None:
             #     # This is a new local variable.
             #     LOG.debug(f"new local variable {lhs_name}")
@@ -877,12 +893,24 @@ class eBPFGenerator(Visitor):
         )
 
         ctx.push_code(decl)
-        assign_code = f"{new_var.name} = {lhs_nativevar.name} {node.op.accept(self, ctx)} {rhs_nativevar.name};"
+        LEFT_NAME = ""
+        if ctx.find_appnet_var(lhs_nativevar.name):
+            LEFT_NAME = lhs_nativevar.name + "[0]"
+        else:
+            LEFT_NAME = lhs_nativevar.name
+        RIGHT_NAME = ""
+        if ctx.find_appnet_var(rhs_nativevar.name):
+            RIGHT_NAME = rhs_nativevar.name + "[0]"
+        else:
+            RIGHT_NAME = rhs_nativevar.name
+        print(f"LEFT_NAME = {LEFT_NAME}, RIGHT_NAME = {RIGHT_NAME}")
+        assign_code = f"{new_var.name} = {LEFT_NAME} {node.op.accept(self, ctx)} {RIGHT_NAME};"
         ctx.push_code(assign_code)
 
         return (expr_appnet_type, new_var)
 
     def visitOperator(self, node: Operator, ctx: eBPFContext) -> str:
+        print("Enter visitOperator")
         if node == Operator.ADD:
             return "+"
         elif node == Operator.SUB:
@@ -896,6 +924,7 @@ class eBPFGenerator(Visitor):
         elif node == Operator.NEQ:
             return "!="
         elif node == Operator.LT:
+            print("Exit visitOperator")
             return "<"
         elif node == Operator.GT:
             return ">"

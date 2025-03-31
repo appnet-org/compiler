@@ -52,22 +52,37 @@ def codegen_from_template(output_dir, ctx: eBPFContext, lib_name, proto_path):
     # if ctx.envoy_verbose:  # type: ignore
     #     ctx.insert_envoy_log()
     print(f"ctx.global_var_def = {ctx.global_var_def}, ctx.init_code = {ctx.init_code}, ctx.req_hdr_code = {ctx.req_hdr_code}, ctx.req_body_code = {ctx.req_body_code}")
+    eBPF_func_name = output_dir.split('/')[-1]
     replace_dict = {
+        "// !APPNET_BEG": 
+        ["bpf_code = \'\'\'"]
+        + ["#include <uapi/linux/bpf.h>"]
+        + ["#include <linux/if_ether.h>"]
+        + ["#include <linux/ip.h>"]
+        + ["#include <linux/if_packet.h>"]
+        + ["#include <uapi/linux/tcp.h>"]
+        + ["#include <uapi/linux/udp.h>"]
+        + ["#include <linux/in.h>"],
         "// !APPNET_STATE": ctx.global_var_def,
-        "// !APPNET_INIT": ctx.init_code,
-        "// !APPNET_REQUEST": ["{ // req header begin. "]
-        + ctx.req_hdr_code
-        + ["} // req header end."]
+        "// !APPNET_INIT": 
+        ["b = BPF(text=bpf_code)"]
+        + ctx.init_code,
+        "// !APPNET_REQUEST": 
+        # ["{ // req header begin. "]
+        # + ctx.req_hdr_code
+        # + ["} // req header end."]
+        [f"int {eBPF_func_name}(struct xdp_md *ctx)"] 
         + ["{ // req body begin. "]
         + ctx.req_body_code
-        + ["} // req body end."],
-        "// !APPNET_RESPONSE": ["{ // resp header begin. "]
-        + ctx.resp_hdr_code
-        + ["} // resp header end."]
-        + ["{ // resp body begin. "]
-        + ctx.resp_body_code
-        + ["} // resp body end."],
-        "// !APPNET_ONTICK": ctx.on_tick_code,
+        + ["} // req body end.\'\'\'"],
+        "// !APPNET_RESPONSE": []
+        # "// !APPNET_RESPONSE": ["{ // resp header begin. "]
+        # + ctx.resp_hdr_code
+        # + ["} // resp header end."]
+        # + ["{ // resp body begin. "]
+        # + ctx.resp_body_code
+        # + ["} // resp body end."],
+        # "// !APPNET_ONTICK": ctx.on_tick_code,
     }
 
     # rewrite appnet_filter/appnet_filter.cc according to the replace dict
