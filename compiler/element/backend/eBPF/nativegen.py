@@ -125,6 +125,8 @@ class eBPFContext:
 
     def push_code(self, code: str) -> None:
         code = code.strip()
+        if "temp_1" in code:
+            print(f"code = {code}")
         self.current_procedure_code.append(code)
         if code.endswith("{"):
             self.push_native_scope()
@@ -462,11 +464,11 @@ class eBPFGenerator(Visitor):
                 assert isinstance(node.stmt.msg, Identifier), "currently do not support types beyond Error and Identifier"
                 ctx.push_code(f"return XDP_PASS;")
         elif isinstance(node.stmt, Assign):
-            print(f"// stmt {node.stmt}")
-            ctx.push_code(f"// stmt {node.stmt}")
-            ctx.print_content()
+            if ctx.current_procedure != "init":
+                ctx.push_code(f"// stmt {node.stmt}")
+            # ctx.print_content()
             retval = node.stmt.accept(self, ctx)
-            ctx.print_content()
+            # ctx.print_content()
             if not isinstance(retval, list):
                 retval = [retval]
             print("Exit visitStatement")
@@ -628,10 +630,10 @@ class eBPFGenerator(Visitor):
         if isinstance(node, Literal):
             rhs_appnet_type, embed_str = node.accept(self, ctx)
             print(f"type(rhs_appnet_type) = {type(rhs_appnet_type)}, rhs_appnet_type = {rhs_appnet_type}, type(embed_str) = {type(embed_str)}, embed_str = {embed_str}")
-            # Create a temporary variable to store the value of the literal
             rhs_native_var, decl = ctx.declareeBPFVar(
                 ctx.new_temporary_name(), rhs_appnet_type.to_native()
             )
+            # Create a temporary variable to store the value of the literal
             ctx.push_code(decl)
             ctx.push_code(f"{rhs_native_var.name} = {embed_str};")
 
@@ -693,95 +695,112 @@ class eBPFGenerator(Visitor):
     def visitAssign(self, node: Assign, ctx: eBPFContext) -> None:
         print("Enter visitAssign")
         assert isinstance(node.left, Identifier) or isinstance(node.left, Pair)
-        
-        if isinstance(node.left, Identifier):
-            print("isinstance(node.left, Identifier)")
-            lhs_name = node.left.name
-            rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
-            assert isinstance(rhs_appnet_type, AppNetType)
-            assert isinstance(rhs_native_var, NativeVariable)
-            if ctx.find_appnet_var(lhs_name):
-                ctx.push_code(f"{lhs_name}[0] = {rhs_native_var.name};")
+        if ctx.current_procedure == "init":
+            # b = BPF(text=bpf_code)
+            # prob = b["prob"]
+            # prob[ctypes.c_uint(0)] = ctypes.c_uint(50)
+            # if ctx.current_procedure == "init":
+            #     if ctx.find_appnet_var(lhs_name):
+            #         ctx.push_code(f"{lhs_name}[ctypes.c_uint(0)] = {rhs_native_var.name};")
+            #     print(f"{lhs_name} = {rhs_native_var.name};")
+            #     exit(0)
+            if isinstance(node.left, Identifier) and isinstance(node.right, Literal):
+                lhs_name = node.left.name
+                rhs_appnet_type, rhs_native_var = node.right.accept(self, ctx)
+                if ctx.find_appnet_var(lhs_name):
+                    ctx.push_code(f"{lhs_name} = b[\"{lhs_name}\"]")
+                    ctx.push_code(f"{lhs_name}[ctypes.c_uint(0)] = ctypes.c_uint({rhs_native_var})")
             else:
-                ctx.push_code(f"{lhs_name} = {rhs_native_var.name};")
-            # if ctx.find_appnet_var(lhs_name) is None:
-            #     # This is a new local variable.
-            #     LOG.debug(f"new local variable {lhs_name}")
-
-            #     # Eval the right side.
-            #     rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
-            #     assert isinstance(rhs_appnet_type, AppNetType)
-            #     assert isinstance(rhs_native_var, NativeVariable)
-
-            #     lhs = ctx.declareAppNetLocalVariable(lhs_name, rhs_appnet_type)
-            #     lhs_native, decl = ctx.declareeBPFVar(
-            #         lhs_name, rhs_appnet_type.to_native()
-            #     )
-            #     lhs.native_var = lhs_native
-            #     ctx.push_code(
-            #         f"{lhs.native_var.type.type_name()} {lhs.name} = {rhs_native_var.name};"
-            #     )
-
-            # else:
-            #     # Assigning the existing variable.
-
-            #     lhs = ctx.get_appnet_var(lhs_name)[0]
-
-            #     ctx.most_recent_assign_left_type = lhs.type
-            #     rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
-            #     ctx.most_recent_assign_left_type = None
-
-            #     assert isinstance(rhs_appnet_type, AppNetType)
-            #     assert isinstance(rhs_native_var, NativeVariable)
-            #     assert lhs.native_var is not None
-            #     assert lhs.native_var.type.is_same(rhs_native_var.type)
-
-            #     ctx.push_code(f"{lhs.name} = {rhs_native_var.name};")
-
-        elif isinstance(node.left, Pair):
-
-            rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
-
-            assert isinstance(rhs_appnet_type, AppNetType)
-            assert isinstance(rhs_native_var, NativeVariable)
-
-            assert isinstance(node.left.first, Identifier) and isinstance(
-                node.left.second, Identifier
-            )
-            assert isinstance(rhs_appnet_type, AppNetPair)
-            first_name = node.left.first.name
-            second_name = node.left.second.name
-
-            # In pair assignment, we only support declaring new local variables.
-            assert ctx.find_appnet_var(first_name) is None
-            assert ctx.find_appnet_var(second_name) is None
-
-            first_var_appnet = ctx.declareAppNetLocalVariable(
-                first_name, rhs_appnet_type.first
-            )
-            second_var_appnet = ctx.declareAppNetLocalVariable(
-                second_name, rhs_appnet_type.second
-            )
-
-            first_var_native, first_decl = ctx.declareeBPFVar(
-                first_name, rhs_appnet_type.first.to_native()
-            )
-            second_var_native, second_decl = ctx.declareeBPFVar(
-                second_name, rhs_appnet_type.second.to_native()
-            )
-
-            first_var_appnet.native_var = first_var_native
-            second_var_appnet.native_var = second_var_native
-
-            ctx.push_code(first_decl)
-            ctx.push_code(second_decl)
-
-            ctx.push_code(f"{first_var_native.name} = {rhs_native_var.name}.first;")
-            ctx.push_code(f"{second_var_native.name} = {rhs_native_var.name}.second;")
-
-            pass
+                assert False, "New init case"
         else:
-            raise Exception("should not reach here")
+            if isinstance(node.left, Identifier):
+                print("isinstance(node.left, Identifier)")
+                lhs_name = node.left.name
+                rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
+                assert isinstance(rhs_appnet_type, AppNetType)
+                assert isinstance(rhs_native_var, NativeVariable)
+                if ctx.find_appnet_var(lhs_name):
+                    ctx.push_code(f"{lhs_name}[0] = {rhs_native_var.name};")
+                else:
+                    ctx.push_code(f"{lhs_name} = {rhs_native_var.name};")
+                # if ctx.find_appnet_var(lhs_name) is None:
+                #     # This is a new local variable.
+                #     LOG.debug(f"new local variable {lhs_name}")
+
+                #     # Eval the right side.
+                #     rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
+                #     assert isinstance(rhs_appnet_type, AppNetType)
+                #     assert isinstance(rhs_native_var, NativeVariable)
+
+                #     lhs = ctx.declareAppNetLocalVariable(lhs_name, rhs_appnet_type)
+                #     lhs_native, decl = ctx.declareeBPFVar(
+                #         lhs_name, rhs_appnet_type.to_native()
+                #     )
+                #     lhs.native_var = lhs_native
+                #     ctx.push_code(
+                #         f"{lhs.native_var.type.type_name()} {lhs.name} = {rhs_native_var.name};"
+                #     )
+
+                # else:
+                #     # Assigning the existing variable.
+
+                #     lhs = ctx.get_appnet_var(lhs_name)[0]
+
+                #     ctx.most_recent_assign_left_type = lhs.type
+                #     rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
+                #     ctx.most_recent_assign_left_type = None
+
+                #     assert isinstance(rhs_appnet_type, AppNetType)
+                #     assert isinstance(rhs_native_var, NativeVariable)
+                #     assert lhs.native_var is not None
+                #     assert lhs.native_var.type.is_same(rhs_native_var.type)
+
+                #     ctx.push_code(f"{lhs.name} = {rhs_native_var.name};")
+
+            elif isinstance(node.left, Pair):
+
+                rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
+
+                assert isinstance(rhs_appnet_type, AppNetType)
+                assert isinstance(rhs_native_var, NativeVariable)
+
+                assert isinstance(node.left.first, Identifier) and isinstance(
+                    node.left.second, Identifier
+                )
+                assert isinstance(rhs_appnet_type, AppNetPair)
+                first_name = node.left.first.name
+                second_name = node.left.second.name
+
+                # In pair assignment, we only support declaring new local variables.
+                assert ctx.find_appnet_var(first_name) is None
+                assert ctx.find_appnet_var(second_name) is None
+
+                first_var_appnet = ctx.declareAppNetLocalVariable(
+                    first_name, rhs_appnet_type.first
+                )
+                second_var_appnet = ctx.declareAppNetLocalVariable(
+                    second_name, rhs_appnet_type.second
+                )
+
+                first_var_native, first_decl = ctx.declareeBPFVar(
+                    first_name, rhs_appnet_type.first.to_native()
+                )
+                second_var_native, second_decl = ctx.declareeBPFVar(
+                    second_name, rhs_appnet_type.second.to_native()
+                )
+
+                first_var_appnet.native_var = first_var_native
+                second_var_appnet.native_var = second_var_native
+
+                ctx.push_code(first_decl)
+                ctx.push_code(second_decl)
+
+                ctx.push_code(f"{first_var_native.name} = {rhs_native_var.name}.first;")
+                ctx.push_code(f"{second_var_native.name} = {rhs_native_var.name}.second;")
+
+                pass
+            else:
+                raise Exception("should not reach here")
 
     def acceptable_oper_type(
         self, lhs: AppNetType, op: Operator, rhs: AppNetType
@@ -1093,40 +1112,43 @@ class eBPFGenerator(Visitor):
     def visitLiteral(self, node: Literal, ctx: eBPFContext) -> Tuple[AppNetType, str]:
         # Return a string that can be embedded in the C++ code directly.
         # A literal is a string, int, float, or bool
-        print("Enter visitLiteral")
-        print("node.type =", node.type, "node.value =", node.value, "type(node.value) =", type(node.value))
-        if node.type == DataType.STR:
-            # replace ' into "
-            new_str = node.value.replace("'", '"')
-            return (AppNetString(node.value[1:-1]), new_str)
-        elif node.type == DataType.INT:
-            return (AppNetInt(), str(node.value))
-        elif node.type == DataType.FLOAT:
-            print(f"Come here, str(node.value * 100) = {str(int(float(node.value) * 100))}")
-            return (AppNetInt(), str(int(float(node.value) * 100)))
-            # return (AppNetFloat(), str(node.value))
-        elif node.type == DataType.BOOL:
-            return (AppNetBool(), str(node.value).lower())
-        else:
-            types = [
-                (int, AppNetInt()),
-                (float, AppNetFloat()),
-                (str, AppNetString()),
-                (bool, AppNetBool()),
-            ]
-            for t, appnet_type in types:
-                # try cast
-                try:
-                    t(node.value)
-                    LOG.warning(f"cast {node.value} into a {t}")
-                    if appnet_type == AppNetFloat():
-                        print("return (AppNetInt(), str(node.value * 100))")
-                        return (AppNetInt(), str(node.value * 100))
-                    return (appnet_type, str(node.value))
-                except:
-                    pass
+        try:
+            print("Enter visitLiteral")
+            print("node.type =", node.type, "node.value =", node.value, "type(node.value) =", type(node.value))
+            if node.type == DataType.STR:
+                # replace ' into "
+                new_str = node.value.replace("'", '"')
+                return (AppNetString(node.value[1:-1]), new_str)
+            elif node.type == DataType.INT:
+                return (AppNetInt(), str(node.value))
+            elif node.type == DataType.FLOAT:
+                print(f"Come here, str(node.value * 100) = {str(int(float(node.value) * 100))}")
+                return (AppNetInt(), str(int(float(node.value) * 100)))
+                # return (AppNetFloat(), str(node.value))
+            elif node.type == DataType.BOOL:
+                return (AppNetBool(), str(node.value).lower())
+            else:
+                types = [
+                    (int, AppNetInt()),
+                    (float, AppNetFloat()),
+                    (str, AppNetString()),
+                    (bool, AppNetBool()),
+                ]
+                for t, appnet_type in types:
+                    # try cast
+                    try:
+                        t(node.value)
+                        LOG.warning(f"cast {node.value} into a {t}")
+                        if appnet_type == AppNetFloat():
+                            print("return (AppNetInt(), str(node.value * 100))")
+                            return (AppNetInt(), str(node.value * 100))
+                        return (appnet_type, str(node.value))
+                    except:
+                        pass
 
-            raise Exception("unknown literal type, and cast failed")
+                raise Exception("unknown literal type, and cast failed")
+        finally:
+            print("Exit visitLiteral")
 
     def visitError(self, node: Error, ctx) -> str:
         raise NotImplementedError

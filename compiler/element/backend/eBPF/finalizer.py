@@ -53,9 +53,61 @@ def codegen_from_template(output_dir, ctx: eBPFContext, lib_name, proto_path):
     #     ctx.insert_envoy_log()
     print(f"ctx.global_var_def = {ctx.global_var_def}, ctx.init_code = {ctx.init_code}, ctx.req_hdr_code = {ctx.req_hdr_code}, ctx.req_body_code = {ctx.req_body_code}")
     eBPF_func_name = output_dir.split('/')[-1]
+    user_space_init = '''
+def ip_to_hex(ip):
+    parts = ip.split(".")
+    return (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(parts[3])
+def get_kubernetes_info():
+    config.load_kube_config()
+    v1 = client.CoreV1Api()
+    namespace = "default"
+    services = v1.list_namespaced_service(namespace)
+    pods = v1.list_namespaced_pod(namespace)
+    services = v1.list_namespaced_service(namespace)
+    pod_map = {pod.metadata.name: pod.metadata.labels for pod in pods.items}
+    service_pod_mapping = {}
+    for svc in services.items:
+        svc_name = svc.metadata.name
+        svc_ip = svc.spec.cluster_ip
+        svc_selector = svc.spec.selector
+        if not svc_selector:
+            continue
+        label_selector = ",".join([f"{k}={v}" for k, v in svc_selector.items()])
+        matching_pods = [
+            pod_name for pod_name, labels in pod_map.items()
+            if labels and all(labels.get(k) == v for k, v in svc_selector.items())
+        ]
+        service_pod_mapping[svc_name] = matching_pods
+    return service_pod_mapping, services, pods
+service_pod_mapping, services, pods = get_kubernetes_info()
+for svc, all_pods in service_pod_mapping.items():
+    service_pod_map = b[svc + "_pod"]
+    for i in range(len(all_pods)):
+        for pod in pods.items:
+            if all_pods[i] == pod.metadata.name:
+                service_pod_map[ctypes.c_uint32(i)] = ctypes.c_uint32(ip_to_hex(pod.status.pod_ip))
+                break '''
+    
+    user_space_running = '''
+interface = "cni0"
+b.attach_xdp(interface, b.load_func("drop_packet", bcc.BPF.XDP))
+print(f"eBPF program attached to {interface}. Dropping packets from 10.244.0.4...")
+try: 
+    while True:
+        b.trace_print()
+except KeyboardInterrupt:
+    print("Detaching eBPF program")
+    b.remove_xdp(interface)
+'''
     replace_dict = {
         "// !APPNET_BEG": 
-        ["bpf_code = \'\'\'"]
+        ["import bcc"]
+        + ["from bcc import BPF"]
+        + ["import socket"]
+        + ["import ctypes"]
+        + ["from kubernetes import client, config"]
+        + ["import time"]
+        + ["bpf_code = \'\'\'"]
         + ["#include <uapi/linux/bpf.h>"]
         + ["#include <linux/if_ether.h>"]
         + ["#include <linux/ip.h>"]
@@ -65,8 +117,10 @@ def codegen_from_template(output_dir, ctx: eBPFContext, lib_name, proto_path):
         + ["#include <linux/in.h>"],
         "// !APPNET_STATE": ctx.global_var_def,
         "// !APPNET_INIT": 
-        ["b = BPF(text=bpf_code)"]
-        + ctx.init_code,
+        [user_space_init]
+        + ["b = BPF(text=bpf_code)"]
+        + ctx.init_code
+        + [user_space_running],
         "// !APPNET_REQUEST": 
         # ["{ // req header begin. "]
         # + ctx.req_hdr_code
@@ -92,7 +146,8 @@ def codegen_from_template(output_dir, ctx: eBPFContext, lib_name, proto_path):
     for key, value in replace_dict.items():
         appnet_filter = appnet_filter.replace(key, "\n".join(value))
     print(f"After replace appnet_filter = {appnet_filter}")
-    with open(f"{output_dir}/appnet_filter/appnet_filter.cc", "w") as file:
+    print(f"{output_dir}/appnet_filter/appnet_filter.py")
+    with open(f"{output_dir}/appnet_filter/appnet_filter.py", "w") as file:
         file.write(appnet_filter)
 
     # remove .git to prevent strange bazel build behavior
