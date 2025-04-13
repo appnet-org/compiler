@@ -5,6 +5,25 @@ from compiler.config import COMPILER_ROOT
 from compiler.element.backend.eBPF.nativegen import eBPFContext
 from compiler.element.logger import ELEMENT_LOG as LOG
 
+from compiler.element.backend.eBPF.getkubernetes import *
+
+from compiler.element.backend.eBPF.types import *
+
+def gen_map_access(name : str, idx : int) -> str:
+    """
+    u32 {src/dst}Pod{idx}IP = 0;
+    u32 *{src/dst}Pod{idx}Value = {src/dst}_pod.lookup(&{src/dst}Pod{idx}IP);
+    if ({src/dst}Pod{idx}Value) {
+        {src/dst}Pod{idx}IP = (*{src/dst}Pod{idx}Value);
+    }
+    """
+    ret_val = ""
+    ret_val += f"u32 {name}Pod{idx}IP = 0;\n"
+    ret_val += f"u32 *{name}Pod{idx}Value = {name}_pod.lookup(&{name}Pod{idx}IP);\n"
+    ret_val += f"if ({name}Pod{idx}Value) {{\n"
+    ret_val += f"    {name}Pod{idx}IP = (*{name}Pod{idx}Value);\n"
+    ret_val += f"}}\n"
+    return ret_val
 
 def codegen_from_template(output_dir, ctx: eBPFContext, lib_name, proto_path):
     print(f"in codegen_from_template(), output_dir = {output_dir}")
@@ -87,11 +106,12 @@ for svc, all_pods in service_pod_mapping.items():
             if all_pods[i] == pod.metadata.name:
                 service_pod_map[ctypes.c_uint32(i)] = ctypes.c_uint32(ip_to_hex(pod.status.pod_ip))
                 break '''
-    
-    user_space_running = '''
-interface = "cni0"
-b.attach_xdp(interface, b.load_func("drop_packet", bcc.BPF.XDP))
-print(f"eBPF program attached to {interface}. Dropping packets from 10.244.0.4...")
+    # TODO: set interface as a parameter
+    curr_interface = "cni0"
+    user_space_running = f'''
+interface = "{curr_interface}"
+b.attach_xdp(interface, b.load_func("{eBPF_func_name}", bcc.BPF.XDP))
+print(f"{eBPF_func_name} eBPF program attached to {{interface}}...")
 try: 
     while True:
         b.trace_print()
@@ -99,6 +119,55 @@ except KeyboardInterrupt:
     print("Detaching eBPF program")
     b.remove_xdp(interface)
 '''
+    # TODO: get string for POPULATEKUBERNETES
+    POPULATEKUBERNETESStr = ""
+    edgeN1 = "frontend"
+    edgeN1Idx = 0
+    conditionEdgeN1 = ""
+    edgeN2 = "server"
+    edgeN2Idx = 0
+    conditionEdgeN2 = ""
+    # TODO: get edges for POPULATEKUBERNETES
+    service_pod_mapping, services, pods = get_kubernetes_info()
+    for svc, all_pods in service_pod_mapping.items():
+        print("svc=", svc, "all_pods=", all_pods)
+        if svc == edgeN1:
+            print("come here")
+            new_map_var = AppNetMap(AppNetUInt32(), AppNetUInt32())
+            _, decl = ctx.declareeBPFVar("src_pod", new_map_var.to_native())
+            ctx.push_global_var_def(decl)
+            for i in range(len(all_pods)):
+                for pod in pods.items:
+                    if all_pods[i] == pod.metadata.name:
+                        POPULATEKUBERNETESStr += gen_map_access(name="src", idx=edgeN1Idx)
+                        if conditionEdgeN1 == "":
+                            conditionEdgeN1 = f"((src_ip == srcPod{edgeN1Idx}IP)"
+                        else:
+                            conditionEdgeN1 += f"|| (src_ip == srcPod{edgeN1Idx}IP)"
+                        edgeN1Idx += 1
+                        break
+        elif svc == edgeN2:
+            new_map_var = AppNetMap(AppNetUInt32(), AppNetUInt32())
+            _, decl = ctx.declareeBPFVar("dst_pod", new_map_var.to_native())
+            ctx.push_global_var_def(decl)
+            for i in range(len(all_pods)):
+                for pod in pods.items:
+                    if all_pods[i] == pod.metadata.name:
+                        POPULATEKUBERNETESStr += gen_map_access(name="dst", idx=edgeN2Idx)
+                        if conditionEdgeN2 == "":
+                            conditionEdgeN2 = f"((dst_ip == dstPod{edgeN2Idx}IP)"
+                        else:
+                            conditionEdgeN2 += f"|| (dst_ip == dstPod{edgeN2Idx}IP)"
+                        edgeN2Idx += 1
+                        break
+    if conditionEdgeN1 != "":
+        conditionEdgeN1 += ")"
+    if conditionEdgeN2 != "":
+        conditionEdgeN2 += ")"
+    if conditionEdgeN1 != "" and conditionEdgeN2 != "":
+        POPULATEKUBERNETESStr += "u32 src_ip = bpf_ntohl(ip->saddr);\n" + "u32 dst_ip = bpf_ntohl(ip->daddr);\n" + f"if (!({conditionEdgeN1} && {conditionEdgeN2})) {{ return XDP_PASS;" + f"}}"
+    print(f"POPULATEKUBERNETESStr = {POPULATEKUBERNETESStr}")
+    
     replace_dict = {
         "// !APPNET_BEG": 
         ["import bcc"]
@@ -117,8 +186,8 @@ except KeyboardInterrupt:
         + ["#include <linux/in.h>"],
         "// !APPNET_STATE": ctx.global_var_def,
         "// !APPNET_INIT": 
-        [user_space_init]
-        + ["b = BPF(text=bpf_code)"]
+        ["b = BPF(text=bpf_code)"]
+        + [user_space_init]
         + ctx.init_code
         + [user_space_running],
         "// !APPNET_REQUEST": 
@@ -127,6 +196,18 @@ except KeyboardInterrupt:
         # + ["} // req header end."]
         [f"int {eBPF_func_name}(struct xdp_md *ctx)"] 
         + ["{ // req body begin. "]
+        + ["if (eth->h_proto != htons(ETH_P_IP)) {"]
+        + ["    return XDP_PASS;"]
+        + ["}"]
+        + ["struct iphdr *ip = (struct iphdr *)(eth + 1);"]
+        + ["if ((void *)(ip + 1) > data_end)"]
+        + ["    return XDP_PASS;"]
+        + ["void *data = (void *)(long)ctx->data;"]
+        + ["void *data_end = (void *)(long)ctx->data_end;"]
+        + ["struct ethhdr *eth = data;"]
+        + ["if ((void *)(eth + 1) > data_end)"]
+        + ["    return XDP_PASS;  // If the packet is too short to have an Ethernet header, pass"]
+        + [POPULATEKUBERNETESStr]
         + ctx.req_body_code
         + ["} // req body end.\'\'\'"],
         "// !APPNET_RESPONSE": []

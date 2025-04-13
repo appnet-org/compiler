@@ -466,9 +466,9 @@ class eBPFGenerator(Visitor):
         elif isinstance(node.stmt, Assign):
             if ctx.current_procedure != "init":
                 ctx.push_code(f"// stmt {node.stmt}")
-            # ctx.print_content()
+            ctx.print_content()
             retval = node.stmt.accept(self, ctx)
-            # ctx.print_content()
+            ctx.print_content()
             if not isinstance(retval, list):
                 retval = [retval]
             print("Exit visitStatement")
@@ -837,7 +837,6 @@ class eBPFGenerator(Visitor):
         native_pair, decl = ctx.declareeBPFVar(
             appnet_pair.name, new_pair_type.to_native()
         )
-
         ctx.push_code(decl)
         ctx.push_code(f"{native_pair.name}.first = {first_native_var.name};")
         ctx.push_code(f"{native_pair.name}.second = {second_native_var.name};")
@@ -912,18 +911,47 @@ class eBPFGenerator(Visitor):
         )
 
         ctx.push_code(decl)
-        LEFT_NAME = ""
-        if ctx.find_appnet_var(lhs_nativevar.name):
-            LEFT_NAME = lhs_nativevar.name + "[0]"
+        if ctx.find_appnet_var(lhs_nativevar.name) and ctx.find_appnet_var(rhs_nativevar.name):
+            assign_code = f'''
+u32 {lhs_nativevar.name}_key = 0;
+u32 *{lhs_nativevar.name}_val = {lhs_nativevar.name}.lookup(&{lhs_nativevar.name}_key);
+u32 {rhs_nativevar.name}_key = 0;
+u32 *{rhs_nativevar.name}_val = {rhs_nativevar.name}.lookup(&{rhs_nativevar.name}_key);
+if ({lhs_nativevar.name}_val && {rhs_nativevar.name}_val) {{
+    {new_var.name} = (*{lhs_nativevar.name}_val) {node.op.accept(self, ctx)} (*{rhs_nativevar.name}_val);    
+}}'''
+        elif ctx.find_appnet_var(lhs_nativevar.name):
+            assign_code = f'''
+u32 {lhs_nativevar.name}_key = 0;
+u32 *{lhs_nativevar.name}_val = {lhs_nativevar.name}.lookup(&{lhs_nativevar.name}_key);
+if ({lhs_nativevar.name}_val) {{
+    {new_var.name} = (*{lhs_nativevar.name}_val) {node.op.accept(self, ctx)} {rhs_nativevar.name};    
+}}'''
+        elif ctx.find_appnet_var(rhs_nativevar.name):
+            assign_code = f'''
+u32 {rhs_nativevar.name}_key = 0;
+u32 *{rhs_nativevar.name}_val = {rhs_nativevar.name}.lookup(&{rhs_nativevar.name}_key);
+if ({rhs_nativevar.name}_val) {{
+    {new_var.name} = {lhs_nativevar.name} {node.op.accept(self, ctx)} (*{rhs_nativevar.name}_val);    
+}}'''
         else:
-            LEFT_NAME = lhs_nativevar.name
-        RIGHT_NAME = ""
-        if ctx.find_appnet_var(rhs_nativevar.name):
-            RIGHT_NAME = rhs_nativevar.name + "[0]"
-        else:
-            RIGHT_NAME = rhs_nativevar.name
-        print(f"LEFT_NAME = {LEFT_NAME}, RIGHT_NAME = {RIGHT_NAME}")
-        assign_code = f"{new_var.name} = {LEFT_NAME} {node.op.accept(self, ctx)} {RIGHT_NAME};"
+            assign_code = f"{new_var.name} = {lhs_nativevar.name} {node.op.accept(self, ctx)} {rhs_nativevar.name};"     
+        # LEFT_NAME = ""
+        # if ctx.find_appnet_var(lhs_nativevar.name):
+        #     # TODO: consider various members in the array. Currently, we let index to be always 0
+        #     # u32 prob_val_key = 0;
+        #     # u32 *prob_val = prob.lookup(&prob_val_key);
+            
+        #     LEFT_NAME = lhs_nativevar.name + "[0]"
+        # else:
+        #     LEFT_NAME = lhs_nativevar.name
+        # RIGHT_NAME = ""
+        # if ctx.find_appnet_var(rhs_nativevar.name):
+        #     RIGHT_NAME = rhs_nativevar.name + "[0]"
+        # else:
+        #     RIGHT_NAME = rhs_nativevar.name
+        # print(f"LEFT_NAME = {LEFT_NAME}, RIGHT_NAME = {RIGHT_NAME}")
+        # assign_code = f"{new_var.name} = {LEFT_NAME} {node.op.accept(self, ctx)} {RIGHT_NAME};"
         ctx.push_code(assign_code)
 
         return (expr_appnet_type, new_var)

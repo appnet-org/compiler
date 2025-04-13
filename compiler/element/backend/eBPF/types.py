@@ -11,6 +11,7 @@ from compiler.element.backend.eBPF.appnettype import Option as AppNetOption
 from compiler.element.backend.eBPF.appnettype import Pair as AppNetPair
 from compiler.element.backend.eBPF.appnettype import String as AppNetString
 from compiler.element.backend.eBPF.appnettype import UInt as AppNetUInt
+from compiler.element.backend.eBPF.appnettype import UInt32 as AppNetUInt32
 from compiler.element.backend.eBPF.appnettype import Vec as AppNetVec
 from compiler.element.backend.eBPF.appnettype import Void as AppNetVoid
 from compiler.element.backend.eBPF.appnettype import (
@@ -31,4 +32,5 @@ from compiler.element.backend.eBPF.nativetype import (
     Timepoint as NativeTimepoint,
 )
 from compiler.element.backend.eBPF.nativetype import UInt as NativeUInt
+from compiler.element.backend.eBPF.nativetype import UInt32 as NativeUInt32
 from compiler.element.backend.eBPF.nativetype import Vec as NativeVec

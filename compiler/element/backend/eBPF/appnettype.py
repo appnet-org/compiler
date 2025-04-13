@@ -17,6 +17,7 @@ from compiler.element.backend.eBPF.nativetype import (
     Timepoint as NativeTimepoint,
 )
 from compiler.element.backend.eBPF.nativetype import UInt as NativeUInt
+from compiler.element.backend.eBPF.nativetype import UInt32 as NativeUInt32
 from compiler.element.backend.eBPF.nativetype import Vec as NativeVec
 from compiler.element.logger import ELEMENT_LOG as LOG
 
@@ -125,6 +126,9 @@ class Int(AppNetType):
     def to_native(self) -> NativeType:
         return NativeInt()
 
+class UInt32(AppNetType):
+    def to_native(self) -> NativeType:
+        return NativeUInt32()
 
 class UInt(AppNetType):
     def to_native(self) -> NativeType:

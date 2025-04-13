@@ -75,7 +75,18 @@ class Int(NativeType):
         return f"BPF_ARRAY({name}, s64, 1);"
     
     def gen_decl_local(self, name: str) -> str:
+        return f"s32 {name} = 0;"
+
+class UInt32(NativeType):
+    def type_name(self) -> str:
+        return "u32"
+
+    def gen_decl(self, name: str) -> str:
+        return f"BPF_ARRAY({name}, u32, 1);"
+    
+    def gen_decl_local(self, name: str) -> str:
         return f"u32 {name} = 0;"
+
 
 class UInt(NativeType):
     def type_name(self) -> str:
@@ -162,12 +173,12 @@ class Map(NativeType):
 
     def gen_decl(self, name: str) -> str:
         return (
-            f"std::map<{self.key.type_name()}, {self.value.type_name()}> {name} = {{}};"
+            f"BPF_HASH({name}, {self.key.type_name()}, {self.value.type_name()});"
         )
     
     def gen_decl_local(self, name: str) -> str:
         return (
-            f"std::map<{self.key.type_name()}, {self.value.type_name()}> {name} = {{}};"
+            f"BPF_HASH({name}, {self.key.type_name()}, {self.value.type_name()});"
         )
 
     def is_same(self, other: NativeType) -> bool:
