@@ -711,6 +711,7 @@ class eBPFGenerator(Visitor):
                     ctx.push_code(f"{lhs_name} = b[\"{lhs_name}\"]")
                     ctx.push_code(f"{lhs_name}[ctypes.c_uint(0)] = ctypes.c_uint({rhs_native_var})")
             else:
+                print(f"node.left = {node.left}, node.right = {node.right}")
                 assert False, "New init case"
         else:
             if isinstance(node.left, Identifier):
@@ -1359,7 +1360,7 @@ class CurrentTime(AppNetBuiltinFuncProto):
         ) = ctx.declareeBPFVar(ctx.new_temporary_name(), self.ret_type().to_native())
 
         ctx.push_code(native_decl_stmt)
-        ctx.push_code(f"{res_native_var.name} = std::chrono::system_clock::now();")
+        ctx.push_code(f"{res_native_var.name} = bpf_ktime_get_ns();")
         return res_native_var
 
     def __init__(self):
@@ -1394,7 +1395,7 @@ class TimeDiff(AppNetBuiltinFuncProto):
         ctx.push_code(native_decl_stmt)
         # cast into float in second
         ctx.push_code(
-            f"{res_native_var.name} = std::chrono::duration_cast<std::chrono::duration<float>>({end.name} - {start.name}).count();"
+            f"{res_native_var.name} = ({end.name} - {start.name});"
         )
         return res_native_var
 

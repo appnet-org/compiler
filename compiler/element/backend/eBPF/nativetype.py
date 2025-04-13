@@ -59,13 +59,16 @@ class RPC(NativeType):
 
 class Timepoint(NativeType):
     def type_name(self) -> str:
-        return "std::chrono::time_point<std::chrono::system_clock>"
+        # return "std::chrono::time_point<std::chrono::system_clock>"
+        return "u64"
 
     def gen_decl(self, name: str) -> str:
-        return f"std::chrono::time_point<std::chrono::system_clock> {name};"
-
+        # return f"std::chrono::time_point<std::chrono::system_clock> {name};"
+        return f"BPF_ARRAY({name}, u64, 1);"
+    
     def gen_decl_local(self, name: str) -> str:
-        return f"std::chrono::time_point<std::chrono::system_clock> {name};"
+        # return f"std::chrono::time_point<std::chrono::system_clock> {name};"
+        return f"u64 {name} = 0;"
 
 class Int(NativeType):
     def type_name(self) -> str:
