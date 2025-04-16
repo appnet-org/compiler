@@ -125,8 +125,6 @@ class eBPFContext:
 
     def push_code(self, code: str) -> None:
         code = code.strip()
-        if "temp_1" in code:
-            print(f"code = {code}")
         self.current_procedure_code.append(code)
         if code.endswith("{"):
             self.push_native_scope()
@@ -192,7 +190,9 @@ class eBPFContext:
         raise Exception(f"variable {name} not found")
 
     def find_appnet_var(self, name: str) -> Optional[Tuple[AppNetVariable, bool]]:
+        print(f"find_appnet_var: name = {name}")
         try:
+            print(f"self.get_appnet_var(name) = {self.get_appnet_var(name)}")
             return self.get_appnet_var(name)
         except:
             return None
@@ -320,35 +320,35 @@ class eBPFGenerator(Visitor):
                     "Only map<string, string/int> can have consistency for now"
                 )
 
-            if decorator["consistency"] in ["weak"]:
-                if (
-                    appType.key.is_string() == False
-                    or appType.value.is_string() == False
-                ):
-                    raise Exception(
-                        "Only map<string, string> can have weak consistency for now"
-                    )
-                # for (auto& [key, value] : cache) {
-                #   ENVOY_LOG(info, "[AppNet Filter] cache key={}, value={}", key, value);
-                # }
-                # this->sendWebdisRequest(const std::string path, int &callback)
-                # path="/MGET/a/b/c/d"       to get a,b,c,d
-                # path="/MSET/a/b/c/d"       to set a to b, c to d
+            # if decorator["consistency"] in ["weak"]:
+            #     if (
+            #         appType.key.is_string() == False
+            #         or appType.value.is_string() == False
+            #     ):
+            #         raise Exception(
+            #             "Only map<string, string> can have weak consistency for now"
+            #         )
+            #     # for (auto& [key, value] : cache) {
+            #     #   ENVOY_LOG(info, "[AppNet Filter] cache key={}, value={}", key, value);
+            #     # }
+            #     # this->sendWebdisRequest(const std::string path, int &callback)
+            #     # path="/MGET/a/b/c/d"       to get a,b,c,d
+            #     # path="/MSET/a/b/c/d"       to set a to b, c to d
 
-                ctx.on_tick_code.append("{")
-                # We simulate the overhead. Just set the value to the key, and then get them back from webdis.
-                ctx.on_tick_code.append(f'  std::string geturl = "/MGET";')
-                ctx.on_tick_code.append(f'  std::string seturl = "/MSET";')
-                ctx.on_tick_code.append(f"  for (auto& [key, value] : {state.name}) {{")
-                ctx.on_tick_code.append(f'    geturl += "/" + key;')
-                ctx.on_tick_code.append(
-                    f'    seturl += "/" + key + "/" + base64_encode(value, true);'
-                )
-                ctx.on_tick_code.append(f"  }}")
-                ctx.on_tick_code.append(f"this->sendWebdisRequest(seturl);")
-                # TODO: We should wait for the response of the set request, and then we can send the get request.
-                ctx.on_tick_code.append(f"  this->sendWebdisRequest(geturl);")
-                ctx.on_tick_code.append("}")
+            #     ctx.on_tick_code.append("{")
+            #     # We simulate the overhead. Just set the value to the key, and then get them back from webdis.
+            #     ctx.on_tick_code.append(f'  std::string geturl = "/MGET";')
+            #     ctx.on_tick_code.append(f'  std::string seturl = "/MSET";')
+            #     ctx.on_tick_code.append(f"  for (auto& [key, value] : {state.name}) {{")
+            #     ctx.on_tick_code.append(f'    geturl += "/" + key;')
+            #     ctx.on_tick_code.append(
+            #         f'    seturl += "/" + key + "/" + base64_encode(value, true);'
+            #     )
+            #     ctx.on_tick_code.append(f"  }}")
+            #     ctx.on_tick_code.append(f"this->sendWebdisRequest(seturl);")
+            #     # TODO: We should wait for the response of the set request, and then we can send the get request.
+            #     ctx.on_tick_code.append(f"  this->sendWebdisRequest(geturl);")
+            #     ctx.on_tick_code.append("}")
         print("Exit visitState")
 
     def visitProcedure(self, node: Procedure, ctx: eBPFContext):
@@ -459,6 +459,7 @@ class eBPFGenerator(Visitor):
             # TODO: deal with Up and Down
             # TODO: support hooks in addition to the XDP hook
             if isinstance(node.stmt.msg, Error):
+                ctx.push_code(f"bpf_trace_printk(\"PKT DROP decision\\\\n\");")
                 ctx.push_code(f"return XDP_DROP;")
             else:
                 assert isinstance(node.stmt.msg, Identifier), "currently do not support types beyond Error and Identifier"
@@ -547,7 +548,6 @@ class eBPFGenerator(Visitor):
         ctx.push_code(f"{bind_name} = {native_expr.name}.value();")
         for stmt in some_pattern_stmts:
             stmt.accept(self, ctx)
-
         ctx.push_code("}")
         ctx.pop_appnet_scope()
 
@@ -571,12 +571,7 @@ class eBPFGenerator(Visitor):
             assert isinstance(appnet_type, AppNetOption)
             self.generateOptionMatch(node, ctx, appnet_type, native_expr)
             return
-        # print("Before")
-        # ctx.print_content()
-        ctx.push_appnet_scope()
         # ====== Generate basic types match (no binding) ====
-        # print("After")
-        # ctx.print_content()
         # exit(0)
         first = True
 
@@ -720,8 +715,33 @@ class eBPFGenerator(Visitor):
                 rhs_appnet_type, rhs_native_var = self.visitGeneralExpr(node.right, ctx)
                 assert isinstance(rhs_appnet_type, AppNetType)
                 assert isinstance(rhs_native_var, NativeVariable)
+                print("lhs_name = ", lhs_name)
                 if ctx.find_appnet_var(lhs_name):
-                    ctx.push_code(f"{lhs_name}[0] = {rhs_native_var.name};")
+                    res = ctx.find_appnet_var(f"{lhs_name}_key")
+                    print(f"lhs_name = {lhs_name}, res = {res}")
+                    if res is None:
+                        print("res is None")
+                        rhs = ctx.declareAppNetLocalVariable(f"{lhs_name}_key", AppNetUInt32())
+                        eBPF_rhs, decl = ctx.declareeBPFVar(f"{lhs_name}_key", rhs.type.to_native())
+                        rhs.native_var = eBPF_rhs
+                        ctx.push_code(decl)
+                    print("res is not None")
+                    # ctx.push_code(f"u32 {lhs_name}_key = 0;")
+                    res = ctx.find_appnet_var(f"*{lhs_name}_val")
+                    if res is None:
+                        print("res is None")
+                        rhs = ctx.declareAppNetLocalVariable(f"*{lhs_name}_val", AppNetUInt32())
+                        eBPF_rhs, decl = ctx.declareeBPFVar(f"*{lhs_name}_val", rhs.type.to_native())
+                        rhs.native_var = eBPF_rhs
+                        ctx.push_code(decl)
+                    # TODO: should avoid writing sth. like *{lhs_name}_val = {rhs_native_var.name};
+                    # ctx.push_code(f"{lhs_name}_val = {lhs_name}.lookup(&{lhs_name}_key);")
+                    # ctx.push_code(f"if ({lhs_name}_val) {{")
+                    # ctx.push_code(f"  *{lhs_name}_val = {rhs_native_var.name};")
+                    # ctx.push_code(f"}}")
+                    ctx.push_code(f"*{lhs_name}_val = {rhs_native_var.name};")
+                    ctx.push_code(f"{lhs_name}.update(&{lhs_name}_key, {lhs_name}_val);")
+                    
                 else:
                     ctx.push_code(f"{lhs_name} = {rhs_native_var.name};")
                 # if ctx.find_appnet_var(lhs_name) is None:
@@ -910,28 +930,75 @@ class eBPFGenerator(Visitor):
         new_var, decl = ctx.declareeBPFVar(
             ctx.new_temporary_name(), expr_appnet_type.to_native()
         )
-
         ctx.push_code(decl)
+        # TODO: add appnet variable
+        # TODO: add pointer
         if ctx.find_appnet_var(lhs_nativevar.name) and ctx.find_appnet_var(rhs_nativevar.name):
+            res = ctx.find_appnet_var(f"{lhs_nativevar.name}_key")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"{lhs_nativevar.name}_key", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"{lhs_nativevar.name}_key", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"*{lhs_nativevar.name}_val")
+            if res is None:
+                print("res is None")
+                rhs = ctx.declareAppNetLocalVariable(f"*{lhs_nativevar.name}_val", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"*{lhs_nativevar.name}_val", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"{rhs_nativevar.name}_key")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"{rhs_nativevar.name}_key", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"{rhs_nativevar.name}_key", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"*{rhs_nativevar.name}_val")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"*{rhs_nativevar.name}_val", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"*{rhs_nativevar.name}_val", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
             assign_code = f'''
-u32 {lhs_nativevar.name}_key = 0;
-u32 *{lhs_nativevar.name}_val = {lhs_nativevar.name}.lookup(&{lhs_nativevar.name}_key);
-u32 {rhs_nativevar.name}_key = 0;
-u32 *{rhs_nativevar.name}_val = {rhs_nativevar.name}.lookup(&{rhs_nativevar.name}_key);
+{lhs_nativevar.name}_val = {lhs_nativevar.name}.lookup(&{lhs_nativevar.name}_key);
+{rhs_nativevar.name}_val = {rhs_nativevar.name}.lookup(&{rhs_nativevar.name}_key);
 if ({lhs_nativevar.name}_val && {rhs_nativevar.name}_val) {{
     {new_var.name} = (*{lhs_nativevar.name}_val) {node.op.accept(self, ctx)} (*{rhs_nativevar.name}_val);    
 }}'''
         elif ctx.find_appnet_var(lhs_nativevar.name):
+            res = ctx.find_appnet_var(f"{lhs_nativevar.name}_key")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"{lhs_nativevar.name}_key", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"{lhs_nativevar.name}_key", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"*{lhs_nativevar.name}_val")
+            if res is None:
+                print("res is None")
+                rhs = ctx.declareAppNetLocalVariable(f"*{lhs_nativevar.name}_val", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"*{lhs_nativevar.name}_val", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
             assign_code = f'''
-u32 {lhs_nativevar.name}_key = 0;
-u32 *{lhs_nativevar.name}_val = {lhs_nativevar.name}.lookup(&{lhs_nativevar.name}_key);
+{lhs_nativevar.name}_val = {lhs_nativevar.name}.lookup(&{lhs_nativevar.name}_key);
 if ({lhs_nativevar.name}_val) {{
     {new_var.name} = (*{lhs_nativevar.name}_val) {node.op.accept(self, ctx)} {rhs_nativevar.name};    
 }}'''
         elif ctx.find_appnet_var(rhs_nativevar.name):
+            res = ctx.find_appnet_var(f"{rhs_nativevar.name}_key")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"{rhs_nativevar.name}_key", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"{rhs_nativevar.name}_key", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"*{rhs_nativevar.name}_val")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"*{rhs_nativevar.name}_val", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"*{rhs_nativevar.name}_val", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
             assign_code = f'''
-u32 {rhs_nativevar.name}_key = 0;
-u32 *{rhs_nativevar.name}_val = {rhs_nativevar.name}.lookup(&{rhs_nativevar.name}_key);
+{rhs_nativevar.name}_val = {rhs_nativevar.name}.lookup(&{rhs_nativevar.name}_key);
 if ({rhs_nativevar.name}_val) {{
     {new_var.name} = {lhs_nativevar.name} {node.op.accept(self, ctx)} (*{rhs_nativevar.name}_val);    
 }}'''
@@ -1393,10 +1460,62 @@ class TimeDiff(AppNetBuiltinFuncProto):
         ) = ctx.declareeBPFVar(ctx.new_temporary_name(), self.ret_type().to_native())
 
         ctx.push_code(native_decl_stmt)
+        print("native_decl_stmt =", native_decl_stmt)
         # cast into float in second
-        ctx.push_code(
-            f"{res_native_var.name} = ({end.name} - {start.name});"
-        )
+        END_VAR = end.name
+        START_VAR = start.name
+        if ctx.find_appnet_var(end.name):
+            res = ctx.find_appnet_var(f"{end.name}_key")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"{end.name}_key", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"{end.name}_key", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"*{end.name}_val")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"*{end.name}_val", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"*{end.name}_val", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            ctx.push_code(f"{end.name}_val = {end.name}.lookup(&{end.name}_key);")
+            END_VAR = f"*{end.name}_val"
+        if ctx.find_appnet_var(start.name):
+            res = ctx.find_appnet_var(f"{start.name}_key")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"{start.name}_key", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"{start.name}_key", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"*{start.name}_val")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"*{start.name}_val", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"*{start.name}_val", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            ctx.push_code(f"{start.name}_val = {start.name}.lookup(&{start.name}_key);")
+            START_VAR = f"*{start.name}_val"
+        if END_VAR != end.name and START_VAR != start.name:
+            ctx.push_code(f"if ({start.name}_val && {end.name}_val) {{")
+            ctx.push_code(
+                f"{res_native_var.name} = (({END_VAR}) - ({START_VAR}));"
+            )
+            ctx.push_code(f"}}")
+        elif END_VAR != end.name:
+            ctx.push_code(f"if ({end.name}_val) {{")
+            ctx.push_code(
+                f"{res_native_var.name} = (({END_VAR}) - ({START_VAR}));"
+            )
+            ctx.push_code(f"}}")
+        elif START_VAR != start.name:
+            ctx.push_code(f"if ({start.name}_val) {{")
+            ctx.push_code(
+                f"{res_native_var.name} = (({END_VAR}) - ({START_VAR}));"
+            )
+            ctx.push_code(f"}}")
+        else:
+            ctx.push_code(
+                f"{res_native_var.name} = ({END_VAR} - {START_VAR});"
+            )
         return res_native_var
 
     def __init__(self):
@@ -1430,7 +1549,68 @@ class Min(AppNetBuiltinFuncProto):
         ) = ctx.declareeBPFVar(ctx.new_temporary_name(), self.ret_type().to_native())
 
         ctx.push_code(native_decl_stmt)
-        ctx.push_code(f"{res_native_var.name} = my_min({a.name}, {b.name});")
+        ANAME = a.name
+        BNAME = b.name
+        if ctx.find_appnet_var(a.name):
+            res = ctx.find_appnet_var(f"{a.name}_key")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"{a.name}_key", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"{a.name}_key", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"*{a.name}_val")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"*{a.name}_val", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"*{a.name}_val", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            ctx.push_code(code=f"{a.name}_val = {a.name}.lookup(&{a.name}_key);")
+            ANAME = f"*{a.name}_val"
+        if ctx.find_appnet_var(b.name):
+            res = ctx.find_appnet_var(f"{b.name}_key")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"{b.name}_key", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"{b.name}_key", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"*{b.name}_val")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"*{b.name}_val", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"*{b.name}_val", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            ctx.push_code(f"{b.name}_val = {b.name}.lookup(&{b.name}_key);")
+            BNAME = f"*{b.name}_val"
+        if ANAME != a.name and BNAME != b.name:
+            ctx.push_code(f"if({a.name}_val && {b.name}_val) {{")
+            ctx.push_code(f"if((*{a.name}_val) < (*{b.name}_val)) {{")
+            ctx.push_code(f"{res_native_var.name} = {ANAME};")
+            ctx.push_code(f"}} else {{")
+            ctx.push_code(f"{res_native_var.name} = {BNAME};")
+            ctx.push_code(f"}}")
+            ctx.push_code(f"}}")
+        elif ANAME != a.name:
+            ctx.push_code(f"if({a.name}_val) {{")
+            ctx.push_code(f"if((*{a.name}_val) < {b.name}) {{")
+            ctx.push_code(f"{res_native_var.name} = {ANAME};")
+            ctx.push_code(f"}} else {{")
+            ctx.push_code(f"{res_native_var.name} = {b.name};")
+            ctx.push_code(f"}}")
+            ctx.push_code(f"}}")
+        elif BNAME != b.name:
+            ctx.push_code(f"if({b.name}_val) {{")
+            ctx.push_code(f"if({a.name} < (*{b.name}_val)) {{")
+            ctx.push_code(f"{res_native_var.name} = {a.name};")
+            ctx.push_code(f"}} else {{")
+            ctx.push_code(f"{res_native_var.name} = {BNAME};")
+            ctx.push_code(f"}}")
+            ctx.push_code(f"}}")
+        else:
+            ctx.push_code(f"if({a.name} < {b.name}) {{")
+            ctx.push_code(f"{res_native_var.name} = {a.name};")
+            ctx.push_code(f"}} else {{")
+            ctx.push_code(f"{res_native_var.name} = {b.name};")
+            ctx.push_code("}")
         return res_native_var
 
     def __init__(self):
@@ -1858,9 +2038,69 @@ class Max(AppNetBuiltinFuncProto):
             res_native_var,
             native_decl_stmt,
         ) = ctx.declareeBPFVar(ctx.new_temporary_name(), self.ret_type().to_native())
-
         ctx.push_code(native_decl_stmt)
-        ctx.push_code(f"{res_native_var.name} = my_max({a.name}, {b.name});")
+        ANAME = a.name
+        BNAME = b.name
+        if ctx.find_appnet_var(a.name):
+            res = ctx.find_appnet_var(f"{a.name}_key")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"{a.name}_key", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"{a.name}_key", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"*{a.name}_val")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"*{a.name}_val", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"*{a.name}_val", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            ctx.push_code(code=f"{a.name}_val = {a.name}.lookup(&{a.name}_key);")
+            ANAME = f"*{a.name}_val"
+        if ctx.find_appnet_var(b.name):
+            res = ctx.find_appnet_var(f"{b.name}_key")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"{b.name}_key", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"{b.name}_key", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            res = ctx.find_appnet_var(f"*{b.name}_val")
+            if res is None:
+                rhs = ctx.declareAppNetLocalVariable(f"*{b.name}_val", AppNetUInt32())
+                eBPF_rhs, decl = ctx.declareeBPFVar(f"*{b.name}_val", rhs.type.to_native())
+                rhs.native_var = eBPF_rhs
+                ctx.push_code(decl)
+            ctx.push_code(f"{b.name}_val = {b.name}.lookup(&{b.name}_key);")
+            BNAME = f"*{b.name}_val"
+        if ANAME != a.name and BNAME != b.name:
+            ctx.push_code(f"if({a.name}_val && {b.name}_val) {{")
+            ctx.push_code(f"if((*{a.name}_val) > (*{b.name}_val)) {{")
+            ctx.push_code(f"{res_native_var.name} = {ANAME};")
+            ctx.push_code(f"}} else {{")
+            ctx.push_code(f"{res_native_var.name} = {BNAME};")
+            ctx.push_code(f"}}")
+            ctx.push_code(f"}}")
+        elif ANAME != a.name:
+            ctx.push_code(f"if({a.name}_val) {{")
+            ctx.push_code(f"if((*{a.name}_val) > {b.name}) {{")
+            ctx.push_code(f"{res_native_var.name} = {ANAME};")
+            ctx.push_code(f"}} else {{")
+            ctx.push_code(f"{res_native_var.name} = {b.name};")
+            ctx.push_code(f"}}")
+            ctx.push_code(f"}}")
+        elif BNAME != b.name:
+            ctx.push_code(f"if({b.name}_val) {{")
+            ctx.push_code(f"if({a.name} > (*{b.name}_val)) {{")
+            ctx.push_code(f"{res_native_var.name} = {a.name};")
+            ctx.push_code(f"}} else {{")
+            ctx.push_code(f"{res_native_var.name} = {BNAME};")
+            ctx.push_code(f"}}")
+            ctx.push_code(f"}}")
+        else:
+            ctx.push_code(f"if({a.name} > {b.name}) {{")
+            ctx.push_code(f"{res_native_var.name} = {a.name};")
+            ctx.push_code(f"}} else {{")
+            ctx.push_code(f"{res_native_var.name} = {b.name};")
+            ctx.push_code("}")
         return res_native_var
 
     def __init__(self):

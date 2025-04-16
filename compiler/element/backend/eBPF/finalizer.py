@@ -9,17 +9,19 @@ from compiler.element.backend.eBPF.getkubernetes import *
 
 from compiler.element.backend.eBPF.types import *
 
-def gen_map_access(name : str, idx : int) -> str:
+def gen_map_access(name : str, idx : int, ctx) -> str:
     """
+    u32 {src/dst}Pod{idx}IP_key = 0;
     u32 {src/dst}Pod{idx}IP = 0;
-    u32 *{src/dst}Pod{idx}Value = {src/dst}_pod.lookup(&{src/dst}Pod{idx}IP);
+    u32 *{src/dst}Pod{idx}Value = {src/dst}_pod.lookup(&{src/dst}Pod{idx}IP_key);
     if ({src/dst}Pod{idx}Value) {
         {src/dst}Pod{idx}IP = (*{src/dst}Pod{idx}Value);
     }
     """
     ret_val = ""
+    ret_val += f"u32 {name}Pod{idx}IP_key = 0;\n"
     ret_val += f"u32 {name}Pod{idx}IP = 0;\n"
-    ret_val += f"u32 *{name}Pod{idx}Value = {name}_pod.lookup(&{name}Pod{idx}IP);\n"
+    ret_val += f"u32 *{name}Pod{idx}Value = {name}_pod.lookup(&{name}Pod{idx}IP_key);\n"
     ret_val += f"if ({name}Pod{idx}Value) {{\n"
     ret_val += f"    {name}Pod{idx}IP = (*{name}Pod{idx}Value);\n"
     ret_val += f"}}\n"
@@ -72,7 +74,14 @@ def codegen_from_template(output_dir, ctx: eBPFContext, lib_name, proto_path):
     #     ctx.insert_envoy_log()
     print(f"ctx.global_var_def = {ctx.global_var_def}, ctx.init_code = {ctx.init_code}, ctx.req_hdr_code = {ctx.req_hdr_code}, ctx.req_body_code = {ctx.req_body_code}")
     eBPF_func_name = output_dir.split('/')[-1]
-    user_space_init = '''
+    # TODO: get edgeN1, edgeN2 from the graph
+    edgeN1 = "frontend"
+    edgeN1Idx = 0
+    conditionEdgeN1 = ""
+    edgeN2 = "server"
+    edgeN2Idx = 0
+    conditionEdgeN2 = ""
+    user_space_init = f'''
 def ip_to_hex(ip):
     parts = ip.split(".")
     return (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(parts[3])
@@ -83,15 +92,15 @@ def get_kubernetes_info():
     services = v1.list_namespaced_service(namespace)
     pods = v1.list_namespaced_pod(namespace)
     services = v1.list_namespaced_service(namespace)
-    pod_map = {pod.metadata.name: pod.metadata.labels for pod in pods.items}
-    service_pod_mapping = {}
+    pod_map = {{pod.metadata.name: pod.metadata.labels for pod in pods.items}}
+    service_pod_mapping = {{}}
     for svc in services.items:
         svc_name = svc.metadata.name
         svc_ip = svc.spec.cluster_ip
         svc_selector = svc.spec.selector
         if not svc_selector:
             continue
-        label_selector = ",".join([f"{k}={v}" for k, v in svc_selector.items()])
+        label_selector = ",".join([f"{{k}}={{v}}" for k, v in svc_selector.items()])
         matching_pods = [
             pod_name for pod_name, labels in pod_map.items()
             if labels and all(labels.get(k) == v for k, v in svc_selector.items())
@@ -100,7 +109,10 @@ def get_kubernetes_info():
     return service_pod_mapping, services, pods
 service_pod_mapping, services, pods = get_kubernetes_info()
 for svc, all_pods in service_pod_mapping.items():
-    service_pod_map = b[svc + "_pod"]
+    if svc == "{edgeN1}":
+        service_pod_map = b["src_pod"]
+    elif svc == "{edgeN2}":
+        service_pod_map = b["dst_pod"]
     for i in range(len(all_pods)):
         for pod in pods.items:
             if all_pods[i] == pod.metadata.name:
@@ -119,14 +131,7 @@ except KeyboardInterrupt:
     print("Detaching eBPF program")
     b.remove_xdp(interface)
 '''
-    # TODO: get string for POPULATEKUBERNETES
     POPULATEKUBERNETESStr = ""
-    edgeN1 = "frontend"
-    edgeN1Idx = 0
-    conditionEdgeN1 = ""
-    edgeN2 = "server"
-    edgeN2Idx = 0
-    conditionEdgeN2 = ""
     # TODO: get edges for POPULATEKUBERNETES
     service_pod_mapping, services, pods = get_kubernetes_info()
     for svc, all_pods in service_pod_mapping.items():
@@ -139,7 +144,7 @@ except KeyboardInterrupt:
             for i in range(len(all_pods)):
                 for pod in pods.items:
                     if all_pods[i] == pod.metadata.name:
-                        POPULATEKUBERNETESStr += gen_map_access(name="src", idx=edgeN1Idx)
+                        POPULATEKUBERNETESStr += gen_map_access(name="src", idx=edgeN1Idx, ctx=ctx)
                         if conditionEdgeN1 == "":
                             conditionEdgeN1 = f"((src_ip == srcPod{edgeN1Idx}IP)"
                         else:
@@ -153,7 +158,7 @@ except KeyboardInterrupt:
             for i in range(len(all_pods)):
                 for pod in pods.items:
                     if all_pods[i] == pod.metadata.name:
-                        POPULATEKUBERNETESStr += gen_map_access(name="dst", idx=edgeN2Idx)
+                        POPULATEKUBERNETESStr += gen_map_access(name="dst", idx=edgeN2Idx, ctx=ctx)
                         if conditionEdgeN2 == "":
                             conditionEdgeN2 = f"((dst_ip == dstPod{edgeN2Idx}IP)"
                         else:
@@ -196,18 +201,19 @@ except KeyboardInterrupt:
         # + ["} // req header end."]
         [f"int {eBPF_func_name}(struct xdp_md *ctx)"] 
         + ["{ // req body begin. "]
+        + ["void *data = (void *)(long)ctx->data;"]
+        + ["void *data_end = (void *)(long)ctx->data_end;"]
+        + ["struct ethhdr *eth = data;"]
+        + ["if ((void *)(eth + 1) > data_end)"]
+        + ["    return XDP_PASS;  // If the packet is too short to have an Ethernet header, pass"]
         + ["if (eth->h_proto != htons(ETH_P_IP)) {"]
         + ["    return XDP_PASS;"]
         + ["}"]
         + ["struct iphdr *ip = (struct iphdr *)(eth + 1);"]
         + ["if ((void *)(ip + 1) > data_end)"]
         + ["    return XDP_PASS;"]
-        + ["void *data = (void *)(long)ctx->data;"]
-        + ["void *data_end = (void *)(long)ctx->data_end;"]
-        + ["struct ethhdr *eth = data;"]
-        + ["if ((void *)(eth + 1) > data_end)"]
-        + ["    return XDP_PASS;  // If the packet is too short to have an Ethernet header, pass"]
         + [POPULATEKUBERNETESStr]
+        + ["bpf_trace_printk(\"Hitting appnet program\\\\n\");"]
         + ctx.req_body_code
         + ["} // req body end.\'\'\'"],
         "// !APPNET_RESPONSE": []
