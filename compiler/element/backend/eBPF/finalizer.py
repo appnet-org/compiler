@@ -9,23 +9,23 @@ from compiler.element.backend.eBPF.getkubernetes import *
 
 from compiler.element.backend.eBPF.types import *
 
-def gen_map_access(name : str, idx : int, ctx) -> str:
-    """
-    u32 {src/dst}Pod{idx}IP_key = 0;
-    u32 {src/dst}Pod{idx}IP = 0;
-    u32 *{src/dst}Pod{idx}Value = {src/dst}_pod.lookup(&{src/dst}Pod{idx}IP_key);
-    if ({src/dst}Pod{idx}Value) {
-        {src/dst}Pod{idx}IP = (*{src/dst}Pod{idx}Value);
-    }
-    """
-    ret_val = ""
-    ret_val += f"u32 {name}Pod{idx}IP_key = 0;\n"
-    ret_val += f"u32 {name}Pod{idx}IP = 0;\n"
-    ret_val += f"u32 *{name}Pod{idx}Value = {name}_pod.lookup(&{name}Pod{idx}IP_key);\n"
-    ret_val += f"if ({name}Pod{idx}Value) {{\n"
-    ret_val += f"    {name}Pod{idx}IP = (*{name}Pod{idx}Value);\n"
-    ret_val += f"}}\n"
-    return ret_val
+# def gen_map_access(name : str, idx : int, ctx) -> str:
+#     """
+#     u32 {src/dst}Pod{idx}IP_key = 0;
+#     u32 {src/dst}Pod{idx}IP = 0;
+#     u32 *{src/dst}Pod{idx}Value = {src/dst}_pod.lookup(&{src/dst}Pod{idx}IP_key);
+#     if ({src/dst}Pod{idx}Value) {
+#         {src/dst}Pod{idx}IP = (*{src/dst}Pod{idx}Value);
+#     }
+#     """
+#     ret_val = ""
+#     ret_val += f"u32 {name}Pod{idx}IP_key = 0;\n"
+#     ret_val += f"u32 {name}Pod{idx}IP = 0;\n"
+#     ret_val += f"u32 *{name}Pod{idx}Value = {name}_pod.lookup(&{name}Pod{idx}IP_key);\n"
+#     ret_val += f"if ({name}Pod{idx}Value) {{\n"
+#     ret_val += f"    {name}Pod{idx}IP = (*{name}Pod{idx}Value);\n"
+#     ret_val += f"}}\n"
+#     return ret_val
 
 def codegen_from_template(output_dir, ctx: eBPFContext, lib_name, proto_path):
     print(f"in codegen_from_template(), output_dir = {output_dir}")
@@ -107,33 +107,61 @@ def get_kubernetes_info():
         ]
         service_pod_mapping[svc_name] = matching_pods
     return service_pod_mapping, services, pods
-service_pod_mapping, services, pods = get_kubernetes_info()
-for svc, all_pods in service_pod_mapping.items():
-    if svc == "{edgeN1}":
-        service_pod_map = b["src_pod"]
-    elif svc == "{edgeN2}":
-        service_pod_map = b["dst_pod"]
-    for i in range(len(all_pods)):
-        for pod in pods.items:
-            if all_pods[i] == pod.metadata.name:
-                service_pod_map[ctypes.c_uint32(i)] = ctypes.c_uint32(ip_to_hex(pod.status.pod_ip))
-                break '''
+def update_pod_info_periodically():
+    while True:
+        try:
+            service_pod_mapping, services, pods = get_kubernetes_info()
+            b["src_pod"].clear()
+            b["dst_pod"].clear()
+            for svc, all_pods in service_pod_mapping.items():
+                if svc == "frontend":
+                    service_pod_map = b["src_pod"]
+                elif svc == "server":
+                    service_pod_map = b["dst_pod"]
+                else:
+                    continue
+                for i in range(len(all_pods)):
+                    for pod in pods.items:
+                        if all_pods[i] == pod.metadata.name and pod.status.pod_ip:
+                            ip_int = ip_to_hex(pod.status.pod_ip)
+                            service_pod_map[ctypes.c_uint(ip_int)] = ctypes.c_uint(i)
+            time.sleep(10)
+        except Exception as e:
+            print(f"Failed to update pod info: {{e}}")
+            time.sleep(10)
+'''
+# service_pod_mapping, services, pods = get_kubernetes_info()
+# for svc, all_pods in service_pod_mapping.items():
+#     if svc == "{edgeN1}":
+#         service_pod_map = b["src_pod"]
+#     elif svc == "{edgeN2}":
+#         service_pod_map = b["dst_pod"]
+#     for i in range(len(all_pods)):
+#         for pod in pods.items:
+#             if all_pods[i] == pod.metadata.name:
+#                 service_pod_map[ctypes.c_uint32(ip_to_hex(pod.status.pod_ip))] = ctypes.c_uint32(i)
+#                 break '''
     # TODO: set interface as a parameter
     curr_interface = "cni0"
     user_space_running = f'''
 interface = "{curr_interface}"
 b.attach_xdp(interface, b.load_func("{eBPF_func_name}", bcc.BPF.XDP))
 print(f"{eBPF_func_name} eBPF program attached to {{interface}}...")
+thread = threading.Thread(target=update_pod_info_periodically, daemon=True)
+thread.start()
 try: 
     while True:
+        time.sleep(5)
         b.trace_print()
 except KeyboardInterrupt:
     print("Detaching eBPF program")
     b.remove_xdp(interface)
 '''
     POPULATEKUBERNETESStr = ""
-    # TODO: get edges for POPULATEKUBERNETES
+    definitionEdgeN1 = ""
+    definitionEdgeN2 = ""
     service_pod_mapping, services, pods = get_kubernetes_info()
+    # Check whether the src/dst IP belongs to the pod IPs of the service
     for svc, all_pods in service_pod_mapping.items():
         print("svc=", svc, "all_pods=", all_pods)
         if svc == edgeN1:
@@ -141,36 +169,43 @@ except KeyboardInterrupt:
             new_map_var = AppNetMap(AppNetUInt32(), AppNetUInt32())
             _, decl = ctx.declareeBPFVar("src_pod", new_map_var.to_native())
             ctx.push_global_var_def(decl)
-            for i in range(len(all_pods)):
-                for pod in pods.items:
-                    if all_pods[i] == pod.metadata.name:
-                        POPULATEKUBERNETESStr += gen_map_access(name="src", idx=edgeN1Idx, ctx=ctx)
-                        if conditionEdgeN1 == "":
-                            conditionEdgeN1 = f"((src_ip == srcPod{edgeN1Idx}IP)"
-                        else:
-                            conditionEdgeN1 += f"|| (src_ip == srcPod{edgeN1Idx}IP)"
-                        edgeN1Idx += 1
-                        break
+            definitionEdgeN1 = "u32 *src_pod_value = src_pod.lookup(&src_ip);"
+            # for i in range(len(all_pods)):
+            #     for pod in pods.items:
+            #         if all_pods[i] == pod.metadata.name:
+            #             POPULATEKUBERNETESStr += gen_map_access(name="src", idx=edgeN1Idx, ctx=ctx)
+            #             if conditionEdgeN1 == "":
+            #                 conditionEdgeN1 = f"((src_ip == srcPod{edgeN1Idx}IP)"
+            #             else:
+            #                 conditionEdgeN1 += f"|| (src_ip == srcPod{edgeN1Idx}IP)"
+            #             edgeN1Idx += 1
+            #             break
         elif svc == edgeN2:
             new_map_var = AppNetMap(AppNetUInt32(), AppNetUInt32())
             _, decl = ctx.declareeBPFVar("dst_pod", new_map_var.to_native())
             ctx.push_global_var_def(decl)
-            for i in range(len(all_pods)):
-                for pod in pods.items:
-                    if all_pods[i] == pod.metadata.name:
-                        POPULATEKUBERNETESStr += gen_map_access(name="dst", idx=edgeN2Idx, ctx=ctx)
-                        if conditionEdgeN2 == "":
-                            conditionEdgeN2 = f"((dst_ip == dstPod{edgeN2Idx}IP)"
-                        else:
-                            conditionEdgeN2 += f"|| (dst_ip == dstPod{edgeN2Idx}IP)"
-                        edgeN2Idx += 1
-                        break
-    if conditionEdgeN1 != "":
-        conditionEdgeN1 += ")"
-    if conditionEdgeN2 != "":
-        conditionEdgeN2 += ")"
-    if conditionEdgeN1 != "" and conditionEdgeN2 != "":
-        POPULATEKUBERNETESStr += "u32 src_ip = bpf_ntohl(ip->saddr);\n" + "u32 dst_ip = bpf_ntohl(ip->daddr);\n" + f"if (!({conditionEdgeN1} && {conditionEdgeN2})) {{ return XDP_PASS;" + f"}}"
+            definitionEdgeN2 = "u32 *dst_pod_value = dst_pod.lookup(&dst_ip);"
+            # for i in range(len(all_pods)):
+            #     for pod in pods.items:
+            #         if all_pods[i] == pod.metadata.name:
+            #             POPULATEKUBERNETESStr += gen_map_access(name="dst", idx=edgeN2Idx, ctx=ctx)
+            #             if conditionEdgeN2 == "":
+            #                 conditionEdgeN2 = f"((dst_ip == dstPod{edgeN2Idx}IP)"
+            #             else:
+            #                 conditionEdgeN2 += f"|| (dst_ip == dstPod{edgeN2Idx}IP)"
+            #             edgeN2Idx += 1
+            #             break
+    # if conditionEdgeN1 != "":
+    #     conditionEdgeN1 += ")"
+    # if conditionEdgeN2 != "":
+    #     conditionEdgeN2 += ")"
+    if definitionEdgeN1 != "" and definitionEdgeN2 != "":
+        POPULATEKUBERNETESStr += "u32 src_ip = bpf_ntohl(ip->saddr);\n" + "u32 dst_ip = bpf_ntohl(ip->daddr);\n"
+        POPULATEKUBERNETESStr += "bpf_trace_printk(\"Src ip is %u\\\\n\", src_ip);\n"
+        POPULATEKUBERNETESStr += "bpf_trace_printk(\"Dst ip is %u\\\\n\", dst_ip);\n"
+        POPULATEKUBERNETESStr += f"{definitionEdgeN1}\n"
+        POPULATEKUBERNETESStr += f"{definitionEdgeN2}\n"
+        POPULATEKUBERNETESStr += "if (!src_pod_value || !dst_pod_value) {return XDP_PASS; }\n"
     print(f"POPULATEKUBERNETESStr = {POPULATEKUBERNETESStr}")
     
     replace_dict = {
@@ -181,6 +216,7 @@ except KeyboardInterrupt:
         + ["import ctypes"]
         + ["from kubernetes import client, config"]
         + ["import time"]
+        + ["import threading"]
         + ["bpf_code = \'\'\'"]
         + ["#include <uapi/linux/bpf.h>"]
         + ["#include <linux/if_ether.h>"]

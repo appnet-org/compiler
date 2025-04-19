@@ -193,6 +193,7 @@ class Map(AppNetType):
         super().__init__(decorator)
         self.key = key
         self.value = value
+        print(f"Map key: {key}, value: {value}")
 
     def to_native(self) -> NativeType:
         return NativeMap(self.key.to_native(), self.value.to_native())

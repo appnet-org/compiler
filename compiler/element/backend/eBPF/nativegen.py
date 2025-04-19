@@ -564,7 +564,7 @@ class eBPFGenerator(Visitor):
     def visitMatch(self, node: Match, ctx: eBPFContext) -> None:
         print("Enter visitMatch")
         print(f"type(node.expr) = {type(node.expr)}, node.actions = {node.actions}")
-        print(f"node.expr.lhs = {node.expr.lhs}, node.expr.op = {node.expr.op}, node.expr.rhs = {node.expr.rhs}")
+        # print(f"node.expr.lhs = {node.expr.lhs}, node.expr.op = {node.expr.op}, node.expr.rhs = {node.expr.rhs}")
         appnet_type, native_expr = self.visitGeneralExpr(node.expr, ctx)
         print(f"appnet_type = {appnet_type}, native_expr = {native_expr}")
         if isinstance(native_expr.type, NativeOption):
@@ -664,6 +664,7 @@ class eBPFGenerator(Visitor):
                 )
                 rhs.native_var = rhs_native_var
             else:
+                print(f"node.name = {node.name}")
                 raise Exception(f"unknown variable {node.name}")
 
             assert rhs is not None
@@ -743,6 +744,11 @@ class eBPFGenerator(Visitor):
                     ctx.push_code(f"{lhs_name}.update(&{lhs_name}_key, {lhs_name}_val);")
                     
                 else:
+                    rhs = ctx.declareAppNetLocalVariable(f"{lhs_name}", rhs_appnet_type)
+                    eBPF_rhs, decl = ctx.declareeBPFVar(f"{lhs_name}", rhs.type.to_native())
+                    # print(f"dddddddddd {lhs_name} = {rhs_native_var.name};")
+                    print(f"dddddddd decl = {decl}, {lhs_name} = {rhs_native_var.name};")
+                    ctx.push_code(decl)
                     ctx.push_code(f"{lhs_name} = {rhs_native_var.name};")
                 # if ctx.find_appnet_var(lhs_name) is None:
                 #     # This is a new local variable.
@@ -822,6 +828,7 @@ class eBPFGenerator(Visitor):
                 pass
             else:
                 raise Exception("should not reach here")
+        print("Exit visitAssign")
 
     def acceptable_oper_type(
         self, lhs: AppNetType, op: Operator, rhs: AppNetType
@@ -931,8 +938,7 @@ class eBPFGenerator(Visitor):
             ctx.new_temporary_name(), expr_appnet_type.to_native()
         )
         ctx.push_code(decl)
-        # TODO: add appnet variable
-        # TODO: add pointer
+        # add appnet variable
         if ctx.find_appnet_var(lhs_nativevar.name) and ctx.find_appnet_var(rhs_nativevar.name):
             res = ctx.find_appnet_var(f"{lhs_nativevar.name}_key")
             if res is None:
@@ -940,6 +946,7 @@ class eBPFGenerator(Visitor):
                 eBPF_rhs, decl = ctx.declareeBPFVar(f"{lhs_nativevar.name}_key", rhs.type.to_native())
                 rhs.native_var = eBPF_rhs
                 ctx.push_code(decl)
+            # add pointer
             res = ctx.find_appnet_var(f"*{lhs_nativevar.name}_val")
             if res is None:
                 print("res is None")
@@ -1715,6 +1722,7 @@ class GetRPCField(AppNetBuiltinFuncProto):
         return res_native_var
 
     def __init__(self):
+        print("lalalala")
         super().__init__("get", "rpc_field")
         self.msg_type_dict = None
 
