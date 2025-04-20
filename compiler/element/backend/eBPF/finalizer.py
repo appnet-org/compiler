@@ -107,24 +107,43 @@ def get_kubernetes_info():
         ]
         service_pod_mapping[svc_name] = matching_pods
     return service_pod_mapping, services, pods
+
 def update_pod_info_periodically():
     while True:
         try:
             service_pod_mapping, services, pods = get_kubernetes_info()
-            b["src_pod"].clear()
-            b["dst_pod"].clear()
+            current_mapping_src_pod = {{}}
+            current_mapping_dst_pod = {{}}
             for svc, all_pods in service_pod_mapping.items():
-                if svc == "frontend":
-                    service_pod_map = b["src_pod"]
-                elif svc == "server":
-                    service_pod_map = b["dst_pod"]
-                else:
-                    continue
                 for i in range(len(all_pods)):
                     for pod in pods.items:
                         if all_pods[i] == pod.metadata.name and pod.status.pod_ip:
                             ip_int = ip_to_hex(pod.status.pod_ip)
-                            service_pod_map[ctypes.c_uint(ip_int)] = ctypes.c_uint(i)
+                            if svc == "{edgeN1}":
+                                current_mapping_src_pod[ctypes.c_uint(ip_int)] = ctypes.c_uint(i)
+                            elif svc == "{edgeN2}":
+                                current_mapping_dst_pod[ctypes.c_uint(ip_int)] = ctypes.c_uint(i)
+                            else: 
+                                continue
+            service_pod_map = b["src_pod"]
+            for ip_int, idx in current_mapping_src_pod.items():
+                if service_pod_map.get(ip_int) != idx:
+                    service_pod_map[ctypes.c_uint(ip_int)] = ctypes.c_uint(idx)
+                    print("Update pod map")
+            for ip_int in list(service_pod_map.keys()):
+                if ip_int not in current_mapping:
+                    del service_pod_map[ctypes.c_uint(ip_int)]
+                    print("Update pod map")
+            
+            service_pod_map = b["dst_pod"]
+            for ip_int, idx in current_mapping_dst_pod.items():
+                if service_pod_map.get(ip_int) != idx:
+                    service_pod_map[ctypes.c_uint(ip_int)] = ctypes.c_uint(idx)
+                    print("Update pod map")
+            for ip_int in list(service_pod_map.keys()):
+                if ip_int not in current_mapping_dst_pod:
+                    del service_pod_map[ctypes.c_uint(ip_int)]
+                    print("Update pod map")
             time.sleep(10)
         except Exception as e:
             print(f"Failed to update pod info: {{e}}")
