@@ -2,10 +2,11 @@ state:
   counter: int
   
 init():
-	acounter = 1
+	counter = 1
 
 req(rpc):
-    counter = 1
+    counter = counter + 1
+	send(rpc, Up)
 
 resp(rpc):
 	send(rpc, Up)
