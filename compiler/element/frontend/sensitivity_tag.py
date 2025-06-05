@@ -5,14 +5,13 @@ from z3 import *
 from compiler.element.node import *
 
 class SymbolicEnv:
-    def __init__(self, state_vars, params):
+    def __init__(self, state_vars):
         self.state = {}
         self.handle_state_var(state_vars)
         
-        # TODO: params should just be rpc. 
-        # self.params = {name: Array(f"{name}0", StringSort(), StringSort()) for name in params}
-        self.params = {}
-        self.params["rpc"] = Array("rpc0", StringSort(), StringSort())
+        # TODO: is locals needed? 
+        self.locals = {}
+        self.rpc= Array("rpc", StringSort(), StringSort())
         self.send_log = []
 
     def handle_state_var(self, state_vars):
@@ -31,8 +30,8 @@ class SymbolicEnv:
         elif isinstance(expr, Identifier):
             if expr.name in self.state:
                 return self.state[expr.name]
-            elif expr.name in self.params:
-                return self.params[expr.name]
+            elif expr.name == "rpc":
+                return self.rpc
             else:
                 raise ValueError(f"Unknown identifier: {expr.name}")
         elif isinstance(expr, Pair):
@@ -43,10 +42,9 @@ class SymbolicEnv:
                     arr = self.state[expr.obj.name]
                     key = self.eval_expr(expr.args[0])
                     return Select(arr, key)
-                elif expr.obj.name in self.params:
-                    arr = self.params[expr.obj.name]
+                elif expr.obj.name == "rpc":
+                    arr = self.rpc
                     key = self.eval_expr(expr.args[0])
-                    print(type(arr))
                     return Select(arr, key)
                 else:
                     raise ValueError(f"Unknown identifier: {expr.obj.name}")
@@ -88,7 +86,11 @@ class SymbolicEnv:
     def exec_stmt(self, stmt):
         if isinstance(stmt, Match):
             # TODO: add full match handling
-            pass
+            match_expr = self.eval_expr(stmt.expr)
+            
+            for pattern, actions in stmt.actions:
+                if isinstance(pattern, Pattern):
+                    self.exec_body(actions)
         else:
             inner = stmt.stmt
             if isinstance(inner, Assign):
@@ -98,16 +100,24 @@ class SymbolicEnv:
                     val = self.eval_expr(inner.right)
                 else:
                     val = self.eval_expr(inner.right)
-                self.state[var] = val
+                
+                if var in self.state:
+                    self.state[var] = val
+                else:
+                    self.locals[var] = val
+                    
             elif isinstance(inner, Send):
                 payload = self.eval_expr(inner.msg)
                 self.send_log.append(payload)
             elif isinstance(inner, MethodCall):
                 if inner.method == MethodType.SET:
-                    arr = self.state[inner.obj.name]
                     key = self.eval_expr(inner.args[0])
                     val = self.eval_expr(inner.args[1])
-                    self.state[inner.obj.name] = Store(arr, key, val)
+                    if inner.obj.name == "rpc":
+                        self.rpc = Store(self.rpc, key, val)
+                    else:
+                        arr = self.state[inner.obj.name]
+                        self.state[inner.obj.name] = Store(arr, key, val)
                 elif inner.method == MethodType.DELETE:
                     arr = self.state[inner.obj.name]
                     key = self.eval_expr(inner.args[0])
@@ -124,22 +134,26 @@ class SymbolicEnv:
         for stmt in body:
             self.exec_stmt(stmt)
 
-    def bind_inputs(self, params, values):
-        for p in params:
-            self.params[p] = values[p]
+    def bind_inputs(self, value):
+        """
+        Binds the input parameters to the symbolic values.
+        This is used to run the program with different inputs.
+        """
+        self.rpc = value
 
 
 def check_idempotent(program: Program):
     state_vars = [(s[0].name, s[1].name) for s in program.definition.state]
-    params = [p.name for p in program.req.params]
+    
+    # TODO: handle response 
     body = program.req.body
 
     # First execution
-    env1 = SymbolicEnv(state_vars, params)
+    env1 = SymbolicEnv(state_vars)
     env1.exec_body(body)
 
     # Second execution (same input/state)
-    env2 = SymbolicEnv(state_vars, params)
+    env2 = SymbolicEnv(state_vars)
     env2.state = env1.state.copy()
     env2.exec_body(body)
 
@@ -148,6 +162,7 @@ def check_idempotent(program: Program):
     state_eq = And([env1.state[k] == env2.state[k] for k in env1.state])
     sends_eq = And([env1.send_log[i] == env2.send_log[i] for i in range(len(env1.send_log))])
     solver.add(Not(And(state_eq, sends_eq)))
+    print(type(env1.send_log[0]))
 
     if solver.check() == sat:
         print("❌ Not idempotent:", solver.model())
@@ -157,32 +172,33 @@ def check_idempotent(program: Program):
 def check_ordering_sensitive(program: Program):
     # Step 1: Extract state variables and input parameters
     state_vars = [(s[0].name, s[1].name) for s in program.definition.state]
-    params = [p.name for p in program.req.params]
+    
+    # TODO: handle response 
     body = program.req.body
 
     # Step 2: Define two symbolic messages with different symbolic values
-    m1 = {p: Array(f"{p}1", StringSort(), StringSort()) for p in params}
-    m2 = {p: Array(f"{p}2", StringSort(), StringSort()) for p in params}
-
+    m1 = Array(f"rpc1", StringSort(), StringSort())
+    m2 = Array(f"rpc2", StringSort(), StringSort())
+    
     # Step 3: Run m1 followed by m2
-    env1 = SymbolicEnv(state_vars, params)
-    env1.bind_inputs(params, m1)
+    env1 = SymbolicEnv(state_vars)
+    env1.bind_inputs(m1)
     env1.exec_body(body)
-    env1.bind_inputs(params, m2)
+    env1.bind_inputs(m2)
     env1.exec_body(body)
     state1, sends1 = env1.state.copy(), env1.send_log[:]
-    # print(sends1)
+    
 
     # Step 4: Run m2 followed by m1
-    env2 = SymbolicEnv(state_vars, params)
-    env2.bind_inputs(params, m2)
+    env2 = SymbolicEnv(state_vars)
+    env2.bind_inputs(m2)
     env2.exec_body(body)
-    env2.bind_inputs(params, m1)
+    env2.bind_inputs(m1)
     env2.exec_body(body)
     state2, sends2 = env2.state.copy(), env2.send_log[:]
-    # print(sends2)
 
     # Step 5: Compare final symbolic state — ignore outputs for now
+    # TODO: check send logs as well. 
     solver = Solver()
     state_diff = Or([state1[k] != state2[k] for k in state1])
     solver.add(state_diff)
