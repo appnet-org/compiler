@@ -10,7 +10,9 @@ class SymbolicEnv:
         self.handle_state_var(state_vars)
         
         # TODO: params should just be rpc. 
-        self.params = {name: Array(f"{name}0", StringSort(), StringSort()) for name in params}
+        # self.params = {name: Array(f"{name}0", StringSort(), StringSort()) for name in params}
+        self.params = {}
+        self.params["rpc"] = Array("rpc0", StringSort(), StringSort())
         self.send_log = []
 
     def handle_state_var(self, state_vars):
@@ -39,12 +41,12 @@ class SymbolicEnv:
             if expr.method == MethodType.GET:
                 if expr.obj.name in self.state:
                     arr = self.state[expr.obj.name]
-                    print(arr)
                     key = self.eval_expr(expr.args[0])
                     return Select(arr, key)
                 elif expr.obj.name in self.params:
                     arr = self.params[expr.obj.name]
                     key = self.eval_expr(expr.args[0])
+                    print(type(arr))
                     return Select(arr, key)
                 else:
                     raise ValueError(f"Unknown identifier: {expr.obj.name}")
@@ -159,8 +161,8 @@ def check_ordering_sensitive(program: Program):
     body = program.req.body
 
     # Step 2: Define two symbolic messages with different symbolic values
-    m1 = {p: Int(f"{p}1") for p in params}
-    m2 = {p: Int(f"{p}2") for p in params}
+    m1 = {p: Array(f"{p}1", StringSort(), StringSort()) for p in params}
+    m2 = {p: Array(f"{p}2", StringSort(), StringSort()) for p in params}
 
     # Step 3: Run m1 followed by m2
     env1 = SymbolicEnv(state_vars, params)
