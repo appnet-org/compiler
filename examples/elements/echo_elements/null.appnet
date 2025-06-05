@@ -1,11 +1,12 @@
 state:
   counter: int
+  acl: Map<string, string>
   
 init():
 	counter = 1
 
 req(rpc):
-    counter = counter + 1
+    counter = counter * 1
 	send(rpc, Up)
 
 resp(rpc):

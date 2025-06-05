@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).parent.absolute()))
 from compiler import *
 from compiler.element.frontend.parser import ElementParser
 from compiler.element.frontend.transformer import ElementTransformer
-from compiler.sensitivity_tag import check_idempotent, check_ordering_sensitive
+from compiler.element.frontend.sensitivity_tag import check_idempotent, check_ordering_sensitive
 
 if __name__ == "__main__":
     # Parse command line arguments
