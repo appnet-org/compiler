@@ -1,11 +1,16 @@
 state:
-  a: float
+  counter: int
+  acl: Map<string, string>
   
 init():
-	a = 1.0
+	counter = 1
 
 req(rpc):
-	send(rpc, Down)
+    name = get(rpc, 'body')
+    set(acl, 'apple', 'test')
+	set(rpc, 'body', 'decrypted')
+    counter = counter * 1
+	send(rpc, Up)
 
 resp(rpc):
 	send(rpc, Up)

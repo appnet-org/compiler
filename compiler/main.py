@@ -233,7 +233,7 @@ def handle_state(graphirs: Dict[str, GraphIR]):
 
 
 def main(args):
-    # Step 1: Parse the spec file and generate graph IRs (see examples/graph_spec for details about spec format)
+    # Step 1: Parse the spec file and generate graph IRs (see examples/chain for details about spec format)
     GRAPH_LOG.info(f"Parsing graph spec file {args.spec_path}...")
     parser = GraphParser()
     print("Within Step 1 Pass")
@@ -243,12 +243,11 @@ def main(args):
             if gir.name not in gir_summary:
                 gir_summary[gir.name] = {"pre-optimized": [], "post-optimized": []}
             gir_summary[gir.name]["pre-optimized"] = gir.to_rich()
-    print("Before Step 2 Pass")
-    # Step 2: Generate element properties via element compiler and optimize the graph IR.
+    # Step 2: Extract element properties via element compiler and optimize the graph IR.
     GRAPH_LOG.info("Generating element properties and optimizing the graph IR...")
     for gir in graphirs.values():
         # Each gir represests an edge in the application (a pair of communicating services)
-        # pseudo_property is set to True when we want to use hand-coded properties instead of auto-generated ones
+        # pseudo_property is set to True when we want to use user-provided properties instead of auto-generated ones
         for element in gir.complete_chain():
             element.set_property_source(args.pseudo_property)
         print(f"Before optimize gir = {gir}")
@@ -264,8 +263,7 @@ def main(args):
             "Generating backend code for the elements and deployment scripts..."
         )
         # Step 3.1: Generate backend code for the elements
-        # pseudo_impl is set to True when we want to use hand-coded impl instead of auto-generated ones
-        print("Before generate_element_impl")
+        # pseudo_impl is set to True when we want to use user-provided implementations instead of auto-generated ones
         generate_element_impl(graphirs, args.pseudo_impl)
         # Step 3.2: Generate deployment scripts
         print("Before scriptgen, can ignore because it shows more running scripts")
@@ -274,9 +272,7 @@ def main(args):
     # Dump graphir summary (in yaml)
     gen_dir = os.path.join(graph_base_dir, "generated")
     os.makedirs(gen_dir, exist_ok=True)
-    # graphir_summary = {"graphir": []}
-    # for gir in graphirs.values():
-    # graphir_summary["graphir"].append(str(gir)) 
+
     graphir_summary = ""
     for gir in graphirs.values():
         graphir_summary += str(gir)
@@ -285,11 +281,12 @@ def main(args):
     graphir_summary_dict = {}
     for edge_name, gir in graphirs.items():
         graphir_summary_dict[edge_name] = gir.export_summary()
+        
     # We should safe them as yaml file, but it messes up the kubectl apply command.
     with open(os.path.join(gen_dir, "gir_summary"), "w") as f:
         yaml.safe_dump(graphir_summary_dict, f, default_flow_style=False)
 
-    # graphir rich display in terminal
+    # Display a rich-formatted comparison of pre and post-optimized GraphIRs in the terminal
     if args.verbose:
         print_gir_summary(graphirs)
 
