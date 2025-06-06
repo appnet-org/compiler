@@ -6,10 +6,8 @@ init():
 	counter = 1
 
 req(rpc):
-    name = get(rpc, 'body')
-    set(acl, 'apple', 'test')
-	set(rpc, 'body', 'decrypted')
-    counter = counter * 1
+	name = get(rpc, 'body')
+    set(acl, 'apple', name)
 	send(rpc, Up)
 
 resp(rpc):

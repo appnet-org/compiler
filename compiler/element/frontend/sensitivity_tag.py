@@ -32,6 +32,8 @@ class SymbolicEnv:
                 return self.state[expr.name]
             elif expr.name == "rpc":
                 return self.rpc
+            elif expr.name in self.locals:
+                return self.locals[expr.name]
             else:
                 raise ValueError(f"Unknown identifier: {expr.name}")
         elif isinstance(expr, Pair):
@@ -90,7 +92,7 @@ class SymbolicEnv:
             
             for pattern, actions in stmt.actions:
                 if isinstance(pattern, Pattern):
-                    self.exec_body(actions)
+                    self.exec_action(actions)
         else:
             inner = stmt.stmt
             if isinstance(inner, Assign):
@@ -129,10 +131,20 @@ class SymbolicEnv:
                     raise NotImplementedError(f"Unsupported method call type in stmt: {inner.method}")
             else:
                 raise NotImplementedError(f"Unknown statement type: {type(inner)}")
-
-    def exec_body(self, body):
-        for stmt in body:
+            
+    def exec_action(self, action):
+        for stmt in action:
             self.exec_stmt(stmt)
+
+    def exec_body(self, req_body, resp_body):
+        """
+        Executes the request and response bodies.
+        """
+        for stmt in req_body:
+            self.exec_stmt(stmt)
+        if resp_body:
+            for stmt in resp_body:
+                self.exec_stmt(stmt)
 
     def bind_inputs(self, value):
         """
@@ -144,25 +156,23 @@ class SymbolicEnv:
 
 def check_idempotent(program: Program):
     state_vars = [(s[0].name, s[1].name) for s in program.definition.state]
-    
-    # TODO: handle response 
-    body = program.req.body
+    req_body = program.req.body
+    resp_body = program.resp.body
 
     # First execution
     env1 = SymbolicEnv(state_vars)
-    env1.exec_body(body)
+    env1.exec_body(req_body, resp_body)
 
     # Second execution (same input/state)
     env2 = SymbolicEnv(state_vars)
     env2.state = env1.state.copy()
-    env2.exec_body(body)
+    env2.exec_body(req_body, resp_body)
 
     # Z3 Check
     solver = Solver()
     state_eq = And([env1.state[k] == env2.state[k] for k in env1.state])
     sends_eq = And([env1.send_log[i] == env2.send_log[i] for i in range(len(env1.send_log))])
     solver.add(Not(And(state_eq, sends_eq)))
-    print(type(env1.send_log[0]))
 
     if solver.check() == sat:
         print("❌ Not idempotent:", solver.model())
@@ -172,9 +182,8 @@ def check_idempotent(program: Program):
 def check_ordering_sensitive(program: Program):
     # Step 1: Extract state variables and input parameters
     state_vars = [(s[0].name, s[1].name) for s in program.definition.state]
-    
-    # TODO: handle response 
-    body = program.req.body
+    req_body = program.req.body
+    resp_body = program.resp.body
 
     # Step 2: Define two symbolic messages with different symbolic values
     m1 = Array(f"rpc1", StringSort(), StringSort())
@@ -183,18 +192,18 @@ def check_ordering_sensitive(program: Program):
     # Step 3: Run m1 followed by m2
     env1 = SymbolicEnv(state_vars)
     env1.bind_inputs(m1)
-    env1.exec_body(body)
+    env1.exec_body(req_body, resp_body)
     env1.bind_inputs(m2)
-    env1.exec_body(body)
+    env1.exec_body(req_body, resp_body)
     state1, sends1 = env1.state.copy(), env1.send_log[:]
     
 
     # Step 4: Run m2 followed by m1
     env2 = SymbolicEnv(state_vars)
     env2.bind_inputs(m2)
-    env2.exec_body(body)
+    env2.exec_body(req_body, resp_body)
     env2.bind_inputs(m1)
-    env2.exec_body(body)
+    env2.exec_body(req_body, resp_body)
     state2, sends2 = env2.state.copy(), env2.send_log[:]
 
     # Step 5: Compare final symbolic state — ignore outputs for now
