@@ -46,7 +46,7 @@ def parse_args():
                 strong: strict equivalence.""",
         type=str,
         choices=["no", "ignore", "weak", "strong"],
-        default="weak",
+        default="no",
         # no: no optimization
         # ignore: aggresive, ignore equivalence requirements
         # weak: allow differences in drop rate, records, etc.
@@ -127,6 +127,7 @@ def compile_impl(
         server + "".join(element_names)[:24]
     )  # Envoy does not allow long struct names
     os.system(f"mkdir -p {gen_dir}")
+    print("In def compile_impl() function, before entering main.py's gen_code()")
     gen_code(
         element_names,
         element_paths,
@@ -147,13 +148,22 @@ def compile_impl(
 
 def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
     compiled_name = set()
+    print("Enter generate_element_impl, graph_base_dir =", graph_base_dir)
+    # print(graphirs['frontend->server'].__str__())
     gen_dir = os.path.join(graph_base_dir, "generated")
+    print("gen_dir =", gen_dir)
     os.system(f"rm {gen_dir} -rf")
+    for k, v in graphirs.items():
+        print("key =", k, "val =", v.__str__())
+        # print("val.client =", v.client, "val.server =", v.server, "val.element =", v.elements)
     for gir in graphirs.values():  # For each edge in the application
         for element in gir.complete_chain():
             # For each element in the edge
+            print("gir =", gir, "element =", element)
+            print("type(gir) =", type(gir), "type(element) =", type(element))
             identifier = element.lib_name + element.final_position
             gen_name = element.server + "".join(element.name)[:24]
+            print("identifier =", identifier, "gen_name =", gen_name, "element.target =", element.target)
             if element.target in ["mrpc", "grpc"]:
                 element.compile_dir = os.path.join(
                     gen_dir, f"{gen_name}_{element.final_position}_{element.target}"
@@ -164,6 +174,7 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
                 )
             if identifier not in compiled_name:
                 if pseudo_impl:
+                    # print("Before pseudo_compile")
                     pseudo_compile(
                         element.lib_name,
                         gen_dir,
@@ -171,6 +182,7 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
                         element.final_position,
                     )
                 else:
+                    print("Before compile_impl")
                     compile_impl(
                         element.name,
                         element.path,
@@ -224,14 +236,13 @@ def main(args):
     # Step 1: Parse the spec file and generate graph IRs (see examples/chain for details about spec format)
     GRAPH_LOG.info(f"Parsing graph spec file {args.spec_path}...")
     parser = GraphParser()
+    print("Within Step 1 Pass")
     graphirs, app_name, app_manifest_file, app_edges = parser.parse(args.spec_path)
-
     if args.verbose:
         for gir in graphirs.values():
             if gir.name not in gir_summary:
                 gir_summary[gir.name] = {"pre-optimized": [], "post-optimized": []}
             gir_summary[gir.name]["pre-optimized"] = gir.to_rich()
-
     # Step 2: Extract element properties via element compiler and optimize the graph IR.
     GRAPH_LOG.info("Generating element properties and optimizing the graph IR...")
     for gir in graphirs.values():
@@ -239,11 +250,13 @@ def main(args):
         # pseudo_property is set to True when we want to use user-provided properties instead of auto-generated ones
         for element in gir.complete_chain():
             element.set_property_source(args.pseudo_property)
+        print(f"Before optimize gir = {gir}")
         gir.optimize(args.opt_level, args.opt_algorithm, args.dump_property)
+        print(f"After optimize gir = {gir}")
     
     if args.opt_level != "no":
         handle_state(graphirs)
-
+    print("Before Step 3 Pass")
     # Step 3: Generate backend code for the elements and deployment scripts.
     if not args.dry_run:
         GRAPH_LOG.info(
@@ -253,6 +266,7 @@ def main(args):
         # pseudo_impl is set to True when we want to use user-provided implementations instead of auto-generated ones
         generate_element_impl(graphirs, args.pseudo_impl)
         # Step 3.2: Generate deployment scripts
+        print("Before scriptgen, can ignore because it shows more running scripts")
         scriptgen(graphirs, app_name, app_manifest_file, app_edges)
 
     # Dump graphir summary (in yaml)
@@ -262,7 +276,8 @@ def main(args):
     graphir_summary = ""
     for gir in graphirs.values():
         graphir_summary += str(gir)
-    print(graphir_summary)
+    print("graphir_summary", graphir_summary)
+    print("post graphir_summary")
     graphir_summary_dict = {}
     for edge_name, gir in graphirs.items():
         graphir_summary_dict[edge_name] = gir.export_summary()

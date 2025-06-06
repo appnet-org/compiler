@@ -1,0 +1,1 @@
+1. Run "pip install -r requirements.txt" before runing the compiler.

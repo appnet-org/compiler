@@ -10,6 +10,11 @@ from compiler.element.backend.istio_native.nativegen import (
     NativeContext,
     NativeGenerator,
 )
+from compiler.element.backend.eBPF.finalizer import finalize as eBPFFinalize
+from compiler.element.backend.eBPF.nativegen import (
+    eBPFContext,
+    eBPFGenerator,
+)
 from compiler.element.backend.istio_wasm.analyzer import (
     AccessAnalyzer as WasmAccessAnalyzer,
 )
@@ -86,7 +91,7 @@ def gen_code(
             raise ValueError(f"Method {method_name} not found in {proto_path}.")
     # proto = os.path.basename(proto_path).replace(".proto", "")
     proto = extract_proto_package_name(proto_path)
-
+    print("backend_name =", backend_name)
     assert backend_name in (
         "mrpc",
         "grpc",
@@ -94,6 +99,7 @@ def gen_code(
         "sidecar_native",
         "ambient_wasm",
         "ambient_native",
+        "eBPF"
     )
     compiler = ElementCompiler()
 
@@ -160,6 +166,21 @@ def gen_code(
             tag=tag,
             envoy_verbose=envoy_verbose,
         )
+    elif "eBPF" in backend_name:
+        generator = eBPFGenerator(placement)
+        finalize = eBPFFinalize
+        ctx = eBPFContext(
+            proto=proto,
+            method_name=method_name,
+            request_message_name=request_message_name,
+            response_message_name=response_message_name,
+            message_field_types=message_field_types,
+            mode="eBPF",
+            element_name=output_name,
+            tag=tag,
+            # envoy_verbose=envoy_verbose,
+        )
+        print("eBPF backend")
 
     printer = Printer()
 
@@ -199,10 +220,11 @@ def gen_code(
         consolidated.accept(GoAccessAnalyzer(placement), ctx)
     elif "native" in backend_name:
         pass
-
+    print("Before consolidated.accept(generator, ctx)")
+    print("type(consolidated) =", type(consolidated))
     # Second pass to generate the code
     consolidated.accept(generator, ctx)
-
+    
     # Finalize the generated code
     finalize(output_name, ctx, output_dir, placement, proto_path)
 
