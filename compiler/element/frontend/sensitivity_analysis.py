@@ -196,7 +196,6 @@ def check_ordering_sensitive(program: Program):
     env1.bind_inputs(m2)
     env1.exec_body(req_body, resp_body)
     state1, sends1 = env1.state.copy(), env1.send_log[:]
-    
 
     # Step 4: Run m2 followed by m1
     env2 = SymbolicEnv(state_vars)
@@ -216,3 +215,38 @@ def check_ordering_sensitive(program: Program):
         print("❌ Ordering-sensitive (based on state):", solver.model())
     else:
         print("✅ Ordering-insensitive (based on state only)")
+        
+def check_requires_all_rpcs(program):
+    state_vars = [(s[0].name, s[1].name) for s in program.definition.state]
+    req_body = program.req.body
+    resp_body = program.resp.body
+
+    # Symbolic RPCs
+    m1 = Array("rpc1", StringSort(), StringSort())
+    m2 = Array("rpc2", StringSort(), StringSort())
+
+    # Full execution: m1 then m2
+    env1 = SymbolicEnv(state_vars)
+    env1.bind_inputs(m1)
+    env1.exec_body(req_body, resp_body)
+    env1.bind_inputs(m2)
+    env1.exec_body(req_body, resp_body)
+    state1, sends1 = env1.state.copy(), set(env1.send_log[:])
+
+    # Skip execution: only m2
+    env2 = SymbolicEnv(state_vars)
+    env2.bind_inputs(m2)
+    env2.exec_body(req_body, resp_body)
+    state2, sends2 = env2.state.copy(), set(env2.send_log[:])
+
+    # Compare states and send sets
+    solver = Solver()
+    state_diff = Or([state1[k] != state2[k] for k in state1])
+    # TODO: check send logs as well. 
+    solver.add(state_diff)
+
+    if solver.check() == sat:
+        print("❌ Must see all RPCs — dropping one affects output or state")
+        print("Model:", solver.model())
+    else:
+        print("✅ Can tolerate RPC drops — output and state unchanged")

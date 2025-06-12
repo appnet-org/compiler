@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).parent.absolute()))
 from compiler import *
 from compiler.element.frontend.parser import ElementParser
 from compiler.element.frontend.transformer import ElementTransformer
-from compiler.element.frontend.sensitivity_tag import check_idempotent, check_ordering_sensitive
+from compiler.element.frontend.sensitivity_analysis import *
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -21,10 +21,10 @@ if __name__ == "__main__":
     with open(args.element_path) as f:
         spec = f.read()
         ast = parser.parse(spec)
-        # print(ast.pretty())
 
     transformer = ElementTransformer()
     ir = transformer.transform(ast)
 
     check_idempotent(ir)
     check_ordering_sensitive(ir)
+    check_requires_all_rpcs(ir)
