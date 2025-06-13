@@ -44,7 +44,7 @@ Follow these steps if you want to interact with the element compiler directly.
 The element compiler convert AppNet program to an IR. From IR, we can infer the element property (used by graph compiler). The element compiler also generates backend code for each element.
 
 ```bash
-python compiler/element_compiler_test.py --element examples/elements/echo_elements/fault.appnet --backend envoy --placement client --proto ping.proto --method_name PingEcho
+python compiler/test/element_compiler_test.py --element examples/elements/echo_elements/fault.appnet --backend sidecar_wasm --placement client --proto ping.proto --method_name PingEcho
 
 usage: element_compiler_test.py [-h] -e ELEMENT_PATH [-v] [-n MOD_NAME] [-l MOD_LOCATION] -p PLACEMENT -r PROTO -m METHOD_NAME
                                 -b BACKEND
@@ -70,49 +70,3 @@ options:
 
 Note:
 - The grammar is defined (in BNF format) [**here**](./element/frontend/element.lark).
-
-## Supported Backends
-
-- [**mRPC**](https://github.com/phoenix-dataplane/phoenix)
-- [**Envoy**](https://www.envoyproxy.io/) (via [**Proxy WASM**](https://github.com/proxy-wasm/proxy-wasm-rust-sdk))
-- [**gRPC**](https://github.com/grpc/grpc-go) (via [**Interceptors**](https://github.com/grpc-ecosystem/go-grpc-middleware))
-
-    - Requires user application to provide their Go protobuf code as a module, and use of the `mod_name` and `mod_location` flags.
-<!-- ## Deployment
-
-### Mrpc
-
-Fire up phoenixos and hotel applications.
-
-```bash
-# in all worker machines
-docker pull kristoffstarling/hotel-service:multi
-
-# in $HOME/phoenix/eval/hotel-bench
-# By default, the services are deployed at
-# Frontend - h2
-# Geo      - h3
-# Profile  - h4
-# Rate     - h5
-# Search   - h6
-./start_container
-./start_phoenix
-# in another terminal
-./start_service
-```
-
-After running the compiler, use `attach_all.sh` and `detach_all.sh` to attach/detach elements.
-
-```bash
-# in compiler/graph/gen
-chmod +x attach_all.sh
-chmod +x detach_all.sh
-./attach_all.sh  # attach all engines
-./detach_all.sh  # detach all engines
-```
-
-## Limitations
-
-* Container name is hard-coded (only support hotel reservation).
-* Service deployment information is currently provided by the user in the specification file (should query the controller instead).
-* The graph compiler will generate a globally-unique element name for each element instance, but it requires the element's library name to be identical to the element's specification filename. -->

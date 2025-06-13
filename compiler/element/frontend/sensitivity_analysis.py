@@ -154,7 +154,7 @@ class SymbolicEnv:
         self.rpc = value
 
 
-def check_idempotent(program: Program):
+def check_idempotent(program: Program) -> bool:
     state_vars = [(s[0].name, s[1].name) for s in program.definition.state]
     req_body = program.req.body
     resp_body = program.resp.body
@@ -176,10 +176,12 @@ def check_idempotent(program: Program):
 
     if solver.check() == sat:
         print("❌ Not idempotent:", solver.model())
+        return False
     else:
         print("✅ Idempotent")
+        return True
 
-def check_ordering_sensitive(program: Program):
+def check_ordering_sensitive(program: Program) -> bool:
     # Step 1: Extract state variables and input parameters
     state_vars = [(s[0].name, s[1].name) for s in program.definition.state]
     req_body = program.req.body
@@ -213,10 +215,12 @@ def check_ordering_sensitive(program: Program):
 
     if solver.check() == sat:
         print("❌ Ordering-sensitive (based on state):", solver.model())
+        return False
     else:
         print("✅ Ordering-insensitive (based on state only)")
+        return True
         
-def check_requires_all_rpcs(program):
+def check_requires_all_rpcs(program) -> bool:
     state_vars = [(s[0].name, s[1].name) for s in program.definition.state]
     req_body = program.req.body
     resp_body = program.resp.body
@@ -248,5 +252,7 @@ def check_requires_all_rpcs(program):
     if solver.check() == sat:
         print("❌ Must see all RPCs — dropping one affects output or state")
         print("Model:", solver.model())
+        return False
     else:
         print("✅ Can tolerate RPC drops — output and state unchanged")
+        return True

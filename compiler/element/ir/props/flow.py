@@ -1,16 +1,7 @@
 from typing import Dict, List, Optional, Tuple
 
-from compiler.element.ir.props.analyzer import (
-    AliasAnalyzer,
-    CopyAnalyzer,
-    DropAnalyzer,
-    ReadAnalyzer,
-    StateAnalyzer,
-    WriteAnalyzer,
-)
+from compiler.element.ir.props.analyzer import *
 from compiler.element.node import *
-from compiler.element.node import Expr, Identifier, MethodCall
-from compiler.element.visitor import Visitor
 
 
 class Property:
@@ -20,10 +11,13 @@ class Property:
         self.read: List[str] = []
         self.write: List[str] = []
         self.copy: bool = False
-
+    
     def check(self):
+        # Remove duplicate entries from the read and write lists
         self.read = list(set(self.read))
         self.write = list(set(self.write))
+        
+        # Strip leading and trailing single quotes from each field name
         self.read = [i.strip("'") for i in self.read]
         self.write = [i.strip("'") for i in self.write]
 

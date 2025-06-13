@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 import yaml
 from rich.columns import Columns
@@ -47,10 +47,6 @@ def parse_args():
         type=str,
         choices=["no", "ignore", "weak", "strong"],
         default="weak",
-        # no: no optimization
-        # ignore: aggresive, ignore equivalence requirements
-        # weak: allow differences in drop rate, records, etc.
-        # strong: strict equivalence
     )
     parser.add_argument(
         "--replica",

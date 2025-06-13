@@ -27,7 +27,7 @@ from compiler.element.frontend.util import (
 from compiler.element.ir.consolidate import consolidate
 from compiler.element.ir.props.flow import FlowGraph, Property
 from compiler.element.logger import ELEMENT_LOG as LOG
-
+from compiler.element.frontend.sensitivity_analysis import *
 
 # TODO: unified naming convention for services in proto
 def generate_service_name(mod_name: str, server: str) -> str:
@@ -88,7 +88,6 @@ def gen_code(
     proto = extract_proto_package_name(proto_path)
 
     assert backend_name in (
-        "mrpc",
         "grpc",
         "sidecar_wasm",
         "sidecar_native",
@@ -112,12 +111,7 @@ def gen_code(
     message_field_types["response"]["meta_status"] = "string"
 
     # Choose the appropriate generator and context based on the backend
-    if backend_name == "mrpc":
-        generator = RustGenerator(placement)
-        finalize = RustFinalize
-        # TODO(XZ): Add configurable proto for mRPC codegen
-        ctx = RustContext()
-    elif "wasm" in backend_name:
+    if "wasm" in backend_name:
         generator = WasmGenerator(placement)
         finalize = WasmFinalize
         # TODO(XZ): We assume there will be only one method being used in an element.
@@ -207,12 +201,7 @@ def gen_code(
     finalize(output_name, ctx, output_dir, placement, proto_path)
 
 
-def compile_element_property(
-    element_names: List[str],
-    element_paths: List[str],
-    verbose: bool = False,
-    server: str = "",
-) -> Dict:
+def compile_element_property(element_name: str, element_path: str, verbose: bool = False) -> Dict:
     """
     Compiles and analyzes properties of elements defined using AppNet syntax.
 
@@ -227,7 +216,8 @@ def compile_element_property(
     If 'verbose' is true, it prints the compiled intermediate representation for each element.
 
     Args:
-        element_names (List[str]): List of element names for which to compile and analyze properties.
+        element_name (str): The name of the element for which to compile and analyze properties.
+        element_path (str): The path to the element specification file.
         verbose (bool): Flag to enable verbose logging of the compilation process.
 
     Returns:
@@ -238,71 +228,75 @@ def compile_element_property(
     printer = Printer()
 
     # Initialize a tuple of Property objects to hold request and response properties
-    LOG.info(f"Analyzing element properties. Element list: {element_names}")
+    LOG.info(f"Analyzing element properties. Element: {element_name}")
     ret = (Property(), Property())
 
     # Default properties
     stateful = False
     consistency = None
-    combiner = "LWW"
+    combiner = "LWW" # last write wins
     persistence = False
     state_dependence = []
 
-    for element_name, element_path in zip(element_names, element_paths):
-        LOG.info(f"(Property Analyzer) Parsing {element_name}")
 
-        with open(element_path) as f:
-            # Read the specification from file and generate the intermediate representation
-            spec = f.read()
-            ir = compiler.parse_and_transform(spec)
+    with open(element_path) as f:
+        # Read the specification from file and generate the intermediate representation
+        spec = f.read()
+        ir = compiler.parse_and_transform(spec)
 
-            if verbose:
-                p = ir.accept(printer, None)
-                print(p)
+        if verbose:
+            p = ir.accept(printer, None)
+            print(p)
 
-            # Analyze the IR and get the element properties
-            # The request and reponse logics are analyzed seperately
-            req = FlowGraph().analyze(ir.req, verbose)
-            resp = FlowGraph().analyze(ir.resp, verbose)
+        # Analyze the IR and get the element properties
+        # The request and reponse logics are analyzed seperately
+        req = FlowGraph().analyze(ir.req, verbose)
+        resp = FlowGraph().analyze(ir.resp, verbose)
 
-            # Update request properties
-            ret[0].block = ret[0].block or req.block
-            ret[0].copy = ret[0].copy or req.copy
-            ret[0].drop = ret[0].drop or req.drop
-            ret[0].read = ret[0].read + req.read
-            ret[0].write = ret[0].write + req.write
-            ret[0].check()  # XZ: what does check do?
+        # Update request properties
+        ret[0].block = ret[0].block or req.block
+        ret[0].copy = ret[0].copy or req.copy
+        ret[0].drop = ret[0].drop or req.drop
+        ret[0].read = ret[0].read + req.read
+        ret[0].write = ret[0].write + req.write
+        ret[0].check() 
 
-            # Update response properties
-            ret[1].block = ret[1].block or resp.block
-            ret[1].copy = ret[1].copy or resp.copy
-            ret[1].drop = ret[1].drop or resp.drop
-            ret[1].read = ret[1].read + resp.read
-            ret[1].write = ret[1].write + resp.write
-            ret[1].check()
+        # Update response properties
+        ret[1].block = ret[1].block or resp.block
+        ret[1].copy = ret[1].copy or resp.copy
+        ret[1].drop = ret[1].drop or resp.drop
+        ret[1].read = ret[1].read + resp.read
+        ret[1].write = ret[1].write + resp.write
+        ret[1].check()
 
-            stateful = stateful or len(ir.definition.state) > 0
+        stateful = stateful or len(ir.definition.state) > 0
 
-            # TODO: might want want to do a more fine-grained check state variables. (incl. conflict requirements)
-            for state in ir.definition.state:
-                consistency = consistency or state[2].name
-                # TODO: this won't work if we use the combiner in the future
-                combiner = combiner or state[3].name
-                persistence = persistence or state[4].name
-                # TODO: this is a temp hack
-                if "client_service" in state[0].name:
-                    state_dependence.append("client_service")
-                if "server_service" in state[0].name:
-                    state_dependence.append("server_service")
+        # Analyze the state variables
+        # TODO: might want to do a more fine-grained check state variables. (incl. conflict requirements)
+        for state in ir.definition.state:
+            consistency = consistency or state[2].name
+            # TODO: this won't work if we use the combiner in the future
+            combiner = combiner or state[3].name
+            persistence = persistence or state[4].name
+            # TODO: this is a temp hack
+            if "client_service" in state[0].name:
+                state_dependence.append("client_service")
+            if "server_service" in state[0].name:
+                state_dependence.append("server_service")
+        
+            # Sensitivity analysis
+            idempotent = check_idempotent(ir)
+            ordering_sensitive = check_ordering_sensitive(ir)
+            requires_all_rpcs = check_requires_all_rpcs(ir)
 
     ret[0].check()
     ret[1].check()
 
     # Determine if the operation should be recorded based on the element name
     # TODO(xz): this is a temporary hack.
-    record = len(element_names) == 1 and (
-        element_names[0] == "logging" or element_names[0] == "metrics"
-    )
+    record = (element_name == "logging" or element_name == "metrics")
+    
+
 
     return {
         "state": {
