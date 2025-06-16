@@ -203,9 +203,10 @@ class ElementTransformer(Transformer):
         return MethodCall(f[0], f[1][0], f[1][1:])
 
     def func(self, f) -> FuncCall:
-        # TODO: check function name is valid
-        # TODO: change send to Send primitive
-        # TODO: maybe we should have a global function list first
+        # TODO: Function validation improvements:
+        # 1. Check if function name is valid
+        # 2. Convert send to Send primitive
+        # 3. Consider implementing a global function list for validation
         assert isinstance(f[0], Identifier)
         assert f[0].name != "send" and f[0].name != "err"
         if f[0].name == "send":

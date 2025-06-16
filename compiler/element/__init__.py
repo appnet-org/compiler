@@ -284,10 +284,10 @@ def compile_element_property(element_name: str, element_path: str, verbose: bool
             if "server_service" in state[0].name:
                 state_dependence.append("server_service")
         
-            # Sensitivity analysis
-            idempotent = check_idempotent(ir)
-            ordering_sensitive = check_ordering_sensitive(ir)
-            requires_all_rpcs = check_requires_all_rpcs(ir)
+        # Sensitivity analysis
+        idempotent = check_idempotent(ir)
+        ordering_sensitive = check_ordering_sensitive(ir)
+        requires_all_rpcs = check_requires_all_rpcs(ir)
 
     ret[0].check()
     ret[1].check()
@@ -295,8 +295,6 @@ def compile_element_property(element_name: str, element_path: str, verbose: bool
     # Determine if the operation should be recorded based on the element name
     # TODO(xz): this is a temporary hack.
     record = (element_name == "logging" or element_name == "metrics")
-    
-
 
     return {
         "state": {
@@ -319,5 +317,10 @@ def compile_element_property(element_name: str, element_path: str, verbose: bool
             "drop": ret[1].drop,
             "block": ret[1].block,
             "copy": ret[1].copy,
+        },
+        "sensitivity": {
+            "idempotent": idempotent,
+            "ordering_sensitive": ordering_sensitive,
+            "requires_all_rpcs": requires_all_rpcs,
         },
     }

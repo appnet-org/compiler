@@ -219,7 +219,9 @@ def check_ordering_sensitive(program: Program) -> bool:
     else:
         print("✅ Ordering-insensitive (based on state only)")
         return True
-        
+
+
+# TODO: fix the get and set example.
 def check_requires_all_rpcs(program) -> bool:
     state_vars = [(s[0].name, s[1].name) for s in program.definition.state]
     req_body = program.req.body
@@ -228,7 +230,7 @@ def check_requires_all_rpcs(program) -> bool:
     # Symbolic RPCs
     m1 = Array("rpc1", StringSort(), StringSort())
     m2 = Array("rpc2", StringSort(), StringSort())
-
+    
     # Full execution: m1 then m2
     env1 = SymbolicEnv(state_vars)
     env1.bind_inputs(m1)

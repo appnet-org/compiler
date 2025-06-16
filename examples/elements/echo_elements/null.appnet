@@ -1,13 +1,12 @@
 state:
   counter: int
-  acl: Map<string, string>
+  firewall: Map<string, string>
   
 init():
 	counter = 1
 
 req(rpc):
-	name = get(rpc, 'body')
-    set(acl, 'apple', name)
+	counter = counter * 1
 	send(rpc, Up)
 
 resp(rpc):
