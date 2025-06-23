@@ -19,7 +19,6 @@ from compiler.graph.backend import scriptgen
 from compiler.graph.frontend import GraphParser
 from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_LOG, init_logging
-from compiler.graph.pseudo_element_compiler import pseudo_compile
 
 console = Console()
 gir_summary = dict()
@@ -57,7 +56,7 @@ def parse_args():
     parser.add_argument(
         "-t",
         "--tag",
-        help="Tag number for the current version, used for seamless upgrades. Usually users don't need to manually configure this.",
+        help="Tag number for the current version, used for seamless upgrades. Usually users do not need to manually configure this.",
         type=str,
         default="1",
     )

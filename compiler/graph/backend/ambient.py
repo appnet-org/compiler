@@ -263,7 +263,6 @@ def scriptgen_ambient(
             [
                 "git",
                 "clone",
-                # TODO: move to appnet-org in future
                 "git@github.com:appnet-org/istio-proxy.git",
                 generated_istio_proxy_path,
             ]

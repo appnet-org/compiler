@@ -237,58 +237,60 @@ def compile_element_property(element_name: str, element_path: str, verbose: bool
     combiner = "LWW" # last write wins
     persistence = False
     state_dependence = []
+    for path in element_path:
+        with open(path) as f:
+            # Read the specification from file and generate the intermediate representation
+            spec = f.read()
+            ir = compiler.parse_and_transform(spec)
 
+            if verbose:
+                p = ir.accept(printer, None)
+                print(p)
 
-    with open(element_path) as f:
-        # Read the specification from file and generate the intermediate representation
-        spec = f.read()
-        ir = compiler.parse_and_transform(spec)
+            # Analyze the IR and get the element properties
+            # The request and reponse logics are analyzed seperately
+            req = FlowGraph().analyze(ir.req, verbose)
+            resp = FlowGraph().analyze(ir.resp, verbose)
 
-        if verbose:
-            p = ir.accept(printer, None)
-            print(p)
+            # Update request properties
+            ret[0].block = ret[0].block or req.block
+            ret[0].copy = ret[0].copy or req.copy
+            ret[0].drop = ret[0].drop or req.drop
+            ret[0].read = ret[0].read + req.read
+            ret[0].write = ret[0].write + req.write
+            ret[0].check() 
 
-        # Analyze the IR and get the element properties
-        # The request and reponse logics are analyzed seperately
-        req = FlowGraph().analyze(ir.req, verbose)
-        resp = FlowGraph().analyze(ir.resp, verbose)
+            # Update response properties
+            ret[1].block = ret[1].block or resp.block
+            ret[1].copy = ret[1].copy or resp.copy
+            ret[1].drop = ret[1].drop or resp.drop
+            ret[1].read = ret[1].read + resp.read
+            ret[1].write = ret[1].write + resp.write
+            ret[1].check()
 
-        # Update request properties
-        ret[0].block = ret[0].block or req.block
-        ret[0].copy = ret[0].copy or req.copy
-        ret[0].drop = ret[0].drop or req.drop
-        ret[0].read = ret[0].read + req.read
-        ret[0].write = ret[0].write + req.write
-        ret[0].check() 
+            stateful = stateful or len(ir.definition.state) > 0
 
-        # Update response properties
-        ret[1].block = ret[1].block or resp.block
-        ret[1].copy = ret[1].copy or resp.copy
-        ret[1].drop = ret[1].drop or resp.drop
-        ret[1].read = ret[1].read + resp.read
-        ret[1].write = ret[1].write + resp.write
-        ret[1].check()
-
-        stateful = stateful or len(ir.definition.state) > 0
-
-        # Analyze the state variables
-        # TODO: might want to do a more fine-grained check state variables. (incl. conflict requirements)
-        for state in ir.definition.state:
-            consistency = consistency or state[2].name
-            # TODO: this won't work if we use the combiner in the future
-            combiner = combiner or state[3].name
-            persistence = persistence or state[4].name
-            # TODO: this is a temp hack
-            if "client_service" in state[0].name:
-                state_dependence.append("client_service")
-            if "server_service" in state[0].name:
-                state_dependence.append("server_service")
-        
-        # Sensitivity analysis
-        idempotent = check_idempotent(ir)
-        ordering_sensitive = check_ordering_sensitive(ir)
-        requires_all_rpcs = check_requires_all_rpcs(ir)
-
+            # Analyze the state variables
+            # TODO: might want to do a more fine-grained check state variables. (incl. conflict requirements)
+            for state in ir.definition.state:
+                consistency = consistency or state[2].name
+                # TODO: this won't work if we use the combiner in the future
+                combiner = combiner or state[3].name
+                persistence = persistence or state[4].name
+                # TODO: this is a temp hack
+                if "client_service" in state[0].name:
+                    state_dependence.append("client_service")
+                if "server_service" in state[0].name:
+                    state_dependence.append("server_service")
+            
+            # Sensitivity analysis
+            # idempotent = check_idempotent(ir)
+            # ordering_sensitive = check_ordering_sensitive(ir)
+            # requires_all_rpcs = check_requires_all_rpcs(ir)
+            
+            idempotent = False
+            ordering_sensitive = False
+            requires_all_rpcs = False
     ret[0].check()
     ret[1].check()
 
