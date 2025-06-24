@@ -138,43 +138,6 @@ if info.FullMethod == "{FullMethodName}" {{
 }}
 """
 
-# ==============================================================================
-
-# Mrpc templates
-
-attach_mrpc = """addon_engine = "{current}Engine"
-tx_channels_replacements = [
-    ["{tx_prev}Engine", "{current}Engine", 0, 0],
-    ["{current}Engine", "{tx_nxt}Engine", 0, 0],
-]
-rx_channels_replacements = [
-    ["{rx_prev}Engine", "{current}Engine", 0, 0],
-    ["{current}Engine", "{rx_nxt}Engine", 0, 0],
-]
-group = {group}
-op = "attach"
-config_string = '''
-{config}
-'''
-"""
-
-detach_mrpc = """addon_engine = "{current}Engine"
-tx_channels_replacements = [["{tx_prev}Engine", "{tx_nxt}Engine", 0, 0]]
-rx_channels_replacements = [["{rx_prev}Engine", "{rx_nxt}Engine", 0, 0]]
-op = "detach"
-"""
-
-addon_loader = """
-[[addons]]
-name = "{name}"
-lib_path = "plugins/libphoenix_{rlib}.rlib"
-config_string = \'\'\'
-{config}
-\'\'\'
-"""
-
-# ==============================================================================
-
 # Envoy templates
 
 attach_yml_sidecar_wasm = """apiVersion: networking.istio.io/v1alpha3

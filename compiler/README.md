@@ -30,7 +30,6 @@ options:
 ```
 
 The compiler will automatically install elements on all the nodes and
-* Generate `attach_all.sh` and `detach_all.sh` in `graph/gen` if the backend is mRPC.
 * Generate manifest files if the backend is Envoy. Use `kubectl apply -f <manifest-files>` to run the application
 
 

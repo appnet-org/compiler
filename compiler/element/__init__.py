@@ -15,8 +15,6 @@ from compiler.element.backend.istio_wasm.analyzer import (
 )
 from compiler.element.backend.istio_wasm.finalizer import finalize as WasmFinalize
 from compiler.element.backend.istio_wasm.wasmgen import WasmContext, WasmGenerator
-from compiler.element.backend.mrpc.finalizer import finalize as RustFinalize
-from compiler.element.backend.mrpc.rustgen import RustContext, RustGenerator
 from compiler.element.frontend import ElementCompiler
 from compiler.element.frontend.printer import Printer
 from compiler.element.frontend.util import (
@@ -62,7 +60,7 @@ def gen_code(
         element_names (List[str]): List of element names to generate code for.
         output_name (str): The name of the output file.
         output_dir (str): The directory where the output will be stored.
-        backend_name (str): The name of the backend to be used (supports 'mrpc' or 'envoy').
+        backend_name (str): The name of the backend to be used.
         placement (str): The placement for the code generation.
         proto_path: (str):  The path to the proto file (e.g., hello.proto).
         method_name: (str): The name of the method to be used in the proto file.
@@ -72,7 +70,7 @@ def gen_code(
     Raises:
         FileNotFoundError: If the proto file deos not exist.
         ValueError: If the method name does not exist in the proto file.
-        AssertionError: If the backend_name is not in ['mrpc', 'envoy', 'grpc', 'ambient'].
+        AssertionError: If the backend_name is not in ['envoy', 'grpc', 'ambient'].
     """
 
     # Check if the proto file and method name exists

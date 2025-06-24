@@ -11,7 +11,6 @@ from rich.console import Console
 # set up $PYTHONPATH and environment variables
 sys.path.append(str(Path(__file__).parent.parent.absolute()))
 sys.path.append(str(Path(__file__).parent.absolute()))
-os.environ["PHOENIX_DIR"] = os.path.join(os.getenv("HOME"), "phoenix")
 
 from compiler import *
 from compiler.element import gen_code
@@ -149,7 +148,7 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
             # For each element in the edge
             identifier = element.lib_name + element.final_position
             gen_name = element.server + "".join(element.name)[:24]
-            if element.target in ["mrpc", "grpc"]:
+            if element.target == "grpc":
                 element.compile_dir = os.path.join(
                     gen_dir, f"{gen_name}_{element.final_position}_{element.target}"
                 )
