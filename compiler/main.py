@@ -158,28 +158,20 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
                     gen_dir, f"{gen_name}_{element.target}"
                 )
             if identifier not in compiled_name:
-                if pseudo_impl:
-                    pseudo_compile(
-                        element.lib_name,
-                        gen_dir,
-                        element.target,
-                        element.final_position,
-                    )
-                else:
-                    compile_impl(
-                        element.name,
-                        element.path,
-                        element.compile_dir,
-                        element.target,
-                        element.final_position,
-                        element.proto,
-                        element.method,
-                        gir.server,
-                        args.tag,
-                        proto_module_name=element.proto_mod_name,
-                        proto_module_location=element.proto_mod_location,
-                    )
-                compiled_name.add(identifier)
+                compile_impl(
+                    element.name,
+                    element.path,
+                    element.compile_dir,
+                    element.target,
+                    element.final_position,
+                    element.proto,
+                    element.method,
+                    gir.server,
+                    args.tag,
+                    proto_module_name=element.proto_mod_name,
+                    proto_module_location=element.proto_mod_location,
+                )
+            compiled_name.add(identifier)
 
 
 def print_gir_summary(graphirs: Dict[str, GraphIR]):

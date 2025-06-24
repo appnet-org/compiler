@@ -6,8 +6,7 @@ init():
     set(acl, 'test', 'No')
  
 req(rpc):
-    permission = get(rpc, 'body')
-    match get(acl, permission):
+    match get(acl, get(rpc, 'body')):
         Some(permission) =>
             match permission:
                 'Yes' =>

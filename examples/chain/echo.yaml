@@ -1,43 +1,44 @@
 app_name: echo
-app_manifest: <COMPILER_DIR>/examples/applications/echo/echo.yaml
+app_manifest: /users/xzhu/appnet/compiler/examples/applications/echo/echo.yaml
 app_structure:
 - frontend->server
 edge:
   frontend->server:
   - method: echo
     name: fault
-    path: <COMPILER_DIR>/examples/elements/echo_elements/fault.appnet
+    path: /users/xzhu/appnet/compiler/examples/elements/echo_elements/fault.appnet
     position: client
-    proto: <APPNET_GO_LIB_DIR>/sample/echo-pb/echo.proto
+    proto: /users/xzhu/appnet/go-lib/sample/echo-pb/echo.proto
     proto_mod_name: github.com/appnet-org/golib/sample/echo-pb
-    proto_mod_location: <APPNET_GO_LIB_DIR>/sample/echo-pb
+    proto_mod_location: /users/xzhu/appnet/go-lib/sample/echo-pb
     upgrade: true
     envoy_native: false
     processor:
-      - grpc
       - sidecar
   - method: echo
     name: logging
-    path: <COMPILER_DIR>/examples/elements/echo_elements/logging.appnet
+    path: /users/xzhu/appnet/compiler/examples/elements/echo_elements/logging.appnet
     position: client
-    proto: <APPNET_GO_LIB_DIR>/sample/echo-pb/echo.proto
+    proto: /users/xzhu/appnet/go-lib/sample/echo-pb/echo.proto
     proto_mod_name: github.com/appnet-org/golib/sample/echo-pb
-    proto_mod_location: <APPNET_GO_LIB_DIR>/sample/echo-pb
+    proto_mod_location: /users/xzhu/appnet/go-lib/sample/echo-pb
     upgrade: true
     envoy_native: false
     processor:
-      - grpc
       - sidecar
   - method: echo
     name: firewall
-    path: <COMPILER_DIR>/examples/elements/echo_elements/firewall.appnet
+    path: /users/xzhu/appnet/compiler/examples/elements/echo_elements/firewall.appnet
     position: client
-    proto: <APPNET_GO_LIB_DIR>/sample/echo-pb/echo.proto
+    proto: /users/xzhu/appnet/go-lib/sample/echo-pb/echo.proto
     proto_mod_name: github.com/appnet-org/golib/sample/echo-pb
-    proto_mod_location: <APPNET_GO_LIB_DIR>/sample/echo-pb
+    proto_mod_location: /users/xzhu/appnet/go-lib/sample/echo-pb
     upgrade: true
     envoy_native: false
     processor:
-      - grpc
       - sidecar
+transport:
+  frontend->server:
+  - method: echo
+    name: reliable
 link: {}

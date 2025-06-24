@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from copy import deepcopy
 from typing import Dict, Tuple, Union
 
 import yaml
@@ -41,36 +40,34 @@ class GraphParser:
             self.services.add(server)
             self.app_edges.append((client, server))
 
-        # if "edge" in spec_dict:
-        #     for edge in spec_dict["edge"].keys():
-        #         client, server = edge.split("->")
-        #         self.app_edges.append((client, server))
-        # if "link" in spec_dict:
-        #     for edge in spec_dict["link"].keys():
-        #         client, server = edge.split("->")
-        #         self.app_edges.append((client, server))
         graphir: Dict[str, GraphIR] = dict()
         for client, server in self.app_edges:
-            chain, pair, eid = [], [], f"{client}->{server}"
-            # client's egress
+            chain, pair, transport, edge_id = [], [], [], f"{client}->{server}"
+            
+            # Client's egress
             if "egress" in spec_dict and client in spec_dict["egress"]:
                 chain.extend(spec_dict["egress"][client])
-            # client->server edge
+            # Client->server edge
             if "edge" in spec_dict and f"{client}->{server}" in spec_dict["edge"]:
-                chain.extend(spec_dict["edge"][eid])
-            # server's ingress
+                chain.extend(spec_dict["edge"][edge_id])
+            # Server's ingress
             if "ingress" in spec_dict and server in spec_dict["ingress"]:
                 chain.extend(spec_dict["ingress"][server])
-            # client->server link
+            # Client->server link (for paired elements)
             if "link" in spec_dict and f"{client}->{server}" in spec_dict["link"]:
-                pair.extend(spec_dict["link"][eid])
-            if len(chain) + len(pair) > 0:
-                graphir[eid] = GraphIR(client, server, chain, pair)
+                pair.extend(spec_dict["link"][edge_id])
+            # Transport elements
+            if "transport" in spec_dict and f"{client}->{server}" in spec_dict["edge"]:
+                transport.extend(spec_dict["transport"][edge_id])
+            
+            if any([chain, pair, transport]):
+                graphir[edge_id] = GraphIR(client, server, chain, pair, transport)
 
         # Get file path for application's manifest file
         app_name = spec_dict["app_name"]
         app_manifest_file = spec_dict["app_manifest"]
 
+        # Check if the application manifest file exists
         if not os.path.exists(app_manifest_file):
             raise FileNotFoundError(app_manifest_file)
 

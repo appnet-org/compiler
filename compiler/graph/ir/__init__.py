@@ -29,7 +29,7 @@ def make_service_rich(name: str) -> Panel:
 
 
 class GraphIR:
-    def __init__(self, client: str, server: str, chain: List[Dict], pair: List[Dict]):
+    def __init__(self, client: str, server: str, chain: List[Dict], pair: List[Dict], transport: List):
         """Initiate an unoptimized graphir according to the specified elements.
 
         Args:
@@ -52,10 +52,14 @@ class GraphIR:
             "server_sidecar": [],
             "server_grpc": [],
         }
-        # determine an initial assignment
-        # principle:
-        # valid ("C" goes to client, "S" goes to server, "C/S" goes to ambient)
-        # balanced #element in grpc/sidecar
+        
+        self.transport = transport
+        
+        # Determine initial assignment based on deployment strategy:
+        # - "C" (Client): Deploy to client side
+        # - "S" (Server): Deploy to server side  
+        # - "C/S" (Client/Server): Deploy to ambient mode
+        # Goal: Balance element distribution between gRPC and sidecar deployments
         c_id, s_id = -1, len(chain)
         for i, element in enumerate(chain):
             if "position" in element and element["position"] == "client":
