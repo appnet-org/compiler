@@ -27,6 +27,11 @@ def make_service_rich(name: str) -> Panel:
         expand=False,
     )
 
+def get_initial_target(current_mode: str, processor: List[str]) -> str:
+    for p in processor:
+        if current_mode in p:
+            return p
+
 
 class GraphIR:
     def __init__(self, client: str, server: str, chain: List[Dict], pair: List[Dict], transport: List):
@@ -91,11 +96,11 @@ class GraphIR:
         for element in client_chain[::-1]:
             if (
                 "processor" in element
-                and "grpc" in element["processor"]
-                and "sidecar" not in element["processor"]
+                and any("grpc" in p for p in element["processor"])
+                and not any("sidecar" in p for p in element["processor"])
             ):
                 current_mode = "grpc"
-            if "processor" in element and current_mode not in element["processor"]:
+            if "processor" in element and not any(current_mode in p for p in element["processor"]):
                 raise ValueError("invalid grpc/sidecar requirements")
             self.elements["client_" + current_mode].insert(
                 0,
@@ -103,7 +108,7 @@ class GraphIR:
                     element,
                     server=server,
                     initial_position="client",
-                    initial_target="grpc" if "grpc" in current_mode else "sidecar_wasm",
+                    initial_target=get_initial_target(current_mode, element["processor"]),
                 ),
             )
         current_mode = "sidecar"
@@ -121,7 +126,7 @@ class GraphIR:
                     element,
                     server=server,
                     initial_position="server",
-                    initial_target="grpc" if "grpc" in current_mode else "sidecar_wasm",
+                    initial_target=get_initial_target(current_mode, element["processor"]),
                 )
             )
 

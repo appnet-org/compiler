@@ -91,6 +91,7 @@ def gen_code(
         "sidecar_native",
         "ambient_wasm",
         "ambient_native",
+        "sidecar_arpc",
     )
     compiler = ElementCompiler()
 
@@ -123,7 +124,7 @@ def gen_code(
             mode=backend_name,
             tag=tag,
         )
-    elif backend_name == "grpc":
+    elif backend_name in ["grpc", "sidecar_arpc"]:
         assert proto_module_name != "" and proto_module_location != ""
         generator = GoGenerator(placement)
         finalize = GoFinalize
@@ -186,7 +187,7 @@ def gen_code(
         assert isinstance(ctx, WasmContext), "Inconsistent context type"
         # Do a pass to analyze the IR and generate the access operation
         consolidated.accept(WasmAccessAnalyzer(placement), ctx)
-    elif backend_name == "grpc":
+    elif backend_name in ["grpc", "sidecar_arpc"]:
         assert isinstance(ctx, GoContext), "Inconsistent context type"
         consolidated.accept(GoAccessAnalyzer(placement), ctx)
     elif "native" in backend_name:
@@ -199,7 +200,7 @@ def gen_code(
     finalize(output_name, ctx, output_dir, placement, proto_path)
 
 
-def compile_element_property(element_name: str, element_path: str, verbose: bool = False) -> Dict:
+def compile_element_property(element_name: str, element_path: List[str], verbose: bool = False) -> Dict:
     """
     Compiles and analyzes properties of elements defined using AppNet syntax.
 
