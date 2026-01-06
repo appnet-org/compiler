@@ -18,6 +18,7 @@ from compiler.graph.backend import scriptgen
 from compiler.graph.frontend import GraphParser
 from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_LOG, init_logging
+from compiler.proto import Proto
 
 console = Console()
 gir_summary = dict()
@@ -58,6 +59,11 @@ def parse_args():
         help="Tag number for the current version, used for seamless upgrades. Usually users do not need to manually configure this.",
         type=str,
         default="1",
+    )
+    parser.add_argument(
+        "--proto_only",
+        action="store_true",
+        help="Only generate annotated proto files (aRPC only)"
     )
 
     # Arguments for developers
@@ -212,6 +218,9 @@ def main(args):
     parser = GraphParser()
     graphirs, app_name, app_manifest_file, app_edges = parser.parse(args.spec_path)
 
+    gen_dir = os.path.join(graph_base_dir, "generated")
+    os.makedirs(gen_dir, exist_ok=True)
+
     if args.verbose:
         for gir in graphirs.values():
             if gir.name not in gir_summary:
@@ -229,7 +238,40 @@ def main(args):
     
     if args.opt_level != "no":
         handle_state(graphirs)
-
+    
+    # find all elements assigned to aRPC backend, and annotate related proto files
+    for gir in graphirs.values():
+        for element in gir.complete_chain():
+            pass
+    
+    # If some elements require aRPC backend, we need to annotate related proto files.
+    for gir in graphirs.values():
+        accessed_fields = dict()
+        proto_path = ""
+        for element in gir.complete_chain():
+            if "arpc" in element.target:
+                if proto_path != "" and proto_path != element.proto:
+                    raise ValueError("Elements on the same edge should use the same proto file.")
+                proto_path = element.proto
+                if element.method not in accessed_fields:
+                    accessed_fields[element.method] = {"request": [], "response": []}
+                req_fields = element.get_prop("request", "read") + element.get_prop("request", "write") + element.get_prop("request", "record")
+                resp_fields = element.get_prop("response", "read") + element.get_prop("response", "write") + element.get_prop("response", "record")
+                req_fields = list(filter(lambda f: "trace" not in f, req_fields))
+                resp_fields = list(filter(lambda f: "trace" not in f, resp_fields))
+                accessed_fields[element.method]["request"].extend([(f, "string") for f in req_fields])
+                accessed_fields[element.method]["response"].extend([(f, "string") for f in resp_fields])
+        if proto_path != "":
+            proto_obj = Proto(proto_path)
+            for method, fields in accessed_fields.items():
+                proto_obj.extend_annotation(method, fields["request"], fields["response"])
+            proto_name = proto_path.split("/")[-1].replace(".proto", "") + "_arpc.proto"
+            with open(os.path.join(gen_dir, proto_name), "w") as f:
+                f.write(proto_obj.export())
+    
+    if args.proto_only:
+        return
+    
     # Step 3: Generate backend code for the elements and deployment scripts.
     if not args.dry_run:
         GRAPH_LOG.info(
@@ -242,9 +284,6 @@ def main(args):
         scriptgen(graphirs, app_name, app_manifest_file, app_edges)
 
     # Dump graphir summary (in yaml)
-    gen_dir = os.path.join(graph_base_dir, "generated")
-    os.makedirs(gen_dir, exist_ok=True)
-
     graphir_summary = ""
     for gir in graphirs.values():
         graphir_summary += str(gir)
