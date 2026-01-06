@@ -136,7 +136,8 @@ class FlowGraph:
         # Paths represent all possible code path of this element
         self.build_graph(proc)
         paths = self.extract_path()
-        rpc_name = f"rpc_{proc.name}"
+        # rpc_name = f"rpc_{proc.name}"
+        rpc_name = "rpc"
 
         direction = ""
         if proc.name == "req":
