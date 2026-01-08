@@ -8,6 +8,12 @@ extend google.protobuf.MethodOptions {
 }
 """
 
+def strip(s: str) -> str:
+    s = s.strip()
+    if s.startswith("'") and s.endswith("'"):
+        s = s[1:-1]
+    return s
+
 def find_closing_brace(proto_content: str, start_pos: int) -> int:
     brace_count = 1
     pos = start_pos
@@ -21,17 +27,30 @@ def find_closing_brace(proto_content: str, start_pos: int) -> int:
 
 
 class ProtoMessageField:
-    def __init__(self, content: str):
+    def __init__(self, content: str, added: bool = False):
         words = content.strip().split(" ")
-        self.type = words[0]
-        self.name = words[1]
+        self._type = words[0]
+        self._name = words[1]
         self._annotation_pkg = None
+        self._added = added
+    
+    @property
+    def added(self) -> bool:
+        return self._added
+        
+    @property
+    def type(self) -> str:
+        return self._type
+    
+    @property
+    def name(self) -> str:
+        return self._name
     
     def annotate(self, pkg: str):
         self._annotation_pkg = pkg
     
     def export(self, tag: int) -> str:
-        proto_content = f"{self.type} {self.name} = {tag}"
+        proto_content = f"{self._type} {self._name} = {tag}"
         if self._annotation_pkg is not None:
             proto_content += f" [({self._annotation_pkg}.is_public) = true]"
         proto_content += ";"
@@ -64,11 +83,22 @@ class ProtoMessage:
         proto_content += "}\n"
         return proto_content
     
-    def extend_annotation(self, pkg: str, fields: List[Tuple[str, str]]):
-        for field_name, field_type in fields:
+    def extend_annotation(self, pkg: str, fields: List[str]):
+        for field_name in fields:
             if field_name not in self._fields:
-                self._fields[field_name] = ProtoMessageField(f"{field_type} {field_name} = 1;")
+                raise ValueError(f"field {field_name} not found")
             self._fields[field_name].annotate(pkg)
+    
+    def query_type(self, field_name: str) -> str:
+        if field_name not in self._fields:
+            return ""
+        return self._fields[field_name].type
+    
+    def add_field(self, field_name: str, field_type: str):
+        f = ProtoMessageField(f"{field_type} {field_name} = 1;", added=True)
+        if field_name in self._fields:
+            raise ValueError(f"field {field_name} already exists")
+        self._fields[field_name] = f
 
 
 class ProtoRpcMethod:
@@ -192,13 +222,10 @@ class Proto:
     def service_name(self) -> str:
         return self._service.name
     
-    def extend_annotation(self, method_name: str, request_fields: List[Tuple[str, str]], response_fields: List[Tuple[str, str]]):
+    def extend_annotation(self, method_name: str, request_fields: List[str], response_fields: List[str]):
         if len(request_fields) + len(response_fields) > 0:
             self._annotation = True
-        rpc_method = self._service.get_rpc_method(method_name)
-        if rpc_method is None:
-            raise ValueError(f"RPC method {method_name} not found")
-        req_msg, resp_msg = self._messages[rpc_method.request_msg], self._messages[rpc_method.response_msg]
+        req_msg, resp_msg = self.get_message(method_name, "request"), self.get_message(method_name, "response")
         req_msg.extend_annotation(self._package_name, request_fields)
         resp_msg.extend_annotation(self._package_name, response_fields)
 
@@ -212,7 +239,29 @@ class Proto:
         for message in self._messages.values():
             proto_content += message.export()
         return proto_content
+
+    def get_message(self, method: str, procedure: str) -> ProtoMessage:
+        rpc_method = self._service.get_rpc_method(method)
+        if rpc_method is None:
+            raise ValueError(f"RPC method {method} not found")
+        if procedure in ["req", "request"]:
+            msg_name = rpc_method.request_msg
+        elif procedure in ["resp", "response"]:
+            msg_name = rpc_method.response_msg
+        else:
+            raise ValueError(f"invalid procedure: {procedure}")
+        
+        return self._messages[msg_name]
     
+    def query_type(self, method: str, procedure: str, field_name: str) -> str:
+        field_name = strip(field_name)
+        msg = self.get_message(method, procedure)
+        return msg.query_type(field_name)
+    
+    def add_field(self, method: str, procedure: str, field_name: str, field_type: str):
+        field_name, field_type = strip(field_name), strip(field_type)
+        msg = self.get_message(method, procedure)
+        msg.add_field(field_name, field_type)
 
 if __name__ == "__main__":
     import argparse

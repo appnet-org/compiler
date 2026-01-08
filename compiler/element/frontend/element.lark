@@ -53,7 +53,7 @@ op: "*" -> op_mul
   | ">=" -> op_ge
 
 builtin_func: get_func | set_func | delete_func | byte_size_func | size_func
-get_func: "get" "(" identifier "," expr ")"
+get_func: "get" "(" identifier "," (expr "," expr | expr ) ")"
 set_func: "set" "(" identifier "," ( expr "," expr | expr ) ")"
 delete_func: "delete" "(" identifier "," expr ")"
 byte_size_func: "byte_size" "(" identifier "," expr ")"

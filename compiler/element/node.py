@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from abc import ABC
 from enum import Enum
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
+
+if TYPE_CHECKING:
+    from compiler.element.ir.type_inference.type import AbstractType
 
 
 class Node:
@@ -20,7 +23,16 @@ class Node:
             if visit_func is not None:
                 return visit_func(self, ctx)
         raise Exception(f"visit function for {self.__class__.__name__} not implemented")
-
+    
+    def get_type(self) -> Optional[AbstractType]:
+        if hasattr(self, "_type"):
+            return self._type
+        return None
+    
+    def set_type(self, t: AbstractType):
+        if hasattr(self, "_type"):
+            self._type = t
+    
 
 class Program(Node):
     def __init__(
@@ -81,6 +93,7 @@ class Pattern(Node):
         )
         self.value = value
         self.some = some
+        self._type: Optional[AbstractType] = None
 
 
 class Foreach(Statement):
@@ -101,18 +114,21 @@ class Expr(Node):
         self.op = op
         self.rhs = rhs
         self.type = "unknown"
-
-
+        self._type: Optional[AbstractType] = None
+    
 class Pair(Expr):
     def __init__(self, first: Expr, second: Expr):
         self.first = first
         self.second = second
+        self._type: Optional[AbstractType] = None
 
 
 class Identifier(Expr):
     def __init__(self, name: str):
         self.name = name
-
+        self._type: Optional[AbstractType] = None
+        self.declare = False
+    
 
 class ConsistencyDecorator(Node):
     def __init__(self, name: str):
@@ -145,6 +161,7 @@ class MethodCall(Expr):
         self.method = method
         self.obj = obj
         self.args = args
+        self._type: Optional[AbstractType] = None
 
 
 class Send(Statement):
@@ -172,6 +189,7 @@ class Literal(Node):
             self.type = DataType.BOOL
         else:
             self.type = DataType.NONE
+        self._type: Optional[AbstractType] = None
 
 
 class Start(Node):

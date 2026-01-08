@@ -55,7 +55,7 @@ class ElementTransformer(Transformer):
     def identifier(self, i) -> Identifier:
         return Identifier(i[0])
 
-    def type_(self, t):
+    def type_(self, t) -> Type:
         return Type(t[0].name, None, None, False)
 
     def vec_type(self, t) -> Type:
@@ -250,46 +250,46 @@ class ElementTransformer(Transformer):
     def op(self, o) -> Operator:
         return o[0]
 
-    def op_add(self, o):
+    def op_add(self, _) -> Operator:
         return Operator.ADD
 
-    def op_sub(self, o):
+    def op_sub(self, _) -> Operator:
         return Operator.SUB
 
-    def op_mul(self, o):
+    def op_mul(self, _) -> Operator:
         return Operator.MUL
 
-    def op_div(self, o):
+    def op_div(self, _) -> Operator:
         return Operator.DIV
 
-    def op_lor(self, o):
+    def op_lor(self, _) -> Operator:
         return Operator.LOR
 
-    def op_land(self, o):
+    def op_land(self, _) -> Operator:
         return Operator.LAND
 
-    def op_eq(self, o):
+    def op_eq(self, _) -> Operator:
         return Operator.EQ
 
-    def op_neq(self, o):
+    def op_neq(self, _) -> Operator:
         return Operator.NEQ
 
-    def op_lt(self, o):
+    def op_lt(self, _) -> Operator:
         return Operator.LT
 
-    def op_gt(self, o):
+    def op_gt(self, _) -> Operator:
         return Operator.GT
 
-    def op_le(self, o):
+    def op_le(self, _) -> Operator:
         return Operator.LE
 
-    def op_ge(self, o):
+    def op_ge(self, _) -> Operator:
         return Operator.GE
 
-    def quoted_string(self, s):
+    def quoted_string(self, s) -> str:
         return str(s[0])
 
-    def NAME(self, n):
+    def NAME(self, n) -> str:
         return n.value
 
     def true(self, _):

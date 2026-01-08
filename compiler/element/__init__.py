@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import os
 from typing import Dict, List
 
 from compiler import *
+from compiler.proto import Proto
 from compiler.element.backend.grpc.analyzer import AccessAnalyzer as GoAccessAnalyzer
 from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
 from compiler.element.backend.grpc.gogen import GoContext, GoGenerator
@@ -297,7 +300,7 @@ def compile_element_property(element_name: str, element_path: List[str], verbose
     # TODO(xz): this is a temporary hack.
     record = (element_name == "logging" or element_name == "metrics")
 
-    return {
+    prop = {
         "state": {
             "stateful": stateful,
             "consistency": consistency,
@@ -306,14 +309,16 @@ def compile_element_property(element_name: str, element_path: List[str], verbose
             "state_dependence": state_dependence,
         },
         "request": {
-            "record" if record else "read": ret[0].read,
+            "read": [],
+            "record": [],
             "write": ret[0].write,
             "drop": ret[0].drop,
             "block": ret[0].block,
             "copy": ret[0].copy,
         },
         "response": {
-            "record" if record else "read": ret[1].read,
+            "read": [],
+            "record": [],
             "write": ret[1].write,
             "drop": ret[1].drop,
             "block": ret[1].block,
@@ -325,3 +330,12 @@ def compile_element_property(element_name: str, element_path: List[str], verbose
             "requires_all_rpcs": requires_all_rpcs,
         },
     }
+    
+    if record:
+        prop["request"]["record"] = ret[0].read
+        prop["response"]["record"] = ret[1].read
+    else:
+        prop["request"]["read"] = ret[0].read
+        prop["response"]["read"] = ret[1].read
+
+    return prop

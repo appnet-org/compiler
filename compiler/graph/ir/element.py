@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from rich.panel import Panel
 
-from compiler.element import compile_element_property
+from compiler.element import compile_element_property, ElementCompiler, consolidate
+from compiler.element.node import Program
+from compiler.element.ir.type_inference import TypeAnalyzer, TypeContext
+from compiler.proto import Proto
 
 global_element_id = 0
 
@@ -61,7 +64,8 @@ class AbsElement:
             elif self.upgrade == "no":
                 self.target = self.target.replace("wasm", "native")
             self.final_position = initial_position
-            self.proto = info["proto"]
+            self.proto_path = info["proto"]
+            self.proto: Optional[Proto] = None
             self.method = info["method"]
             self.proto_mod_name = (
                 info["proto_mod_name"] if "proto_mod_name" in info else ""
@@ -71,6 +75,7 @@ class AbsElement:
             )
             self.partner = partner
             self.compile_dir = ""
+            self.ir: Optional[Program] = None
 
     @property
     def desc(self) -> str:
@@ -117,6 +122,20 @@ class AbsElement:
 
     def set_property_source(self, pseudo_property: bool):
         self.pseudo_property = pseudo_property
+    
+    def analyze(self):
+        eirs: List[Program] = []
+        for path in self.path:
+            with open(path, "r") as f:
+                spec = f.read()
+                eirs.append(ElementCompiler().parse_and_transform(spec))
+        self.ir = consolidate(eirs)
+        # type inference
+        type_analyzer = TypeAnalyzer()
+        type_ctx = TypeContext(self.proto, self.method)
+        self.ir.accept(type_analyzer, type_ctx)
+        # compile property
+        self._prop = compile_element_property(self.name, self.path)
 
     @property
     def prop(self):
@@ -206,9 +225,19 @@ class AbsElement:
             if len(self.position) < len(other.position)
             else other.position
         )
+        # Consolidate IRs
+        self.ir = consolidate([self.ir, other.ir])
         # Fuse properties
-        # Consolidation is the last step of optimization. Therefore, only state
-        # properties need to be merged.
         self.prop["state"]["stateful"] |= other.prop["state"]["stateful"]
         if other.prop["state"]["consistency"] == "strong":
             self.prop["state"]["consistency"] = "strong"
+        for k in ["request", "response"]:
+            self.prop[k]["read"].extend(other.prop[k]["read"])
+            self.prop[k]["record"].extend(other.prop[k]["record"])
+            self.prop[k]["write"].extend(other.prop[k]["write"])
+            self.prop[k]["drop"] |= other.prop[k]["drop"]
+            self.prop[k]["block"] |= other.prop[k]["block"]
+            self.prop[k]["copy"] |= other.prop[k]["copy"]
+            self.prop[k]["read"] = list(set(self.prop[k]["read"]))
+            self.prop[k]["record"] = list(set(self.prop[k]["record"]))
+            self.prop[k]["write"] = list(set(self.prop[k]["write"]))
