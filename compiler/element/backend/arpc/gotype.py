@@ -48,3 +48,8 @@ class GoTypeDeclarator(TypeVisitor):
         map_name = t.accept(self.type_name_generator)
         dec_str = f"make({map_name})"
         return GoTypeDeclarator.process_in_struct(var_name, dec_str, in_struct)
+    
+    def visitOptionalType(self, t: OptionalType, var_name: str, in_struct: bool = False) -> str:
+        inner_type_str = t.inner_type.accept(self, var_name, in_struct)
+        ok_str = BoolType().accept(self, f"{var_name}_ok", in_struct)
+        return inner_type_str + "\n" + ok_str

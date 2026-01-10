@@ -96,6 +96,9 @@ class ArpcGenerator(Visitor):
             ctx.push_code("return packet, util.PacketVerdictPass, ctx, nil")
     
     def visitStatement(self, node: Statement, ctx: ArpcContext):
+        if node.stmt is None:
+            # pass statement don't need to be compiled in go
+            return
         code = node.stmt.accept(self, ctx)
         if isinstance(code, str):
             ctx.push_code(code)
@@ -107,7 +110,8 @@ class ArpcGenerator(Visitor):
             ctx.push_code(t.accept(ctx.declaration_generator, node.left.name, in_struct=False))
         # assign the value
         expr_code = node.right.accept(self, ctx)
-        ctx.push_code(f"{node.left.name} = {expr_code}")
+        left_code = node.left.accept(self, ctx)
+        ctx.push_code(f"{left_code} = {expr_code}")
     
     def visitMatch(self, node: Match, ctx: ArpcContext):
         expr_code = node.expr.accept(self, ctx)
@@ -208,7 +212,12 @@ class ArpcGenerator(Visitor):
 
     
     def visitIdentifier(self, node: Identifier, ctx: ArpcContext) -> str:
-        return node.name
+        # go doesn't have built-in optional type, so if the var is of type Optional, we need extra handling
+        t = node.get_type()
+        if not isinstance(t, OptionalType):
+            return node.name
+        else:
+            return f"{node.name}, {node.name}_ok"
     
     def visitLiteral(self, node: Literal, ctx: ArpcContext) -> str:
         value_str = strip(node.value)
