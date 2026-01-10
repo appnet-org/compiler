@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import os
-from typing import Dict, List
+from typing import Dict, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from compiler.graph.ir.element import AbsElement
 
 from compiler import *
-from compiler.proto import Proto
 from compiler.element.backend.grpc.analyzer import AccessAnalyzer as GoAccessAnalyzer
 from compiler.element.backend.grpc.finalizer import finalize as GoFinalize
 from compiler.element.backend.grpc.gogen import GoContext, GoGenerator
@@ -18,6 +20,8 @@ from compiler.element.backend.istio_wasm.analyzer import (
 )
 from compiler.element.backend.istio_wasm.finalizer import finalize as WasmFinalize
 from compiler.element.backend.istio_wasm.wasmgen import WasmContext, WasmGenerator
+from compiler.element.backend.arpc.gogen import ArpcContext, ArpcGenerator
+from compiler.element.backend.arpc.finalizer import finalize as ArpcFinalize
 from compiler.element.frontend import ElementCompiler
 from compiler.element.frontend.printer import Printer
 from compiler.element.frontend.util import (
@@ -39,78 +43,42 @@ def generate_service_name(mod_name: str, server: str) -> str:
     else:
         return server.capitalize() + "Service"
 
-
 def gen_code(
-    element_names: List[str],
-    element_paths: List[str],
-    output_name: str,
-    output_dir: str,
-    backend_name: str,
-    placement: str,
-    proto_path: str,
-    method_name: str,
+    element: AbsElement,
+    gen_name: str,
     server: str,
     tag: str,
-    proto_module_name: str = "",
-    proto_module_location: str = "",
-    verbose: bool = False,
     envoy_verbose: bool = False,
-) -> str:
-    """
-    Generates backend code.
-
-    Args:
-        element_names (List[str]): List of element names to generate code for.
-        output_name (str): The name of the output file.
-        output_dir (str): The directory where the output will be stored.
-        backend_name (str): The name of the backend to be used.
-        placement (str): The placement for the code generation.
-        proto_path: (str):  The path to the proto file (e.g., hello.proto).
-        method_name: (str): The name of the method to be used in the proto file.
-        verbose (bool, optional): If True, provides detailed logging. Defaults to False.
-        tag (str): The tag number for the current version.
-
-    Raises:
-        FileNotFoundError: If the proto file deos not exist.
-        ValueError: If the method name does not exist in the proto file.
-        AssertionError: If the backend_name is not in ['envoy', 'grpc', 'ambient'].
-    """
-
-    # Check if the proto file and method name exists
-    if not os.path.exists(proto_path):
-        raise FileNotFoundError(f"The proto file {proto_path} does not exist.")
-
-    with open(proto_path, "r") as file:
-        proto_def = file.read()
-
-        if method_name not in proto_def:
-            raise ValueError(f"Method {method_name} not found in {proto_path}.")
-    # proto = os.path.basename(proto_path).replace(".proto", "")
-    proto = extract_proto_package_name(proto_path)
-
-    assert backend_name in (
+):
+    backend_name = element.target
+    assert backend_name in [
         "grpc",
         "sidecar_wasm",
         "sidecar_native",
         "ambient_wasm",
         "ambient_native",
         "sidecar_arpc",
-    )
-    compiler = ElementCompiler()
+    ], f"invalid target: {element.target}"
 
-    # Find the request and response message names.
-    service_name = generate_service_name(proto_module_name, server)
-    request_message_name, response_message_name = extract_proto_message_names(
-        proto_path, method_name, service_name=service_name
-    )
-    assert request_message_name is not None and response_message_name is not None
-
-    # Create a mapping from message field names to their types
-    message_field_types = extract_message_field_types(
-        proto_path, request_message_name, response_message_name
-    )
-    # admission control uses a header field 'meta_status'
-    message_field_types["response"]["meta_status"] = "string"
+    # TODO: refactor codegen for non-arpc backends
+    service_name = generate_service_name(element.proto_mod_name, server)
+    req_msg = element.proto.get_message(element.method, "request")
+    resp_msg = element.proto.get_message(element.method, "response")
+    request_message_name = req_msg.name
+    response_message_name = resp_msg.name
+    message_field_types: Dict[str, Dict[str, str]] = {
+        "request": {},
+        "response": {},
+    }
+    for field in req_msg.fields:
+        message_field_types["request"][field.name] = field.type
+    for field in resp_msg.fields:
+        message_field_types["response"][field.name] = field.type
+    placement = element.final_position
+    method_name = element.method
+    output_name = gen_name
+    proto_module_name = element.proto_mod_name
+    proto_module_location = element.proto_mod_location
 
     # Choose the appropriate generator and context based on the backend
     if "wasm" in backend_name:
@@ -118,7 +86,7 @@ def gen_code(
         finalize = WasmFinalize
         # TODO(XZ): We assume there will be only one method being used in an element.
         ctx = WasmContext(
-            proto=proto,
+            proto=element.proto_path,
             method_name=method_name,
             element_name=output_name,
             request_message_name=request_message_name,
@@ -127,12 +95,12 @@ def gen_code(
             mode=backend_name,
             tag=tag,
         )
-    elif backend_name in ["grpc", "sidecar_arpc"]:
+    elif backend_name == "grpc":
         assert proto_module_name != "" and proto_module_location != ""
         generator = GoGenerator(placement)
         finalize = GoFinalize
         ctx = GoContext(
-            proto=proto,
+            proto=element.proto_path,
             proto_module_name=proto_module_name,
             proto_module_location=proto_module_location,
             method_name=method_name,
@@ -142,11 +110,19 @@ def gen_code(
             message_field_types=message_field_types,
             tag=tag,
         )
+    elif backend_name == "sidecar_arpc":
+        generator = ArpcGenerator()
+        finalize = ArpcFinalize
+        ctx = ArpcContext(
+            output_name,
+            element.proto,
+            proto_module_name,
+        )
     elif "native" in backend_name:
         generator = NativeGenerator(placement)
         finalize = NativeFinalize
         ctx = NativeContext(
-            proto=proto,
+            proto=element.proto_path,
             method_name=method_name,
             request_message_name=request_message_name,
             response_message_name=response_message_name,
@@ -156,51 +132,185 @@ def gen_code(
             tag=tag,
             envoy_verbose=envoy_verbose,
         )
-
-    printer = Printer()
-
-    # Generate element IR for each element.
-    eirs = []
-    for element_name, element_path in zip(element_names, element_paths):
-        LOG.info(f"(CodeGen) Parsing {element_name}")
-
-        with open(element_path, "r") as f:
-            spec = f.read()
-            ir = compiler.parse_and_transform(spec)
-            if verbose:
-                p = ir.accept(printer, None)
-                print("showing IR:")
-                print(p)
-            eirs.append(ir)
-
-    # Consolidate IRs if multiple engines are specified
-    if len(element_names) > 1:
-        LOG.info(f"Consolidating IRs for {element_names}")
-        consolidated = consolidate(eirs)
-        if verbose:
-            p = consolidated.accept(printer, None)
-            LOG.info("Consolidated IR:")
-            print(p)
-    else:
-        consolidated = eirs[0]
-
+    
     LOG.info(f"Generating {backend_name} code")
     # TODO: Extend access analysis to all backends
     if "wasm" in backend_name:
         assert isinstance(ctx, WasmContext), "Inconsistent context type"
         # Do a pass to analyze the IR and generate the access operation
-        consolidated.accept(WasmAccessAnalyzer(placement), ctx)
-    elif backend_name in ["grpc", "sidecar_arpc"]:
+        element.ir.accept(WasmAccessAnalyzer(placement), ctx)
+    elif backend_name in ["grpc"]:
         assert isinstance(ctx, GoContext), "Inconsistent context type"
-        consolidated.accept(GoAccessAnalyzer(placement), ctx)
+        element.ir.accept(GoAccessAnalyzer(placement), ctx)
     elif "native" in backend_name:
         pass
 
-    # Second pass to generate the code
-    consolidated.accept(generator, ctx)
+    element.ir.accept(generator, ctx)
 
-    # Finalize the generated code
-    finalize(output_name, ctx, output_dir, placement, proto_path)
+    finalize(output_name, ctx, element.compile_dir, placement, element.proto_path)
+
+
+# def gen_code(
+#     element_names: List[str],
+#     element_paths: List[str],
+#     output_name: str,
+#     output_dir: str,
+#     backend_name: str,
+#     placement: str,
+#     proto_path: str,
+#     method_name: str,
+#     server: str,
+#     tag: str,
+#     proto_module_name: str = "",
+#     proto_module_location: str = "",
+#     verbose: bool = False,
+#     envoy_verbose: bool = False,
+# ) -> str:
+#     """
+#     Generates backend code.
+
+#     Args:
+#         element_names (List[str]): List of element names to generate code for.
+#         output_name (str): The name of the output file.
+#         output_dir (str): The directory where the output will be stored.
+#         backend_name (str): The name of the backend to be used.
+#         placement (str): The placement for the code generation.
+#         proto_path: (str):  The path to the proto file (e.g., hello.proto).
+#         method_name: (str): The name of the method to be used in the proto file.
+#         verbose (bool, optional): If True, provides detailed logging. Defaults to False.
+#         tag (str): The tag number for the current version.
+
+#     Raises:
+#         FileNotFoundError: If the proto file deos not exist.
+#         ValueError: If the method name does not exist in the proto file.
+#         AssertionError: If the backend_name is not in ['envoy', 'grpc', 'ambient'].
+#     """
+
+#     # Check if the proto file and method name exists
+#     if not os.path.exists(proto_path):
+#         raise FileNotFoundError(f"The proto file {proto_path} does not exist.")
+
+#     with open(proto_path, "r") as file:
+#         proto_def = file.read()
+
+#         if method_name not in proto_def:
+#             raise ValueError(f"Method {method_name} not found in {proto_path}.")
+#     # proto = os.path.basename(proto_path).replace(".proto", "")
+#     proto = extract_proto_package_name(proto_path)
+
+#     assert backend_name in (
+#         "grpc",
+#         "sidecar_wasm",
+#         "sidecar_native",
+#         "ambient_wasm",
+#         "ambient_native",
+#         "sidecar_arpc",
+#     )
+#     compiler = ElementCompiler()
+
+#     # Find the request and response message names.
+#     service_name = generate_service_name(proto_module_name, server)
+#     request_message_name, response_message_name = extract_proto_message_names(
+#         proto_path, method_name, service_name=service_name
+#     )
+#     assert request_message_name is not None and response_message_name is not None
+
+#     # Create a mapping from message field names to their types
+#     message_field_types = extract_message_field_types(
+#         proto_path, request_message_name, response_message_name
+#     )
+#     # admission control uses a header field 'meta_status'
+#     message_field_types["response"]["meta_status"] = "string"
+
+#     # Choose the appropriate generator and context based on the backend
+#     if "wasm" in backend_name:
+#         generator = WasmGenerator(placement)
+#         finalize = WasmFinalize
+#         # TODO(XZ): We assume there will be only one method being used in an element.
+#         ctx = WasmContext(
+#             proto=proto,
+#             method_name=method_name,
+#             element_name=output_name,
+#             request_message_name=request_message_name,
+#             response_message_name=response_message_name,
+#             message_field_types=message_field_types,
+#             mode=backend_name,
+#             tag=tag,
+#         )
+#     elif backend_name in ["grpc", "sidecar_arpc"]:
+#         assert proto_module_name != "" and proto_module_location != ""
+#         generator = GoGenerator(placement)
+#         finalize = GoFinalize
+#         ctx = GoContext(
+#             proto=proto,
+#             proto_module_name=proto_module_name,
+#             proto_module_location=proto_module_location,
+#             method_name=method_name,
+#             element_name=output_name,
+#             request_message_name=request_message_name,
+#             response_message_name=response_message_name,
+#             message_field_types=message_field_types,
+#             tag=tag,
+#         )
+#     elif "native" in backend_name:
+#         generator = NativeGenerator(placement)
+#         finalize = NativeFinalize
+#         ctx = NativeContext(
+#             proto=proto,
+#             method_name=method_name,
+#             request_message_name=request_message_name,
+#             response_message_name=response_message_name,
+#             message_field_types=message_field_types,
+#             mode="sidecar",
+#             element_name=output_name,
+#             tag=tag,
+#             envoy_verbose=envoy_verbose,
+#         )
+
+#     printer = Printer()
+
+#     # Generate element IR for each element.
+#     eirs = []
+#     for element_name, element_path in zip(element_names, element_paths):
+#         LOG.info(f"(CodeGen) Parsing {element_name}")
+
+#         with open(element_path, "r") as f:
+#             spec = f.read()
+#             ir = compiler.parse_and_transform(spec)
+#             if verbose:
+#                 p = ir.accept(printer, None)
+#                 print("showing IR:")
+#                 print(p)
+#             eirs.append(ir)
+
+#     # Consolidate IRs if multiple engines are specified
+#     if len(element_names) > 1:
+#         LOG.info(f"Consolidating IRs for {element_names}")
+#         consolidated = consolidate(eirs)
+#         if verbose:
+#             p = consolidated.accept(printer, None)
+#             LOG.info("Consolidated IR:")
+#             print(p)
+#     else:
+#         consolidated = eirs[0]
+
+#     LOG.info(f"Generating {backend_name} code")
+#     # TODO: Extend access analysis to all backends
+#     if "wasm" in backend_name:
+#         assert isinstance(ctx, WasmContext), "Inconsistent context type"
+#         # Do a pass to analyze the IR and generate the access operation
+#         consolidated.accept(WasmAccessAnalyzer(placement), ctx)
+#     elif backend_name in ["grpc", "sidecar_arpc"]:
+#         assert isinstance(ctx, GoContext), "Inconsistent context type"
+#         consolidated.accept(GoAccessAnalyzer(placement), ctx)
+#     elif "native" in backend_name:
+#         pass
+
+#     # Second pass to generate the code
+#     consolidated.accept(generator, ctx)
+
+#     # Finalize the generated code
+#     finalize(output_name, ctx, output_dir, placement, proto_path)
 
 
 def compile_element_property(element_name: str, element_path: List[str], verbose: bool = False) -> Dict:

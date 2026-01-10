@@ -1,4 +1,20 @@
 from __future__ import annotations
+from abc import ABC
+from typing import Any
+
+class TypeVisitor(ABC):
+    def visitVecType(self, t: VecType) -> Any:
+        pass
+
+    def visitMapType(self, t: MapType) -> Any:
+        pass
+
+    def visitPairType(self, t: PairType) -> Any:
+        pass
+
+    def visitOptionalType(self, t: OptionalType) -> Any:
+        pass
+
 
 class AbstractType:
     def is_same(self, other: AbstractType) -> bool:
@@ -6,6 +22,15 @@ class AbstractType:
     
     def to_proto(self) -> str:
         raise ValueError("to_proto not implemented for abstract type")
+    
+    def accept(self, visitor: TypeVisitor, *args, **kwargs) -> Any:
+        class_list = type(self).__mro__
+        for cls in class_list:
+            func_name = "visit" + cls.__name__
+            visit_func = getattr(visitor, func_name, None)
+            if visit_func is not None:
+                return visit_func(self, *args, **kwargs)
+        raise Exception(f"visit function for {self.__class__.__name__} not implemented")
 
 
 class VecType(AbstractType):
@@ -44,7 +69,11 @@ class OptionalType(AbstractType):
         return self.inner_type.is_same(other.inner_type)
 
 
-class ArithmeticType(AbstractType):
+class BasicType(AbstractType):
+    pass
+
+
+class ArithmeticType(BasicType):
     pass
 
 
@@ -63,11 +92,11 @@ class UIntType(ArithmeticType):
         return "uint32"
 
 
-class StringType(AbstractType):
+class StringType(BasicType):
     def to_proto(self) -> str:
         return "string"
 
 
-class BoolType(AbstractType):
+class BoolType(BasicType):
     def to_proto(self) -> str:
         return "bool"

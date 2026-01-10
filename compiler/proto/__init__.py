@@ -73,6 +73,11 @@ class ProtoMessage:
     @property
     def name(self) -> str:
         return self._message_name
+
+    # TODO: this property is used by the old codegen logic and will be removed in the future.
+    @property
+    def fields(self) -> List[ProtoMessageField]:
+        return list(self._fields.values())
         
     def export(self) -> str:
         proto_content = f"message {self._message_name} {{\n"

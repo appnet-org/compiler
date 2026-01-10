@@ -18,6 +18,9 @@ class TypeContext:
     Attributes:
         name2type (List[Dict[str, AbstractType]]): A list of dictionaries mapping variable names to their types.
         match_type (AbstractType): The type of the current match block.
+        current_procedure (str): The name of the current procedure.
+        proto (Proto): The proto object.
+        method (str): The method name.
     """
     def __init__(self, proto: Proto, method: str):
         self.name2type: List[Dict[str, AbstractType]] = [{}]
@@ -65,8 +68,8 @@ class TypeContext:
         Raises:
             TypeInferenceError: If the variable name is 'rpc'.
         """
-        if var.name == "rpc":
-            raise TypeInferenceError("variable name 'rpc' is reserved.")
+        if var.name in ["rpc", "packet_raw"]:
+            raise TypeInferenceError(f"variable name '{var.name}' is reserved.")
         var.declare = True
         scope = self.name2type[0]
         if var.name in scope:

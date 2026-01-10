@@ -20,15 +20,15 @@ vec_type: "Vec" "<" (single_type | pair_type) ">"
 map_type: "Map" "<" single_type "," (single_type | pair_type | vec_type) ">"
 type_: single_type | pair_type | vec_type | map_type
 
-body: _NEWLINE _INDENT ( simple_stmt | match_stmt | foreach_stmt | _NEWLINE )* _DEDENT
+body: _NEWLINE _INDENT ( simple_stmt | assign_stmt | send_stmt | match_stmt | foreach_stmt | _NEWLINE )* _DEDENT
 
-simple_stmt: (expr | assign | send | "pass" ) _NEWLINE
+simple_stmt: ( "pass" | expr ) _NEWLINE
 
-send: "send" "(" (expr | err) "," direction ")"
+send_stmt: "send" "(" (expr | err) "," direction ")" _NEWLINE
 direction: "Up" -> dir_up | "Down" -> dir_down
 err: "err" "(" (quoted_string | NAME) ")"
 
-assign: (single_var | pair_var) "=" expr
+assign_stmt: (single_var | pair_var) "=" expr _NEWLINE
 single_var: identifier
 pair_var: "(" identifier "," identifier ")"
 

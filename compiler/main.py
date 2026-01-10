@@ -1,5 +1,6 @@
 import argparse
 import os
+import shutil
 import sys
 from pathlib import Path
 from typing import Dict
@@ -119,19 +120,25 @@ def compile_impl(
     ) # envoy does not allow long struct names
     os.system(f"mkdir -p {element.compile_dir}")
     gen_code(
-        element.name,
-        element.path,
+        element,
         gen_name,
-        element.compile_dir,
-        element.target,
-        element.final_position,
-        element.proto,
-        element.method,
         server,
         tag,
-        proto_module_name=element.proto_mod_name,
-        proto_module_location=element.proto_mod_location,
     )
+    # gen_code(
+    #     element.name,
+    #     element.path,
+    #     gen_name,
+    #     element.compile_dir,
+    #     element.target,
+    #     element.final_position,
+    #     element.proto,
+    #     element.method,
+    #     server,
+    #     tag,
+    #     proto_module_name=element.proto_mod_name,
+    #     proto_module_location=element.proto_mod_location,
+    # )
 
 
 # def compile_impl(
@@ -172,7 +179,6 @@ def compile_impl(
 def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
     compiled_name = set()
     gen_dir = os.path.join(graph_base_dir, "generated")
-    os.system(f"rm {gen_dir} -rf")
     for gir in graphirs.values():  # For each edge in the application
         for element in gir.complete_chain():
             # For each element in the edge
@@ -244,6 +250,8 @@ def main(args):
     graphirs, app_name, app_manifest_file, app_edges = parser.parse(args.spec_path)
 
     gen_dir = os.path.join(graph_base_dir, "generated")
+    if os.path.exists(gen_dir):
+        shutil.rmtree(gen_dir)
     os.makedirs(gen_dir, exist_ok=True)
 
     if args.verbose:

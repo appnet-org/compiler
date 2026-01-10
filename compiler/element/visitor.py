@@ -17,40 +17,40 @@ class Visitor(ABC):
         raise Exception(f"visit function for {node.__class__.__name__} not implemented")
 
     def visitProgram(self, node: Program, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitState(self, node: State, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitProcedure(self, node: Procedure, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitStatement(self, node: Statement, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitMatch(self, node: Match, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitAssign(self, node: Assign, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitPattern(self, node: Pattern, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitExpr(self, node: Expr, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitIdentifier(self, node: Identifier, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitFuncCall(self, node: FuncCall, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitMethodCall(self, node: MethodCall, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitSend(self, node: Send, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)
 
     def visitLiteral(self, node: Literal, ctx):
-        return self.visitNode(node)
+        return self.visitNode(node, ctx)

@@ -167,7 +167,7 @@ class ElementTransformer(Transformer):
     def pair(self, p) -> Expr:
         return Pair(p[0], p[1])
 
-    def assign(self, a) -> Assign:
+    def assign_stmt(self, a) -> Assign:
         return Assign(a[0], a[1])
 
     def single_var(self, s) -> Identifier:
@@ -176,7 +176,7 @@ class ElementTransformer(Transformer):
     def pair_var(self, p) -> Pair:
         return Pair(p[0], p[1])
 
-    def send(self, p):
+    def send_stmt(self, p):
         """
         Args:
             p (list): [expr|err, "Up"|"Down"]
