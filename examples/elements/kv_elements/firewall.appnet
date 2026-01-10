@@ -1,0 +1,21 @@
+state:
+    firewall: Map<int, string>
+
+init():
+    set(firewall, 123, 'Yes')
+    set(firewall, 456, 'No')
+ 
+req(rpc):
+    score = get(rpc, 'score', 'int32')
+    match get(firewall, score):
+        Some(permission) =>
+            match permission:
+                'Yes' =>
+                    send(rpc, Down)
+                'No' =>
+                    send(err('firewall'), Up)
+        None =>
+            send(rpc, Down)
+
+resp(rpc):
+    send(rpc, Up)
