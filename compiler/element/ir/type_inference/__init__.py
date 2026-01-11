@@ -404,8 +404,3 @@ class TypeAnalyzer(Visitor):
         if not atype.is_same(btype):
             raise TypeInferenceError(f"expected same type for operands in max, got {atype} and {btype}")
         node.set_type(atype)
-    
-    def visitByteSizeFunc(self, node: ByteSizeFunc, ctx: TypeContext):
-        node.var.accept(self, ctx)
-        node.set_type(IntType())
-            

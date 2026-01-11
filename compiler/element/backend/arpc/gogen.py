@@ -333,8 +333,3 @@ class ArpcGenerator(Visitor):
         else:
             msg_code = node.msg.accept(self, ctx)
             ctx.push_code(f"return nil, util.PacketVerdictDrop, ctx, {msg_code}")
-    
-    def visitByteSizeFunc(self, node: ByteSizeFunc, ctx: ArpcContext) -> str:
-        if node.var.name != "rpc":
-            raise NotImplementedError("byte_size can only be called on rpc for now")
-        return "len(packet_raw)"
