@@ -209,17 +209,30 @@ class ElementTransformer(Transformer):
         # 3. Consider implementing a global function list for validation
         assert isinstance(f[0], Identifier)
         assert f[0].name != "send" and f[0].name != "err"
-        if f[0].name == "send":
-            assert len(f[1]) == 2
-            assert f[1][1].name == "Up" or f[1][1].name == "Down"
-            # assert f[1][1].name == "APP" or f[1][1].name == "NET"
-            # f[1][1] should be str, but it will be parsed as Identifier
-            return Send(f[1][1].name, f[1][0])
-        elif f[0].name == "err":
-            assert len(f[1]) == 1
-            return Error(f[1][0])
-        else:
-            return FuncCall(f[0], f[1])
+        # if f[0].name == "send":
+        #     assert len(f[1]) == 2
+        #     assert f[1][1].name == "Up" or f[1][1].name == "Down"
+        #     # assert f[1][1].name == "APP" or f[1][1].name == "NET"
+        #     # f[1][1] should be str, but it will be parsed as Identifier
+        #     return Send(f[1][1].name, f[1][0])
+        # elif f[0].name == "err":
+        #     assert len(f[1]) == 1
+        #     return Error(f[1][0])
+        match f[0].name:
+            case "randomf":
+                return RandomFunc(f[1][0], f[1][1])
+            case "current_time":
+                return CurrentTimeFunc()
+            case "time_diff":
+                return TimeDiffFunc(f[1][0], f[1][1])
+            case "min":
+                return MinFunc(f[1][0], f[1][1])
+            case "max":
+                return MaxFunc(f[1][0], f[1][1])
+            case "byte_size":
+                return ByteSizeFunc(f[1][0])
+            case _:
+                return FuncCall(f[0], f[1])
 
     def arguments(self, a):
         return a

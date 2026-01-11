@@ -339,6 +339,9 @@ class TypeAnalyzer(Visitor):
                 self.visitRpcGet(node, ctx)
             elif node.method == MethodType.SET:
                 self.visitRpcSet(node, ctx)
+            elif node.method == MethodType.BYTE_SIZE:
+                # TODO: byte_size should be an built-in function
+                node.set_type(FloatType())
             else:
                 raise TypeInferenceError(f"method {node.method} is not supported for rpc")
             return
@@ -366,5 +369,43 @@ class TypeAnalyzer(Visitor):
                     raise TypeInferenceError(f"expected Map value type {obj_type.value_type}, got {map_value_type}")
             case _:
                 raise NotImplementedError(f"type inference for method {node.method} is not supported")
-                
+
+    def visitRandomFunc(self, node: RandomFunc, ctx: TypeContext):
+        node.lower.accept(self, ctx)
+        node.upper.accept(self, ctx)
+        ltype, utype = node.lower.get_type(), node.upper.get_type()
+        if not (isinstance(ltype, ArithmeticType) and isinstance(utype, ArithmeticType)):
+            raise TypeInferenceError(f"expected float type for lower and upper bounds in randomf, got {ltype} and {utype}")
+        node.set_type(FloatType())
+    
+    def visitCurrentTimeFunc(self, node: CurrentTimeFunc, ctx: TypeContext):
+        node.set_type(FloatType())
+    
+    def visitTimeDiffFunc(self, node: TimeDiffFunc, ctx: TypeContext):
+        node.a.accept(self, ctx)
+        node.b.accept(self, ctx)
+        atype, btype = node.a.get_type(), node.b.get_type()
+        if not (isinstance(atype, FloatType) and isinstance(btype, FloatType)):
+            raise TypeInferenceError(f"expected float type for operands in time_diff, got {atype} and {btype}")
+        node.set_type(FloatType())
+    
+    def visitMinFunc(self, node: MinFunc, ctx: TypeContext):
+        node.a.accept(self, ctx)
+        node.b.accept(self, ctx)
+        atype, btype = node.a.get_type(), node.b.get_type()
+        if not atype.is_same(btype):
+            raise TypeInferenceError(f"expected same type for operands in min, got {atype} and {btype}")
+        node.set_type(atype)
+    
+    def visitMaxFunc(self, node: MaxFunc, ctx: TypeContext):
+        node.a.accept(self, ctx)
+        node.b.accept(self, ctx)
+        atype, btype = node.a.get_type(), node.b.get_type()
+        if not atype.is_same(btype):
+            raise TypeInferenceError(f"expected same type for operands in max, got {atype} and {btype}")
+        node.set_type(atype)
+    
+    def visitByteSizeFunc(self, node: ByteSizeFunc, ctx: TypeContext):
+        node.var.accept(self, ctx)
+        node.set_type(IntType())
             

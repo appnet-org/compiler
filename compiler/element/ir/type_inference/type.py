@@ -2,6 +2,7 @@ from __future__ import annotations
 from abc import ABC
 from typing import Any
 
+
 class TypeVisitor(ABC):
     def visitVecType(self, t: VecType) -> Any:
         pass

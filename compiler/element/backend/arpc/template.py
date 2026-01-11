@@ -3,6 +3,8 @@ sidecar_arpc_template = """package main
 import (
 	"context"
 	"fmt"
+	"math/rand"
+	"time"
 
     {Imports}
 	"github.com/appnet-org/arpc/pkg/logging"
@@ -14,6 +16,18 @@ import (
 type {ElementName} struct {{
     name string
     {GlobalVarDec}
+}}
+
+func randomf(lower, upper float64) float64 {{ 
+	return lower + rand.Float64() * (upper - lower)
+}}
+
+func current_time() float64 {{
+    return float64(time.Now().UnixMicro())
+}}
+
+func time_diff(a, b float64) float64 {{
+    return (a - b) / 1000000.0
 }}
 
 {GlobalFunc}

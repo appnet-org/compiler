@@ -10,7 +10,7 @@ from compiler.proto import Proto
 from compiler.element.backend.grpc import *
 from compiler.element.backend.grpc.boilerplate import *
 from compiler.element.backend.grpc.gotype import *
-from compiler.element.backend.arpc.gotype import GoTypeDeclarator, GoTypeNameGenerator
+from compiler.element.backend.arpc.gotype import GoTypeNameGenerator, GoTypeInitGenerator
 
 def strip(s: str):
     s = s.strip()
@@ -29,15 +29,6 @@ class ArpcContext:
         proto: Proto,
         proto_module_name: str,
         tag: str = "0",
-        # proto=None,
-        # proto_module_name=None,
-        # proto_module_location=None,
-        # method_name=None,
-        # request_message_name=None,
-        # response_message_name=None,
-        # message_field_types=None,
-        # element_name: str = "",
-        # tag: str = "0",
     ) -> None:
         self.element_name = element_name
         self.proto = proto
@@ -45,8 +36,12 @@ class ArpcContext:
         self.tag = tag
         # runtime
         self.current_procedure = ""
-        self.declaration_generator = GoTypeDeclarator()
+        self.global_var = set[str]()
         self.type_name_generator = GoTypeNameGenerator()
+        self.type_init_generator = GoTypeInitGenerator()
+        # used for generating unique temp variable names (e.g., in match statement)
+        self.temp_var_idx = 0
+
         # code
         self.global_var_dec: List[str] = []
         self.global_var_init: List[str] = []
@@ -58,6 +53,16 @@ class ArpcContext:
             "req": [],
             "resp": [],
         }
+    
+    def gen_temp_var(self) -> str:
+        """
+        Generate a unique temp variable name (e.g., in match statement)
+        
+        Returns:
+            name of the temp variable
+        """
+        self.temp_var_idx += 1
+        return f"temp_{self.temp_var_idx}"
 
     def push_code(self, code: str):
         self.procedure_code[self.current_procedure].append(code)
@@ -72,16 +77,26 @@ class ArpcGenerator(Visitor):
     
     def visitState(self, node: State, ctx: ArpcContext):
         for (var, _, consistency, _, _) in node.state:
+            ctx.global_var.add(var.name)
             if consistency.name in ["strong", "weak"]:
                 raise NotImplementedError("strong and weak consistencies are not supported for aRPC yet")
             t = var.get_type()
             # struct declaration
             type_name_str = t.accept(ctx.type_name_generator)
-            ctx.global_var_dec.append(f"{var.name} {type_name_str}")
+            # TODO: define an optional type helper to simplify the code
+            if isinstance(t, OptionalType):
+                ctx.global_var_dec.append(f"{var.name} {type_name_str[0]}")
+                ctx.global_var_dec.append(f"{var.name}_ok {type_name_str[1]}")
+            else:
+                ctx.global_var_dec.append(f"{var.name} {type_name_str}")
             ctx.global_var_dec.append(f"{var.name}_mu *sync.RWMutex")
-            # sruct initialization
-            init_code = t.accept(ctx.declaration_generator, var.name, in_struct=True)
-            ctx.global_var_init.append(init_code)
+            # struct initialization
+            init_code = t.accept(ctx.type_init_generator)
+            if isinstance(t, OptionalType):
+                ctx.global_var_init.append(f"{var.name}: {init_code[0]},")
+                ctx.global_var_init.append(f"{var.name}_ok: {init_code[1]},")
+            else:
+                ctx.global_var_init.append(f"{var.name}: {init_code},")
     
     def visitProcedure(self, node: Procedure, ctx: ArpcContext):
         ctx.current_procedure = node.name
@@ -98,6 +113,7 @@ class ArpcGenerator(Visitor):
     def visitStatement(self, node: Statement, ctx: ArpcContext):
         if node.stmt is None:
             # pass statement don't need to be compiled in go
+            ctx.push_code("// pass")
             return
         code = node.stmt.accept(self, ctx)
         if isinstance(code, str):
@@ -107,7 +123,13 @@ class ArpcGenerator(Visitor):
         # declare the variable if needed
         if node.left.declare is True:
             t = node.left.get_type()
-            ctx.push_code(t.accept(ctx.declaration_generator, node.left.name, in_struct=False))
+            var_name = node.left.name
+            type_name_str = t.accept(ctx.type_name_generator)
+            if isinstance(t, OptionalType):
+                ctx.push_code(f"var {var_name} {type_name_str[0]}")
+                ctx.push_code(f"var {var_name}_ok {type_name_str[1]}")
+            else:
+                ctx.push_code(f"var {var_name} {type_name_str}")
         # assign the value
         expr_code = node.right.accept(self, ctx)
         left_code = node.left.accept(self, ctx)
@@ -115,6 +137,7 @@ class ArpcGenerator(Visitor):
     
     def visitMatch(self, node: Match, ctx: ArpcContext):
         expr_code = node.expr.accept(self, ctx)
+        # TODO: unify the equalization check of optional type and non-optional types
         if isinstance(node.expr.get_type(), OptionalType):
             # go doesn't have built-in match-action, use if-else to implement
             if node.actions[0][0].some:
@@ -132,19 +155,19 @@ class ArpcGenerator(Visitor):
                 stmt.accept(self, ctx)
             ctx.push_code("}")
         else:
+            temp_var = ctx.gen_temp_var()
             for i, action in enumerate(node.actions):
                 pattern, stmts = action[0], action[1]
-                code = f"{expr_code} == {pattern.value.accept(self, ctx)}"
+                condition_code = f"{temp_var} == {pattern.value.accept(self, ctx)}"
                 if i == 0:
-                    code = "if " + code + "{"
+                    init_code = f"{temp_var} := {expr_code}"
+                    code = f"if {init_code}; {condition_code} {{"
                 else:
-                    code = "} else if " + code + "{"
+                    code = f"}} else if {condition_code} {{"
                 ctx.push_code(code)
                 for stmt in stmts:
                     stmt.accept(self, ctx)
             ctx.push_code("}")
-            # raise NotImplementedError("match on non-optional type is not supported")
-            
     
     def visitExpr(self, node: Expr, ctx: ArpcContext) -> str:
         lcode = node.lhs.accept(self, ctx)
@@ -157,10 +180,19 @@ class ArpcGenerator(Visitor):
         return f"packet_raw.Get{strip(node.args[0].value).capitalize()}()"
     
     def visitRpcSet(self, node: MethodCall, ctx: ArpcContext) -> str:
-        raise NotImplementedError("rpc.set is not supported for aRPC yet")
+        assert isinstance(node.args[0], Literal), "rpc.set argument must be a literal"
+        return f"packet_raw.Set{strip(node.args[0].value).capitalize()}({node.args[1].accept(self, ctx)})"
 
     @staticmethod
     def gen_map_get_helper_func(map_name: str, map_type: MapType, ctx: ArpcContext) -> str:
+        """
+        Generate a helper function for getting a value from a lock-protected global map
+        
+        Args:
+            map_name: name of the map
+            map_type: IR type of the map
+            ctx: context object
+        """
         key_type_str = map_type.key_type.accept(ctx.type_name_generator)
         value_type_str = map_type.value_type.accept(ctx.type_name_generator)
         code = f"func (e *{ctx.element_name}) GetMap{map_name}(key {key_type_str}) ({value_type_str}, bool) {{\n"
@@ -173,6 +205,14 @@ class ArpcGenerator(Visitor):
     
     @staticmethod
     def gen_map_set_helper_func(map_name: str, map_type: MapType, ctx: ArpcContext) -> str:
+        """
+        Generate a helper function for setting a value to a lock-protected global map
+        
+        Args:
+            map_name: name of the map
+            map_type: IR type of the map
+            ctx: context object
+        """
         key_type_str = map_type.key_type.accept(ctx.type_name_generator)
         value_type_str = map_type.value_type.accept(ctx.type_name_generator)
         code = f"func (e *{ctx.element_name}) SetMap{map_name}(key {key_type_str}, value {value_type_str}) {{\n"
@@ -189,6 +229,9 @@ class ArpcGenerator(Visitor):
                     return self.visitRpcGet(node, ctx)
                 case MethodType.SET:
                     return self.visitRpcSet(node, ctx)
+                case MethodType.BYTE_SIZE:
+                    return "float64(len(packet_raw))"
+
         match node.method:
             # we currently only support get and set on global map
             case MethodType.GET:
@@ -209,15 +252,16 @@ class ArpcGenerator(Visitor):
                 return f"e.SetMap{map_name}({key_code}, {value_code})"
             case _:
                 raise NotImplementedError(f"method {node.method} is not supported")
-
     
     def visitIdentifier(self, node: Identifier, ctx: ArpcContext) -> str:
         # go doesn't have built-in optional type, so if the var is of type Optional, we need extra handling
         t = node.get_type()
+        prefix = "e." if node.name in ctx.global_var else ""
+        # TODO: global var of basic type is not protected by lock for now
         if not isinstance(t, OptionalType):
-            return node.name
+            return f"{prefix}{node.name}"
         else:
-            return f"{node.name}, {node.name}_ok"
+            return f"{prefix}{node.name}, {prefix}{node.name}_ok"
     
     def visitLiteral(self, node: Literal, ctx: ArpcContext) -> str:
         value_str = strip(node.value)
@@ -225,6 +269,29 @@ class ArpcGenerator(Visitor):
         if isinstance(t, StringType):
             value_str = f'"{value_str}"'
         return value_str
+    
+    def visitRandomFunc(self, node: RandomFunc, ctx: ArpcContext) -> str:
+        lower_code = node.lower.accept(self, ctx)
+        upper_code = node.upper.accept(self, ctx)
+        return f"randomf({lower_code}, {upper_code})"
+    
+    def visitCurrentTimeFunc(self, node: CurrentTimeFunc, ctx: ArpcContext) -> str:
+        return "current_time()"
+    
+    def visitTimeDiffFunc(self, node: TimeDiffFunc, ctx: ArpcContext) -> str:
+        a_code = node.a.accept(self, ctx)
+        b_code = node.b.accept(self, ctx)
+        return f"time_diff({a_code}, {b_code})"
+    
+    def visitMinFunc(self, node: MinFunc, ctx: ArpcContext) -> str:
+        a_code = node.a.accept(self, ctx)
+        b_code = node.b.accept(self, ctx)
+        return f"min({a_code}, {b_code})"
+    
+    def visitMaxFunc(self, node: MaxFunc, ctx: ArpcContext) -> str:
+        a_code = node.a.accept(self, ctx)
+        b_code = node.b.accept(self, ctx)
+        return f"max({a_code}, {b_code})"
     
     def visitOperator(self, node: Operator, ctx: ArpcContext) -> str:
         match node:
@@ -256,7 +323,7 @@ class ArpcGenerator(Visitor):
                 return "!"
     
     def visitError(self, node: Error, ctx: ArpcContext) -> str:
-        # TODO: add type inference for error message
+        # TODO: add type inference for error message, now we assume it's a string
         return f"errors.New(\"{node.msg.accept(self, ctx)}\")"
             
     def visitSend(self, node: Send, ctx: ArpcContext):
@@ -266,3 +333,8 @@ class ArpcGenerator(Visitor):
         else:
             msg_code = node.msg.accept(self, ctx)
             ctx.push_code(f"return nil, util.PacketVerdictDrop, ctx, {msg_code}")
+    
+    def visitByteSizeFunc(self, node: ByteSizeFunc, ctx: ArpcContext) -> str:
+        if node.var.name != "rpc":
+            raise NotImplementedError("byte_size can only be called on rpc for now")
+        return "len(packet_raw)"

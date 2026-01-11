@@ -115,7 +115,8 @@ class Expr(Node):
         self.rhs = rhs
         self.type = "unknown"
         self._type: Optional[AbstractType] = None
-    
+
+
 class Pair(Expr):
     def __init__(self, first: Expr, second: Expr):
         self.first = first
@@ -154,6 +155,51 @@ class FuncCall(Expr):
     def __init__(self, name: Identifier, args: List[Expr]):
         self.name = name
         self.args = args
+
+
+class RandomFunc(FuncCall):
+    def __init__(self, lower: Expr, upper: Expr):
+        super().__init__(Identifier("randomf"), [lower, upper])
+        self.lower = lower
+        self.upper = upper
+        self._type: Optional[AbstractType] = None
+
+
+class CurrentTimeFunc(FuncCall):
+    def __init__(self):
+        super().__init__(Identifier("current_time"), [])
+        self._type: Optional[AbstractType] = None
+
+
+class TimeDiffFunc(FuncCall):
+    def __init__(self, a: Expr, b: Expr):
+        super().__init__(Identifier("time_diff"), [a, b])
+        self.a = a
+        self.b = b
+        self._type: Optional[AbstractType] = None
+
+
+class MinFunc(FuncCall):
+    def __init__(self, a: Expr, b: Expr):
+        super().__init__(Identifier("min"), [a, b])
+        self.a = a
+        self.b = b
+        self._type: Optional[AbstractType] = None
+
+
+class MaxFunc(FuncCall):
+    def __init__(self, a: Expr, b: Expr):
+        super().__init__(Identifier("max"), [a, b])
+        self.a = a
+        self.b = b
+        self._type: Optional[AbstractType] = None
+
+
+class ByteSizeFunc(FuncCall):
+    def __init__(self, var: Identifier):
+        super().__init__(Identifier("byte_size"), [var])
+        self.var = var
+        self._type: Optional[AbstractType] = None
 
 
 class MethodCall(Expr):
