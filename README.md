@@ -10,6 +10,7 @@ We recommend using conda to configure the environment. Run the following command
 
 ```bash
 conda create -n appnet python=3.10
+conda activate appnet
 pip install -r requirements.txt
 ```
 

@@ -94,150 +94,150 @@ class OptimizedLabel(Exception):
     pass
 
 
-def reorder(chain: List[AbsElement], path: str, opt_level: str) -> List[AbsElement]:
-    # preparation: add some properties for analysis
-    init_dependency(chain, path)
-    # reorder
-    optimized = True
-    while optimized:
-        optimized = False
-        drop_list, non_drop_list, copy_list, non_copy_list = [], [], [], []
-        for i, element in enumerate(chain):
-            if element.has_prop(path, "drop", "block"):
-                drop_list.append(i)
-            else:
-                non_drop_list.append(i)
-            if element.has_prop(path, "copy"):
-                copy_list.append(i)
-            else:
-                non_copy_list.append(i)
-        try:
-            for i in non_drop_list:
-                for j in drop_list[::-1]:
-                    if i > j:
-                        break
-                    # strategy 1: move drop element at the front of non-drop ones
-                    new_chain = chain[:i] + [chain[j]] + chain[i:j] + chain[j + 1 :]
-                    if equivalent(chain, new_chain, path, opt_level):
-                        chain = new_chain
-                        optimized = True
-                        raise OptimizedLabel()
-                    # strategy 2: move non-drop element behind drop ones
-                    new_chain = (
-                        chain[:i] + chain[i + 1 : j + 1] + [chain[i]] + chain[j + 1 :]
-                    )
-                    if equivalent(chain, new_chain, path, opt_level):
-                        chain = new_chain
-                        optimized = True
-                        raise OptimizedLabel()
-            for i in copy_list:
-                for j in non_copy_list[::-1]:
-                    if i > j:
-                        break
-                    # strategy 1: move copy element behind non-copy ones
-                    new_chain = (
-                        chain[:i] + chain[i + 1 : j + 1] + [chain[i]] + chain[j + 1 :]
-                    )
-                    if equivalent(chain, new_chain, path, opt_level):
-                        chain = new_chain
-                        optimized = True
-                        raise OptimizedLabel()
-                    # strategy 2: move non-copy element at the front of copy ones
-                    new_chain = chain[:i] + [chain[j]] + chain[i:j] + chain[j + 1 :]
-                    if equivalent(chain, new_chain, path, opt_level):
-                        chain = new_chain
-                        optimized = True
-                        raise OptimizedLabel()
-        except OptimizedLabel:
-            pass
-    return chain
+# def reorder(chain: List[AbsElement], path: str, opt_level: str) -> List[AbsElement]:
+#     # preparation: add some properties for analysis
+#     init_dependency(chain, path)
+#     # reorder
+#     optimized = True
+#     while optimized:
+#         optimized = False
+#         drop_list, non_drop_list, copy_list, non_copy_list = [], [], [], []
+#         for i, element in enumerate(chain):
+#             if element.has_prop(path, "drop", "block"):
+#                 drop_list.append(i)
+#             else:
+#                 non_drop_list.append(i)
+#             if element.has_prop(path, "copy"):
+#                 copy_list.append(i)
+#             else:
+#                 non_copy_list.append(i)
+#         try:
+#             for i in non_drop_list:
+#                 for j in drop_list[::-1]:
+#                     if i > j:
+#                         break
+#                     # strategy 1: move drop element at the front of non-drop ones
+#                     new_chain = chain[:i] + [chain[j]] + chain[i:j] + chain[j + 1 :]
+#                     if equivalent(chain, new_chain, path, opt_level):
+#                         chain = new_chain
+#                         optimized = True
+#                         raise OptimizedLabel()
+#                     # strategy 2: move non-drop element behind drop ones
+#                     new_chain = (
+#                         chain[:i] + chain[i + 1 : j + 1] + [chain[i]] + chain[j + 1 :]
+#                     )
+#                     if equivalent(chain, new_chain, path, opt_level):
+#                         chain = new_chain
+#                         optimized = True
+#                         raise OptimizedLabel()
+#             for i in copy_list:
+#                 for j in non_copy_list[::-1]:
+#                     if i > j:
+#                         break
+#                     # strategy 1: move copy element behind non-copy ones
+#                     new_chain = (
+#                         chain[:i] + chain[i + 1 : j + 1] + [chain[i]] + chain[j + 1 :]
+#                     )
+#                     if equivalent(chain, new_chain, path, opt_level):
+#                         chain = new_chain
+#                         optimized = True
+#                         raise OptimizedLabel()
+#                     # strategy 2: move non-copy element at the front of copy ones
+#                     new_chain = chain[:i] + [chain[j]] + chain[i:j] + chain[j + 1 :]
+#                     if equivalent(chain, new_chain, path, opt_level):
+#                         chain = new_chain
+#                         optimized = True
+#                         raise OptimizedLabel()
+#         except OptimizedLabel:
+#             pass
+#     return chain
 
 
-def gather(chain: List[AbsElement]) -> List[AbsElement]:
-    last_client, first_server, np = -1, len(chain), 0
-    client_strong, cs_strong, server_strong = False, False, False
-    for i, element in enumerate(chain):
-        if element.position == "C":
-            last_client = max(last_client, i)
-            if element.prop["state"]["consistency"] == "strong":
-                client_strong = True
-        elif element.position == "S":
-            first_server = min(first_server, i)
-            if element.prop["state"]["consistency"] == "strong":
-                server_strong = True
-        elif element.position == "N":
-            np = i
-        else:
-            if element.prop["state"]["consistency"] == "strong":
-                cs_strong = True
-    if first_server == len(chain):
-        # migrate all elements to the client side
-        chain = chain[:np] + chain[np + 1 :] + [chain[np]]
-    elif last_client == -1:
-        # migrate all elements to the server side
-        chain = [chain[np]] + chain[:np] + chain[np + 1 :]
-    else:
-        if server_strong and not client_strong and cs_strong:
-            # migrate all C/S elements to the server side
-            chain = (
-                chain[: last_client + 1]
-                + [chain[np]]
-                + chain[last_client + 1 : np]
-                + chain[np + 1 :]
-            )
-        else:
-            # migrate all C/S elements to the client side
-            chain = (
-                chain[:np]
-                + chain[np + 1 : first_server]
-                + [chain[np]]
-                + chain[first_server:]
-            )
-    return chain
+# def gather(chain: List[AbsElement]) -> List[AbsElement]:
+#     last_client, first_server, np = -1, len(chain), 0
+#     client_strong, cs_strong, server_strong = False, False, False
+#     for i, element in enumerate(chain):
+#         if element.position == "C":
+#             last_client = max(last_client, i)
+#             if element.prop["state"]["consistency"] == "strong":
+#                 client_strong = True
+#         elif element.position == "S":
+#             first_server = min(first_server, i)
+#             if element.prop["state"]["consistency"] == "strong":
+#                 server_strong = True
+#         elif element.position == "N":
+#             np = i
+#         else:
+#             if element.prop["state"]["consistency"] == "strong":
+#                 cs_strong = True
+#     if first_server == len(chain):
+#         # migrate all elements to the client side
+#         chain = chain[:np] + chain[np + 1 :] + [chain[np]]
+#     elif last_client == -1:
+#         # migrate all elements to the server side
+#         chain = [chain[np]] + chain[:np] + chain[np + 1 :]
+#     else:
+#         if server_strong and not client_strong and cs_strong:
+#             # migrate all C/S elements to the server side
+#             chain = (
+#                 chain[: last_client + 1]
+#                 + [chain[np]]
+#                 + chain[last_client + 1 : np]
+#                 + chain[np + 1 :]
+#             )
+#         else:
+#             # migrate all C/S elements to the client side
+#             chain = (
+#                 chain[:np]
+#                 + chain[np + 1 : first_server]
+#                 + [chain[np]]
+#                 + chain[first_server:]
+#             )
+#     return chain
 
 
-def split_and_consolidate(
-    chain: List[AbsElement],
-) -> Tuple[List[AbsElement], List[AbsElement]]:
-    network_pos = 0
-    while network_pos < len(chain) and chain[network_pos].position != "N":
-        network_pos += 1
-    client_chain, server_chain = chain[:network_pos], chain[network_pos + 1 :]
+# def split_and_consolidate(
+#     chain: List[AbsElement],
+# ) -> Tuple[List[AbsElement], List[AbsElement]]:
+#     network_pos = 0
+#     while network_pos < len(chain) and chain[network_pos].position != "N":
+#         network_pos += 1
+#     client_chain, server_chain = chain[:network_pos], chain[network_pos + 1 :]
 
-    for i in range(1, len(client_chain)):
-        client_chain[0].fuse(client_chain[i])
-    for i in range(1, len(server_chain)):
-        server_chain[0].fuse(server_chain[i])
-    client_chain, server_chain = client_chain[:1], server_chain[:1]
+#     for i in range(1, len(client_chain)):
+#         client_chain[0].fuse(client_chain[i])
+#     for i in range(1, len(server_chain)):
+#         server_chain[0].fuse(server_chain[i])
+#     client_chain, server_chain = client_chain[:1], server_chain[:1]
 
-    return client_chain, server_chain
+#     return client_chain, server_chain
 
 
 # TODO: update heuristic optimization
-def chain_optimize(
-    chain: List[AbsElement],
-    path: str,
-    opt_level: str,
-    dump_property: bool,
-) -> Tuple[List[AbsElement], List[AbsElement]]:
-    """Optimize an element chain
+# def chain_optimize(
+#     chain: List[AbsElement],
+#     path: str,
+#     opt_level: str,
+#     dump_property: bool,
+# ) -> Tuple[List[AbsElement], List[AbsElement]]:
+#     """Optimize an element chain
 
-    Args:
-        chain: A list of AbsElement
-        path: "request" or "response"
-        pseudo_property: if true, use hand-coded properties for analysis
+#     Args:
+#         chain: A list of AbsElement
+#         path: "request" or "response"
+#         pseudo_property: if true, use hand-coded properties for analysis
 
-    Returns:
-        client chain and server chain
-    """
-    # Step 1: Reorder + Migration
-    chain = reorder(chain, path, opt_level)
+#     Returns:
+#         client chain and server chain
+#     """
+#     # Step 1: Reorder + Migration
+#     chain = reorder(chain, path, opt_level)
 
-    # Step 2: Further migration - more opportunities for state consolidation
-    # and turning off sidecars
-    chain = gather(chain)
+#     # Step 2: Further migration - more opportunities for state consolidation
+#     # and turning off sidecars
+#     chain = gather(chain)
 
-    return split_and_consolidate(chain)
+#     return split_and_consolidate(chain)
 
 
 # def cost(chain: List[AbsElement], path: str = "request") -> float:
@@ -322,8 +322,10 @@ def cost(chain: List[AbsElement]) -> float:
     c = 0
     element_overhead_config = {
         "grpc": 1.0,
+        "interceptor_arpc": 1.0,
         "sidecar_native": 1.0,
         "sidecar_wasm": 3.0,
+        "sidecar_arpc": 1.0,
         "ambient_native": 1.0,
         "ambient_wasm": 3.0,
     }
@@ -459,10 +461,14 @@ def find_min_cost(chain: List[AbsElement]):
                                 and chain[i].position != position
                             ):
                                 raise InvalidConfigLabel()
-                            if processor not in chain[i].processor:
+                            if not any(processor in p for p in chain[i].processor):
                                 raise InvalidConfigLabel()
                             options = []
-                            if processor == "grpc":
+                            if len(chain[i].processor) > 0 and any("arpc" in p for p in chain[i].processor): 
+                                if len(chain[i].processor) != 1:
+                                    raise ValueError(f"{chain[i].name}: aRPC should be the only choice for processor")
+                                options.append(chain[i].processor[0])
+                            elif processor == "grpc":
                                 options.append("grpc")
                             else:
                                 if (
@@ -626,7 +632,6 @@ def basic_heuristics(subchains: Dict[str, List[AbsElement]]) -> Dict[str, List[A
     # TODO: the state dependency optimization only support single-platform scenario for now
     if len(subchains["client_sidecar"]) + len(subchains["server_sidecar"]) + len(subchains["ambient"]) == 0:
         # grpc only
-        print("here")
         subchains = state_dependency_optimization(subchains, "grpc")
     if len(subchains["client_grpc"]) + len(subchains["server_grpc"]) + len(subchains["ambient"]) == 0:
         # sidecar only

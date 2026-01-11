@@ -55,7 +55,7 @@ class ElementTransformer(Transformer):
     def identifier(self, i) -> Identifier:
         return Identifier(i[0])
 
-    def type_(self, t):
+    def type_(self, t) -> Type:
         return Type(t[0].name, None, None, False)
 
     def vec_type(self, t) -> Type:
@@ -167,7 +167,7 @@ class ElementTransformer(Transformer):
     def pair(self, p) -> Expr:
         return Pair(p[0], p[1])
 
-    def assign(self, a) -> Assign:
+    def assign_stmt(self, a) -> Assign:
         return Assign(a[0], a[1])
 
     def single_var(self, s) -> Identifier:
@@ -176,7 +176,7 @@ class ElementTransformer(Transformer):
     def pair_var(self, p) -> Pair:
         return Pair(p[0], p[1])
 
-    def send(self, p):
+    def send_stmt(self, p):
         """
         Args:
             p (list): [expr|err, "Up"|"Down"]
@@ -209,17 +209,30 @@ class ElementTransformer(Transformer):
         # 3. Consider implementing a global function list for validation
         assert isinstance(f[0], Identifier)
         assert f[0].name != "send" and f[0].name != "err"
-        if f[0].name == "send":
-            assert len(f[1]) == 2
-            assert f[1][1].name == "Up" or f[1][1].name == "Down"
-            # assert f[1][1].name == "APP" or f[1][1].name == "NET"
-            # f[1][1] should be str, but it will be parsed as Identifier
-            return Send(f[1][1].name, f[1][0])
-        elif f[0].name == "err":
-            assert len(f[1]) == 1
-            return Error(f[1][0])
-        else:
-            return FuncCall(f[0], f[1])
+        # if f[0].name == "send":
+        #     assert len(f[1]) == 2
+        #     assert f[1][1].name == "Up" or f[1][1].name == "Down"
+        #     # assert f[1][1].name == "APP" or f[1][1].name == "NET"
+        #     # f[1][1] should be str, but it will be parsed as Identifier
+        #     return Send(f[1][1].name, f[1][0])
+        # elif f[0].name == "err":
+        #     assert len(f[1]) == 1
+        #     return Error(f[1][0])
+        match f[0].name:
+            case "randomf":
+                return RandomFunc(f[1][0], f[1][1])
+            case "current_time":
+                return CurrentTimeFunc()
+            case "time_diff":
+                return TimeDiffFunc(f[1][0], f[1][1])
+            case "min":
+                return MinFunc(f[1][0], f[1][1])
+            case "max":
+                return MaxFunc(f[1][0], f[1][1])
+            case "byte_size":
+                return ByteSizeFunc(f[1][0])
+            case _:
+                return FuncCall(f[0], f[1])
 
     def arguments(self, a):
         return a
@@ -250,46 +263,46 @@ class ElementTransformer(Transformer):
     def op(self, o) -> Operator:
         return o[0]
 
-    def op_add(self, o):
+    def op_add(self, _) -> Operator:
         return Operator.ADD
 
-    def op_sub(self, o):
+    def op_sub(self, _) -> Operator:
         return Operator.SUB
 
-    def op_mul(self, o):
+    def op_mul(self, _) -> Operator:
         return Operator.MUL
 
-    def op_div(self, o):
+    def op_div(self, _) -> Operator:
         return Operator.DIV
 
-    def op_lor(self, o):
+    def op_lor(self, _) -> Operator:
         return Operator.LOR
 
-    def op_land(self, o):
+    def op_land(self, _) -> Operator:
         return Operator.LAND
 
-    def op_eq(self, o):
+    def op_eq(self, _) -> Operator:
         return Operator.EQ
 
-    def op_neq(self, o):
+    def op_neq(self, _) -> Operator:
         return Operator.NEQ
 
-    def op_lt(self, o):
+    def op_lt(self, _) -> Operator:
         return Operator.LT
 
-    def op_gt(self, o):
+    def op_gt(self, _) -> Operator:
         return Operator.GT
 
-    def op_le(self, o):
+    def op_le(self, _) -> Operator:
         return Operator.LE
 
-    def op_ge(self, o):
+    def op_ge(self, _) -> Operator:
         return Operator.GE
 
-    def quoted_string(self, s):
+    def quoted_string(self, s) -> str:
         return str(s[0])
 
-    def NAME(self, n):
+    def NAME(self, n) -> str:
         return n.value
 
     def true(self, _):

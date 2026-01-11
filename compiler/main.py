@@ -1,5 +1,6 @@
 import argparse
 import os
+import shutil
 import sys
 from pathlib import Path
 from typing import Dict
@@ -17,7 +18,9 @@ from compiler.element import gen_code
 from compiler.graph.backend import scriptgen
 from compiler.graph.frontend import GraphParser
 from compiler.graph.ir import GraphIR
+from compiler.graph.ir.element import AbsElement
 from compiler.graph.logger import GRAPH_LOG, init_logging
+from compiler.proto import Proto
 
 console = Console()
 gir_summary = dict()
@@ -59,7 +62,6 @@ def parse_args():
         type=str,
         default="1",
     )
-
     # Arguments for developers
     parser.add_argument(
         "-v",
@@ -88,6 +90,11 @@ def parse_args():
         action="store_true",
     )
     parser.add_argument(
+        "--element_dry_run",
+        help="[Dev] If added, the compilation terminates after element implementations are generated (i.e., no deployment scriptgen).",
+        action="store_true",
+    )
+    parser.add_argument(
         "--dump_property",
         help="[Dev] If added, dump the properties of each element in yaml format.",
         action="store_true",
@@ -103,46 +110,75 @@ def parse_args():
 
     return parser.parse_args()
 
-
 def compile_impl(
-    element_names: str,
-    element_paths: str,
-    gen_dir: str,
-    backend: str,
-    placement: str,
-    proto_path: str,
-    method: str,
+    element: AbsElement,
     server: str,
     tag: str,
-    proto_module_name: str = "",
-    proto_module_location: str = "",
 ):
     gen_name = (
-        server + "".join(element_names)[:24]
-    )  # Envoy does not allow long struct names
-    os.system(f"mkdir -p {gen_dir}")
+        server + "".join(element.name)[:24]
+    ) # envoy does not allow long struct names
+    os.system(f"mkdir -p {element.compile_dir}")
     gen_code(
-        element_names,
-        element_paths,
+        element,
         gen_name,
-        gen_dir,
-        backend,
-        placement,
-        proto_path,
-        method,
         server,
         tag,
-        proto_module_name=proto_module_name,
-        proto_module_location=proto_module_location,
-        verbose=False,
-        envoy_verbose=args.envoy_verbose,
     )
+    # gen_code(
+    #     element.name,
+    #     element.path,
+    #     gen_name,
+    #     element.compile_dir,
+    #     element.target,
+    #     element.final_position,
+    #     element.proto,
+    #     element.method,
+    #     server,
+    #     tag,
+    #     proto_module_name=element.proto_mod_name,
+    #     proto_module_location=element.proto_mod_location,
+    # )
+
+
+# def compile_impl(
+#     element_names: str,
+#     element_paths: str,
+#     gen_dir: str,
+#     backend: str,
+#     placement: str,
+#     proto_path: str,
+#     method: str,
+#     server: str,
+#     tag: str,
+#     proto_module_name: str = "",
+#     proto_module_location: str = "",
+# ):
+#     gen_name = (
+#         server + "".join(element_names)[:24]
+#     )  # Envoy does not allow long struct names
+#     os.system(f"mkdir -p {gen_dir}")
+#     gen_code(
+#         element_names,
+#         element_paths,
+#         gen_name,
+#         gen_dir,
+#         backend,
+#         placement,
+#         proto_path,
+#         method,
+#         server,
+#         tag,
+#         proto_module_name=proto_module_name,
+#         proto_module_location=proto_module_location,
+#         verbose=False,
+#         envoy_verbose=args.envoy_verbose,
+#     )
 
 
 def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
     compiled_name = set()
     gen_dir = os.path.join(graph_base_dir, "generated")
-    os.system(f"rm {gen_dir} -rf")
     for gir in graphirs.values():  # For each edge in the application
         for element in gir.complete_chain():
             # For each element in the edge
@@ -158,17 +194,18 @@ def generate_element_impl(graphirs: Dict[str, GraphIR], pseudo_impl: bool):
                 )
             if identifier not in compiled_name:
                 compile_impl(
-                    element.name,
-                    element.path,
-                    element.compile_dir,
-                    element.target,
-                    element.final_position,
-                    element.proto,
-                    element.method,
+                    element,
+                    # element.name,
+                    # element.path,
+                    # element.compile_dir,
+                    # element.target,
+                    # element.final_position,
+                    # element.proto,
+                    # element.method,
                     gir.server,
                     args.tag,
-                    proto_module_name=element.proto_mod_name,
-                    proto_module_location=element.proto_mod_location,
+                    # proto_module_name=element.proto_mod_name,
+                    # proto_module_location=element.proto_mod_location,
                 )
             compiled_name.add(identifier)
 
@@ -212,24 +249,65 @@ def main(args):
     parser = GraphParser()
     graphirs, app_name, app_manifest_file, app_edges = parser.parse(args.spec_path)
 
+    gen_dir = os.path.join(graph_base_dir, "generated")
+    if os.path.exists(gen_dir):
+        shutil.rmtree(gen_dir)
+    os.makedirs(gen_dir, exist_ok=True)
+
     if args.verbose:
         for gir in graphirs.values():
             if gir.name not in gir_summary:
                 gir_summary[gir.name] = {"pre-optimized": [], "post-optimized": []}
             gir_summary[gir.name]["pre-optimized"] = gir.to_rich()
 
+    proto_dict: Dict[str, Proto] = {}
+
+    # collect proto, apply static analysis to elements (type inference, property analysis, etc.) 
+    for gir in graphirs.values():
+        for element in gir.complete_chain():
+            element.set_property_source(args.pseudo_property)
+            if element.proto_path not in proto_dict:
+                proto_dict[element.proto_path] = Proto(element.proto_path)
+            element.proto = proto_dict[element.proto_path]
+            element.analyze()
+
     # Step 2: Extract element properties via element compiler and optimize the graph IR.
     GRAPH_LOG.info("Generating element properties and optimizing the graph IR...")
     for gir in graphirs.values():
         # Each gir represests an edge in the application (a pair of communicating services)
         # pseudo_property is set to True when we want to use user-provided properties instead of auto-generated ones
-        for element in gir.complete_chain():
-            element.set_property_source(args.pseudo_property)
+        # for element in gir.complete_chain():
+            # element.set_property_source(args.pseudo_property)
         gir.optimize(args.opt_level, args.opt_algorithm, args.dump_property)
     
     if args.opt_level != "no":
         handle_state(graphirs)
-
+    
+    # If some elements require aRPC backend, we need to annotate related proto files.
+    for gir in graphirs.values():
+        accessed_fields = dict()
+        proto_path = ""
+        for element in gir.complete_chain():
+            if "arpc" in element.target:
+                if proto_path != "" and proto_path != element.proto_path:
+                    raise ValueError("Elements on the same edge should use the same proto file.")
+                proto_path = element.proto_path
+                if element.method not in accessed_fields:
+                    accessed_fields[element.method] = {"request": [], "response": []}
+                req_fields = element.get_prop("request", "read") + element.get_prop("request", "write") + element.get_prop("request", "record")
+                resp_fields = element.get_prop("response", "read") + element.get_prop("response", "write") + element.get_prop("response", "record")
+                req_fields = list(filter(lambda f: "trace" not in f, req_fields))
+                resp_fields = list(filter(lambda f: "trace" not in f, resp_fields))
+                accessed_fields[element.method]["request"].extend(req_fields)
+                accessed_fields[element.method]["response"].extend(resp_fields)
+        if proto_path != "":
+            proto_obj = proto_dict[proto_path]
+            for method, fields in accessed_fields.items():
+                proto_obj.extend_annotation(method, fields["request"], fields["response"])
+            proto_name = proto_path.split("/")[-1].replace(".proto", "") + "_arpc.proto"
+            with open(os.path.join(gen_dir, proto_name), "w") as f:
+                f.write(proto_obj.export())
+    
     # Step 3: Generate backend code for the elements and deployment scripts.
     if not args.dry_run:
         GRAPH_LOG.info(
@@ -238,13 +316,11 @@ def main(args):
         # Step 3.1: Generate backend code for the elements
         # pseudo_impl is set to True when we want to use user-provided implementations instead of auto-generated ones
         generate_element_impl(graphirs, args.pseudo_impl)
-        # Step 3.2: Generate deployment scripts
-        scriptgen(graphirs, app_name, app_manifest_file, app_edges)
+        if not args.element_dry_run:
+            # Step 3.2: Generate deployment scripts
+            scriptgen(graphirs, app_name, app_manifest_file, app_edges)
 
     # Dump graphir summary (in yaml)
-    gen_dir = os.path.join(graph_base_dir, "generated")
-    os.makedirs(gen_dir, exist_ok=True)
-
     graphir_summary = ""
     for gir in graphirs.values():
         graphir_summary += str(gir)

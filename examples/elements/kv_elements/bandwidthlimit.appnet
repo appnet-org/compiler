@@ -1,0 +1,25 @@
+state:
+	last_bw: float
+	limit_bw: float
+	token_bw: float
+	per_sec_bw: float
+
+init():
+	last_bw = current_time()
+	limit_bw = 100000.0
+	token_bw = 100000.0
+	per_sec_bw = 100000.0
+
+req(rpc):
+	token_bw = min(limit_bw, token_bw + (per_sec_bw * time_diff(current_time(), last_bw)))
+	last_bw = current_time()
+    size_bw = byte_size(rpc, 'key')
+    match token_bw >= size_bw:
+		true =>
+			token_bw = token_bw - size_bw
+			send(rpc, Down)
+		false =>
+			send(err('bandwidthlimit'), Up)
+
+resp(rpc):
+    send(rpc, Up)

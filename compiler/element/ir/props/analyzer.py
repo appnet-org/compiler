@@ -268,8 +268,11 @@ class ReadAnalyzer(Visitor):
         if isinstance(node.obj, Identifier):
             if node.obj.name in self.targets and node.method.name == "GET":
                 er = ExprResolver()
-                fields = [i.accept(er, None) for i in node.args]
-                self.target_fields[node.obj.name] += fields
+                # only the first argument is the field name, the second one is the type annotation
+                field = node.args[0].accept(er, None)
+                self.target_fields[node.obj.name].append(field)
+                # fields = [i.accept(er, None) for i in node.args]
+                # self.target_fields[node.obj.name] += fields
                 return True
         else:
             raise NotADirectoryError

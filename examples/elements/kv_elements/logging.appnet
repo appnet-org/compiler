@@ -1,0 +1,12 @@
+state:
+	record_req: Map<string, int>
+
+init():
+    pass
+
+req(rpc):
+	set(record_req, get(rpc, 'key'), get(rpc, 'score', 'int32'))
+	send(rpc, Down)
+
+resp(rpc):
+	send(rpc, Up)
