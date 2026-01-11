@@ -1,0 +1,16 @@
+state:
+    lb_tab: Map<string, string>
+
+init():
+	pass
+
+req(rpc):
+    match get(lb_tab, get(rpc, 'key')):
+		Some(_) =>
+			pass
+		None =>
+            set(lb_tab, get(rpc, 'key'), '1')
+	send(rpc, Down)
+
+resp(rpc):
+	send(rpc, Up)

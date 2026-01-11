@@ -1,0 +1,20 @@
+state:
+    record: Map<uint, float>
+    latency: Map<uint, float>
+
+init():
+    pass
+
+req(rpc):
+	set(record, get(rpc, 'rpc_id', 'uint32'), current_time())
+	send(rpc, Down)
+
+resp(rpc):
+    rpcid = get(rpc, 'rpc_id', 'uint32')
+    match get(record, rpcid):
+        Some(t) =>
+            lat = time_diff(current_time(), t)
+            set(latency, rpcid, lat)
+        None =>
+            pass
+    send(rpc, Up)

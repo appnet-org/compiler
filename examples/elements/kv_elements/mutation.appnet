@@ -1,0 +1,13 @@
+state:
+    pass
+
+init():
+    pass
+
+req(rpc):
+    score = get(rpc, 'score', 'int32')
+    set(rpc, 'score', score + 1)
+    send(rpc, Down)
+
+resp(rpc):
+	send(rpc, Up)
