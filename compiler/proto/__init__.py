@@ -235,14 +235,14 @@ class Proto:
         resp_msg.extend_annotation(self._package_name, response_fields)
 
     def export(self) -> str: 
-        proto_content = "syntax = \"proto3\";\n"
-        proto_content += f"package {self._package_name};\n"
+        proto_content = "syntax = \"proto3\";\n\n"
+        proto_content += f"package {self._package_name};\n\n"
         proto_content += f"option go_package = \"./{self._package_name}\";\n"
         if self._annotation:
             proto_content += ANNOTATION_HEADER
-        proto_content += self._service.export()
+        proto_content += "\n" + self._service.export()
         for message in self._messages.values():
-            proto_content += message.export()
+            proto_content += "\n" + message.export()
         return proto_content
 
     def get_message(self, method: str, procedure: str) -> ProtoMessage:

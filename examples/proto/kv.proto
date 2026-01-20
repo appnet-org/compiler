@@ -9,18 +9,26 @@ service KVService {
 }
 
 message GetRequest {
-    string key = 1;
+    int32 score = 1;
+    string username = 2;
+    string key = 3;
 }
 
 message GetResponse {
-    string value = 1;
+    int32 score = 1;
+    string username = 2;
+    string value = 3;
 }
 
 message SetRequest {
-    string key = 1;
-    string value = 2;
+    int32 score = 1;
+    string username = 2;
+    string key = 3;
+    string value = 4;
 }
 
 message SetResponse {
-    string value = 1;
+    int32 score = 1;
+    string username = 2;
+    string value = 3;
 }

@@ -1,0 +1,16 @@
+app_name: kvstore
+app_manifest: /users/xzhu/arpc/benchmark/kv-store-symphony-element/manifest/kvstore.yaml
+app_structure:
+- frontend->kvstore
+edge:
+  frontend->kvstore:
+  - method: get
+    name: circuitbreaker
+    path: /users/xzhu/compiler/examples/elements/kv_elements/fault.appnet
+    position: client
+    proto: /users/xzhu/compiler/examples/proto/kv.proto
+    proto_mod_name: github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony
+    proto_mod_location: /users/xzhu/arpc/benchmark/kv-store-symphony-element/symphony
+    processor:
+      - sidecar_arpc
+link: {}
