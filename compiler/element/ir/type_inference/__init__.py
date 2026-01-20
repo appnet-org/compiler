@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import List, Dict, Optional
 
+from compiler.utils import strip
 from compiler.element.visitor import Visitor
 from compiler.element.node import *
 from compiler.element.ir.type_inference.type import *
@@ -301,6 +302,10 @@ class TypeAnalyzer(Visitor):
         if not (isinstance(node.args[0], Literal) and isinstance(node.args[0].get_type(), StringType)):
             raise TypeInferenceError("rpc key can only be a string literal")
         field_name = node.args[0].value
+        if strip(field_name) == "rpcid":
+            # rpcid is a special field in arpc header, we handle it specially.
+            node.set_type(StringType())
+            return
         t = ctx.query_proto(field_name)
         if t is None:
             if not(len(node.args) == 2 and isinstance(node.args[1], Literal)):

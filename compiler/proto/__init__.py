@@ -1,5 +1,7 @@
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List
+
+from compiler.utils import strip
 
 ANNOTATION_HEADER = """
 import "google/protobuf/descriptor.proto";
@@ -7,12 +9,6 @@ extend google.protobuf.MethodOptions {
     bool is_public = 50001;
 }
 """
-
-def strip(s: str) -> str:
-    s = s.strip()
-    if s.startswith("'") and s.endswith("'"):
-        s = s[1:-1]
-    return s
 
 def find_closing_brace(proto_content: str, start_pos: int) -> int:
     brace_count = 1

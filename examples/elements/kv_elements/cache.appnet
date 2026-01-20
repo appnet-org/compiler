@@ -1,6 +1,6 @@
 state:
 	cache: Map<string, string>
-    record_cache: Map<uint, string>
+    record_cache: Map<string, string>
 
 init():
     set(cache, 'bomb', 'bomb')
@@ -16,12 +16,12 @@ req(rpc):
                     send(err('bomb'), Up)
 		None =>
             pass
-    rpc_id = get(rpc, 'rpc_id', 'uint32')
-    set(record_cache, rpc_id, get(rpc, 'key'))
+    rpcid = get(rpc, 'rpcid')
+    set(record_cache, rpcid, get(rpc, 'key'))
 	send(rpc, Down)
 
 resp(rpc):
-    body = get(record_cache, get(rpc, 'rpc_id', 'uint32'))
+    body = get(record_cache, get(rpc, 'rpcid'))
     match body:
         Some(name) => 
             set(cache, name, 'cached')

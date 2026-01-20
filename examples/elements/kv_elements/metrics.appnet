@@ -1,16 +1,16 @@
 state:
-    record: Map<uint, float>
-    latency: Map<uint, float>
+    record: Map<string, float>
+    latency: Map<string, float>
 
 init():
     pass
 
 req(rpc):
-	set(record, get(rpc, 'rpc_id', 'uint32'), current_time())
+	set(record, get(rpc, 'rpcid'), current_time())
 	send(rpc, Down)
 
 resp(rpc):
-    rpcid = get(rpc, 'rpc_id', 'uint32')
+    rpcid = get(rpc, 'rpcid')
     match get(record, rpcid):
         Some(t) =>
             lat = time_diff(current_time(), t)

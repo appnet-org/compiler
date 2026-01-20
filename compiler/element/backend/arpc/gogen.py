@@ -1,6 +1,7 @@
 from copy import deepcopy
 from typing import Dict, List, Optional, Set
 
+from compiler.utils import strip
 from compiler.element.logger import ELEMENT_LOG as LOG
 from compiler.element.visitor import Visitor
 from compiler.element.node import *
@@ -12,11 +13,6 @@ from compiler.element.backend.grpc.boilerplate import *
 from compiler.element.backend.grpc.gotype import *
 from compiler.element.backend.arpc.gotype import GoTypeNameGenerator, GoTypeInitGenerator
 
-def strip(s: str):
-    s = s.strip()
-    if s.startswith("'") and s.endswith("'"):
-        s = s[1:-1]
-    return s
 
 FUNC_INIT = "init"
 FUNC_REQ = "req"
@@ -177,7 +173,11 @@ class ArpcGenerator(Visitor):
     
     def visitRpcGet(self, node: MethodCall, ctx: ArpcContext) -> str:
         assert isinstance(node.args[0], Literal), "rpc.get argument must be a literal"
-        return f"packet_raw.Get{strip(node.args[0].value).capitalize()}()"
+        field_name = node.args[0].value
+        if strip(field_name) == "rpcid":
+            return "string(packet.GetRPCID())"
+        else:
+            return f"packet_raw.Get{strip(field_name).capitalize()}()"
     
     def visitRpcSet(self, node: MethodCall, ctx: ArpcContext) -> str:
         assert isinstance(node.args[0], Literal), "rpc.set argument must be a literal"
