@@ -18,12 +18,12 @@ from compiler.graph.backend.utils import (
 from compiler.graph.ir import GraphIR
 from compiler.graph.logger import GRAPH_BACKEND_LOG
 
-# backends = ["grpc", "sidecar", "ambient"]
-backends = ["grpc", "sidecar", "ambient"]
+backends = ["grpc", "sidecar", "ambient", "arpc"]
 element_count = {
     "grpc": 0,
     "sidecar": 0,
     "ambient": 0,
+    "arpc": 0,
 }
 
 BACKEND_CONFIG_DIR = os.path.join(Path(__file__).parent, "config")
@@ -125,9 +125,13 @@ def scriptgen(
         element_count["grpc"] += len(gir.elements["client_grpc"]) + len(
             gir.elements["server_grpc"]
         )
-        element_count["sidecar"] += len(gir.elements["client_sidecar"]) + len(
-            gir.elements["server_sidecar"]
-        )
+        # Separate arpc elements from regular sidecar elements
+        client_sidecar = gir.elements["client_sidecar"]
+        server_sidecar = gir.elements["server_sidecar"]
+        element_count["arpc"] += len([e for e in client_sidecar if "arpc" in e.target]) + \
+                                 len([e for e in server_sidecar if "arpc" in e.target])
+        element_count["sidecar"] += len([e for e in client_sidecar if "arpc" not in e.target]) + \
+                                    len([e for e in server_sidecar if "arpc" not in e.target])
         element_count["ambient"] += len(gir.elements["ambient"])
 
     for target in backends:
