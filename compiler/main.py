@@ -294,10 +294,17 @@ def main(args):
                 proto_path = element.proto_path
                 if element.method not in accessed_fields:
                     accessed_fields[element.method] = {"request": [], "response": []}
+                # accessed fields = Union(read, write, record)
                 req_fields = element.get_prop("request", "read") + element.get_prop("request", "write") + element.get_prop("request", "record")
                 resp_fields = element.get_prop("response", "read") + element.get_prop("response", "write") + element.get_prop("response", "record")
-                req_fields = list(filter(lambda f: "trace" not in f, req_fields))
-                resp_fields = list(filter(lambda f: "trace" not in f, resp_fields))
+                # filter out special fields
+                # droptrace, blocktrace and copytrace are for optimization analysis only
+                # rpcid is handled differently and doesn't need to be annotated
+                filtered_keywords = ["trace", "rpcid"]
+                filter_lambda = lambda f: all(keyword not in f for keyword in filtered_keywords)
+                req_fields = list(filter(filter_lambda, req_fields))
+                resp_fields = list(filter(filter_lambda, resp_fields))
+
                 accessed_fields[element.method]["request"].extend(req_fields)
                 accessed_fields[element.method]["response"].extend(resp_fields)
         if proto_path != "":
