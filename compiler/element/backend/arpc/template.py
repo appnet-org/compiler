@@ -2,7 +2,6 @@ sidecar_arpc_template = """package main
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"time"
 
@@ -33,11 +32,13 @@ func time_diff(a, b float64) float64 {{
 {GlobalFunc}
 
 func (e *{ElementName}) init() {{
+	logging.Debug("{ElementName}: Element initialized", zap.String("name", e.name))
 	{InitCode}
 }}
 
 // ProcessRequest processes incoming requests
 func (e *{ElementName}) ProcessRequest(ctx context.Context, packet *util.BufferedPacket) (*util.BufferedPacket, util.PacketVerdict, context.Context, error) {{
+	logging.Debug("{ElementName}: ProcessRequest called", zap.String("name", e.name))
 	if packet == nil {{
 		return packet, util.PacketVerdictPass, ctx, nil
 	}}
@@ -46,6 +47,7 @@ func (e *{ElementName}) ProcessRequest(ctx context.Context, packet *util.Buffere
 
 // ProcessResponse processes outgoing responses
 func (e *{ElementName}) ProcessResponse(ctx context.Context, packet *util.BufferedPacket) (*util.BufferedPacket, util.PacketVerdict, context.Context, error) {{
+	logging.Debug("{ElementName}: ProcessResponse called", zap.String("name", e.name))
 	if packet == nil {{
 		return packet, util.PacketVerdictPass, ctx, nil
 	}}
@@ -104,6 +106,6 @@ var ElementInit interface{{}} = &{ElementName}Init{{
 
 // init function is called when the plugin is loaded
 func init() {{
-	fmt.Println("{ElementName} plugin loaded successfully")
+	logging.Info("{ElementName}: Plugin loaded successfully")
 }}
 """

@@ -5,7 +5,7 @@ app_structure:
 edge:
   frontend->kvstore:
   - method: get
-    name: circuitbreaker
+    name: fault
     path: /users/xzhu/compiler/examples/elements/kv_elements/fault.appnet
     position: client
     proto: /users/xzhu/compiler/examples/proto/kv.proto
