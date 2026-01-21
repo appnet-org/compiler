@@ -109,11 +109,12 @@ def scriptgen(
     app_install_file = os.path.join(deploy_dir, "app-install.yml")
     execute_local(["cp", app_manifest_file, app_install_file])
 
-    GRAPH_BACKEND_LOG.info("Clear gRPC interceptor history files")
-    execute_local(["rm", "-rf", "/tmp/appnet/interceptors/*"])
+    GRAPH_BACKEND_LOG.info("Clear gRPC and aRPC history files")
+    execute_local(["sh", "-c", "find /tmp/appnet/interceptors -mindepth 1 -delete 2>/dev/null || true"])
     nodes = get_node_names(control_plane=False)
     for node in nodes:
-        execute_remote_host(node, ["rm", "-rf", "/tmp/appnet/interceptors/*"])
+        execute_remote_host(node, ["sh", "-c", "find /tmp/appnet/interceptors -mindepth 1 -delete 2>/dev/null || true"])
+        execute_remote_host(node, ["sh", "-c", "find /tmp/appnet/arpc-plugins -mindepth 1 -delete 2>/dev/null || true"])
 
     for gir in girs.values():
         element_count["grpc"] += len(gir.elements["client_grpc"]) + len(
