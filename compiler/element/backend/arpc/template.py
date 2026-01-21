@@ -7,7 +7,7 @@ import (
 
     {Imports}
 	"github.com/appnet-org/arpc/pkg/logging"
-	"github.com/appnet-org/proxy/util"
+	"github.com/appnet-org/arpc/cmd/proxy/util"
 	"go.uber.org/zap"
 )
 

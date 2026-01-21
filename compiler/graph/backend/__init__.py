@@ -72,15 +72,9 @@ def attach_volumes_and_adjust_replica(app_manifest_file: str) -> list[any]:
         if "volumes" not in target_service_yml["spec"]["template"]["spec"]:
             target_service_yml["spec"]["template"]["spec"]["volumes"] = []
 
-        if (
-            "volumeMounts"
-            not in target_service_yml["spec"]["template"]["spec"]["containers"][0]
-        ):
-            target_service_yml["spec"]["template"]["spec"]["containers"][0][
-                "volumeMounts"
-            ] = []
-
         for d in target_service_yml["spec"]["template"]["spec"]["containers"]:
+            if "volumeMounts" not in d:
+                d["volumeMounts"] = []
             d["volumeMounts"].append(
                 {"mountPath": "/appnet", "name": f"{service}-appnet-volume"}
             )

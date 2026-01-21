@@ -232,12 +232,12 @@ def scriptgen_grpc(
 def extract_full_method_name(elements: list[AbsElement]) -> str:
     first_el = elements[0]
     assert all(
-        e.proto == first_el.proto for e in elements
+        e.proto_path == first_el.proto_path for e in elements
     ), "Unsupported: same application has identical method names in different proto services"
-    proto = first_el.proto
-    package_name = extract_proto_package_name(proto)
-    if "boutique" in proto:
+    proto_path = first_el.proto_path
+    package_name = extract_proto_package_name(proto_path)
+    if "boutique" in proto_path:
         service_name = first_el.server.capitalize() + "Service"
     else:
-        service_name = extract_proto_service_name(proto)
+        service_name = extract_proto_service_name(proto_path)
     return f"/{package_name}.{service_name}/{first_el.method}"

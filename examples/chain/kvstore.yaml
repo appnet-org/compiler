@@ -1,5 +1,5 @@
 app_name: kvstore
-app_manifest: /users/xzhu/arpc/benchmark/kv-store-symphony-element/manifest/kvstore.yaml
+app_manifest: /users/xzhu/arpc/benchmark/kv-store-symphony-element/manifest/kvstore-proxy.yaml
 app_structure:
 - frontend->kvstore
 edge:
