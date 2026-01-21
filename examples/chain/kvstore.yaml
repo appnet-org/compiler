@@ -7,7 +7,7 @@ edge:
   - method: get
     name: fault
     path: /users/xzhu/compiler/examples/elements/kv_elements/fault.appnet
-    position: client
+    position: server
     proto: /users/xzhu/compiler/examples/proto/kv.proto
     proto_mod_name: github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony
     proto_mod_location: /users/xzhu/arpc/benchmark/kv-store-symphony-element/symphony

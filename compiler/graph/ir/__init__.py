@@ -115,11 +115,11 @@ class GraphIR:
         for i, element in enumerate(server_chain):
             if (
                 "processor" in element
-                and "grpc" in element["processor"]
-                and "sidecar" not in element["processor"]
+                and any("grpc" in p for p in element["processor"])
+                and not any("sidecar" in p for p in element["processor"])
             ):
                 current_mode = "grpc"
-            if "processor" in element and current_mode not in element["processor"]:
+            if "processor" in element and not any(current_mode in p for p in element["processor"]):
                 raise ValueError("invalid grpc/sidecar requirements")
             self.elements["server_" + current_mode].append(
                 AbsElement(
