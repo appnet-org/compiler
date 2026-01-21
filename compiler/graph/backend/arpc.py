@@ -4,8 +4,9 @@ import os
 from datetime import datetime
 from typing import Dict, List, Set, Tuple
 
+import yaml
+
 from compiler import graph_base_dir
-from compiler.graph.backend.boilerplate import arpc_go_mod, arpc_go_sum
 from compiler.graph.backend.utils import (
     copy_remote_host,
     execute_local,
@@ -15,6 +16,58 @@ from compiler.graph.backend.utils import (
 from compiler.graph.ir import GraphIR
 from compiler.graph.ir.element import AbsElement
 from compiler.graph.logger import GRAPH_BACKEND_LOG
+
+# Path to the arpc proxy module - plugins MUST be built from here
+# to ensure they use the exact same package versions as the proxy binary
+ARPC_PROXY_DIR = "/users/xzhu/arpc/cmd/proxy"
+
+
+def add_element_plugin_prefix_to_symphony_proxies(app_manifest_file: str) -> None:
+    """
+    Read the application yaml file and for each symphony proxy container,
+    add an env variable ELEMENT_PLUGIN_PREFIX set to the service name.
+
+    Args:
+        app_manifest_file: The path to the application manifest file.
+    """
+    # Load application manifest
+    with open(app_manifest_file, "r") as f:
+        yml_list = list(yaml.safe_load_all(f))
+
+    # Process each YAML document
+    for yml in yml_list:
+        if yml and yml.get("kind") == "Deployment":
+            deployment_name = yml["metadata"]["name"]
+            containers = yml["spec"]["template"]["spec"].get("containers", [])
+
+            # Find symphony proxy containers
+            for container in containers:
+                if container.get("name") == "symphony-proxy":
+                    # Initialize env list if it doesn't exist
+                    if "env" not in container:
+                        container["env"] = []
+
+                    # Check if ELEMENT_PLUGIN_PREFIX already exists
+                    env_exists = any(
+                        env_var.get("name") == "ELEMENT_PLUGIN_PREFIX"
+                        for env_var in container["env"]
+                    )
+
+                    if not env_exists:
+                        # Add the environment variable
+                        container["env"].append(
+                            {
+                                "name": "ELEMENT_PLUGIN_PREFIX",
+                                "value": deployment_name,
+                            }
+                        )
+                        GRAPH_BACKEND_LOG.debug(
+                            f"Added ELEMENT_PLUGIN_PREFIX={deployment_name} to symphony-proxy container in deployment {deployment_name}"
+                        )
+
+    # Write the modified YAML back to the file
+    with open(app_manifest_file, "w") as f:
+        yaml.dump_all(yml_list, f, default_flow_style=False)
 
 
 def scriptgen_arpc(
@@ -70,7 +123,8 @@ def scriptgen_arpc(
             server_elements.get(service) or set()
         )
 
-        # Copy generated element implementations
+        # Copy generated element implementations to service_dir for reference
+        # and to the proxy module directory for building
         for element in service_elements:
             source_path = os.path.join(local_gen_dir, element.compile_dir, "element.go")
             dest_path = os.path.join(service_dir, f"{element.lib_name}.go")
@@ -79,56 +133,25 @@ def scriptgen_arpc(
                 os.system(f"goimports -w {dest_path}")
                 GRAPH_BACKEND_LOG.debug(f"Copied {element.lib_name} to {service_dir}")
 
-        # Generate go.mod, go.sum for the service
         timestamp = str(datetime.now().strftime("%Y%m%d%H%M%S"))
-        service_name = service + timestamp
 
-        # Collect proto module replace directives from elements
-        extra_replaces = []
         for element in service_elements:
-            if element.proto_mod_name and element.proto_mod_location:
-                # Strip trailing subpackage (e.g., /symphony) to get the module root
-                mod_name = element.proto_mod_name
-                mod_location = element.proto_mod_location
-                # The replace should be at the module level, not subpackage
-                # e.g., github.com/appnet-org/arpc/benchmark/kv-store-symphony-element
-                # not github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony
-                if mod_name.endswith("/symphony"):
-                    mod_name = mod_name[:-9]  # strip /symphony
-                    mod_location = mod_location[:-9]
-                replace_line = f"replace {mod_name} => {mod_location}"
-                if replace_line not in extra_replaces:
-                    extra_replaces.append(replace_line)
-        
-        extra_replaces_str = "\n".join(extra_replaces)
-        if extra_replaces_str:
-            extra_replaces_str = extra_replaces_str + "\n"
+            element_src = os.path.join(service_dir, f"{element.lib_name}.go")
+            plugin_name = f"{service}-{timestamp}"
+            plugin_output = os.path.join(service_dir, plugin_name)
 
-        with open(f"{service_dir}/go.mod", "w") as f:
-            f.write(arpc_go_mod.format(ServiceName=service_name, ExtraReplaces=extra_replaces_str))
-        with open(f"{service_dir}/go.sum", "w") as f:
-            f.write(arpc_go_sum)
-
-        # Run go mod tidy to resolve dependencies
-        execute_local(["go", "mod", "tidy", "-C", service_dir])
-
-        # Build each element as a plugin
-        for element in service_elements:
-            element_file = f"{element.lib_name}.go"
-            # plugin_name = f"{element.lib_name}_{timestamp}"
-            plugin_name = f"element-{timestamp}"
-
+            # Build from proxy directory with absolute path to element source file
             execute_local(
                 [
                     "go",
                     "build",
                     "-C",
-                    service_dir,
+                    ARPC_PROXY_DIR,
                     "-o",
-                    plugin_name,
+                    plugin_output,
                     "-buildmode=plugin",
                     "-trimpath",
-                    element_file,
+                    element_src,
                 ],
                 env={"CGO_ENABLED": "1"},
             )
@@ -138,7 +161,7 @@ def scriptgen_arpc(
             execute_local(
                 [
                     "cp",
-                    os.path.join(service_dir, plugin_name),
+                    plugin_output,
                     "/tmp/appnet/arpc-plugins",
                 ]
             )
@@ -150,13 +173,15 @@ def scriptgen_arpc(
         for node in nodes:
             execute_remote_host(node, ["mkdir", "-p", "/tmp/appnet/arpc-plugins"])
             for element in service_elements:
-                # plugin_name = f"{element.lib_name}_{timestamp}"
-                plugin_name = f"element-{timestamp}"
+                plugin_name = f"{service}-{timestamp}"
                 copy_remote_host(
                     node,
                     f"/tmp/appnet/arpc-plugins/{plugin_name}",
                     "/tmp/appnet/arpc-plugins",
                 )
+
+    # Add ELEMENT_PLUGIN_PREFIX environment variable to symphony proxy containers
+    add_element_plugin_prefix_to_symphony_proxies(_app_install_file)
 
     GRAPH_BACKEND_LOG.info(
         "aRPC compilation complete. The generated elements are deployed."
