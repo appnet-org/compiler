@@ -23,6 +23,12 @@ class AbstractType:
     
     def to_proto(self) -> str:
         raise ValueError("to_proto not implemented for abstract type")
+
+    def need_lock(self) -> bool:
+        """
+        Check if the type needs a lock for access
+        """
+        return False
     
     def accept(self, visitor: TypeVisitor, *args, **kwargs) -> Any:
         class_list = type(self).__mro__
@@ -37,6 +43,9 @@ class AbstractType:
 class VecType(AbstractType):
     def __init__(self, element_type: AbstractType):
         self.element_type = element_type
+    
+    def need_lock(self) -> bool:
+        return True
 
 
 class MapType(AbstractType):
@@ -48,6 +57,9 @@ class MapType(AbstractType):
         if not isinstance(other, MapType):
             return False
         return self.key_type.is_same(other.key_type) and self.value_type.is_same(other.value_type)
+    
+    def need_lock(self) -> bool:
+        return True
 
 class PairType(AbstractType):
     def __init__(self, first_type: AbstractType, second_type: AbstractType):

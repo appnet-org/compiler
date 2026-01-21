@@ -77,6 +77,7 @@ class ArpcGenerator(Visitor):
             if consistency.name in ["strong", "weak"]:
                 raise NotImplementedError("strong and weak consistencies are not supported for aRPC yet")
             t = var.get_type()
+
             # struct declaration
             type_name_str = t.accept(ctx.type_name_generator)
             # TODO: define an optional type helper to simplify the code
@@ -85,7 +86,7 @@ class ArpcGenerator(Visitor):
                 ctx.global_var_dec.append(f"{var.name}_ok {type_name_str[1]}")
             else:
                 ctx.global_var_dec.append(f"{var.name} {type_name_str}")
-            ctx.global_var_dec.append(f"{var.name}_mu *sync.RWMutex")
+
             # struct initialization
             init_code = t.accept(ctx.type_init_generator)
             if isinstance(t, OptionalType):
@@ -93,6 +94,12 @@ class ArpcGenerator(Visitor):
                 ctx.global_var_init.append(f"{var.name}_ok: {init_code[1]},")
             else:
                 ctx.global_var_init.append(f"{var.name}: {init_code},")
+            
+            # if the global state is a map/vec, we need to create a mutex for it
+            # IR has a method "need_lock" to check if a type needs a lock
+            if t.need_lock():
+                ctx.global_var_dec.append(f"{var.name}_mu *sync.RWMutex")
+                ctx.global_var_init.append(f"{var.name}_mu: &sync.RWMutex{{}},")
     
     def visitProcedure(self, node: Procedure, ctx: ArpcContext):
         ctx.current_procedure = node.name
