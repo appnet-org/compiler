@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import os
 from copy import deepcopy
 from datetime import datetime
@@ -28,6 +29,7 @@ def scriptgen_grpc(
     app_name: str,
     _app_install_file: str,
     _app_edges: List[Tuple[str, str]],
+    args: argparse.Namespace,
 ):
     global local_gen_dir
     local_gen_dir = os.path.join(graph_base_dir, "generated")

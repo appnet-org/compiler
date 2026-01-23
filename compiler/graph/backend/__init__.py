@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import importlib
 import os
 from copy import deepcopy
@@ -94,6 +95,7 @@ def scriptgen(
     app_name: str,
     app_manifest_file: str,
     app_edges: list,
+    args: argparse.Namespace,
 ):
     """
     Call corresponding script generation procedure according to the backend name.
@@ -133,7 +135,7 @@ def scriptgen(
         if element_count[target] > 0:
             module = importlib.import_module(f"compiler.graph.backend.{target}")
             generator = getattr(module, f"scriptgen_{target}")
-            generator(girs, app_name, app_install_file, app_edges)
+            generator(girs, app_name, app_install_file, app_edges, args)
 
     app_yml_list = attach_volumes_and_adjust_replica(app_install_file)
 
