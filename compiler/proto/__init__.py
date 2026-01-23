@@ -5,7 +5,7 @@ from compiler.utils import strip
 
 ANNOTATION_HEADER = """
 import "google/protobuf/descriptor.proto";
-extend google.protobuf.MethodOptions {
+extend google.protobuf.FieldOptions {
     bool is_public = 50001;
 }
 """
