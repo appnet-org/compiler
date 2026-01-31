@@ -1,0 +1,133 @@
+app_name: echo
+# app_manifest: /users/starling/appnet/compiler/examples/applications/echo/echo.yaml
+app_manifest: /users/starling/appnet-compiler/examples/applications/echo/echo.yaml
+app_structure:
+- frontend->server
+edge:
+  frontend->server:
+  # - method: echo
+  #   name: fault
+  #   path: /users/starling/appnet/compiler/examples/elements/echo_elements/fault.appnet
+  #   position: client
+  #   proto: /users/starling/appnet/go-lib/sample/echo-pb/echo.proto
+  #   proto_mod_name: github.com/appnet-org/golib/sample/echo-pb
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   upgrade: true
+  #   envoy_native: false
+  #   processor:
+  #     - sidecar
+  # - method: echo
+  #   name: logging
+  #   path: /users/starling/appnet/compiler/examples/elements/echo_elements/logging.appnet
+  #   position: client
+  #   proto: /users/starling/appnet/go-lib/sample/echo-pb/echo.proto
+  #   proto_mod_name: github.com/appnet-org/golib/sample/echo-pb
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   upgrade: true
+  #   envoy_native: false
+  #   processor:
+  #     - sidecar
+  # - method: set
+  #   name: circuitbreaker
+  #   path: /users/starling/appnet-compiler/examples/elements/kv_elements/circuitbreaker.appnet
+  #   position: client
+  #   proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+  #   proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   processor:
+  #     - sidecar_arpc
+  # - method: set
+  #   name: bandwidthlimit
+  #   path: /users/starling/appnet-compiler/examples/elements/kv_elements/bandwidthlimit.appnet
+  #   position: client
+  #   proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+  #   proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   processor:
+  #     - sidecar_arpc 
+  # - method: set
+  #   name: admissioncontrol
+  #   path: /users/starling/appnet-compiler/examples/elements/kv_elements/admissioncontrol.appnet
+  #   position: client
+  #   proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+  #   proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   processor:
+  #     - sidecar_arpc 
+  # - method: set
+  #   name: metrics
+  #   path: /users/starling/appnet-compiler/examples/elements/kv_elements/metrics.appnet
+  #   position: client
+  #   proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+  #   proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   processor:
+  #     - sidecar_arpc 
+  # - method: set
+  #   name: mutation
+  #   path: /users/starling/appnet-compiler/examples/elements/kv_elements/mutation.appnet
+  #   position: client
+  #   proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+  #   proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   processor:
+  #     - sidecar_arpc 
+  # - method: set
+  #   name: lbsticky
+  #   path: /users/starling/appnet-compiler/examples/elements/kv_elements/lbsticky.appnet
+  #   position: client
+  #   proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+  #   proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   processor:
+  #     - sidecar_arpc 
+  # - method: set
+  #   name: ratelimit
+  #   path: /users/starling/appnet-compiler/examples/elements/kv_elements/ratelimit.appnet
+  #   position: client
+  #   proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+  #   proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   processor:
+  #     - sidecar_arpc 
+  # - method: set
+  #   name: fault
+  #   path: /users/starling/appnet-compiler/examples/elements/kv_elements/fault.appnet
+  #   position: client
+  #   proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+  #   proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   processor:
+  #     - sidecar_arpc 
+  - method: set
+    name: cache
+    path: /users/starling/appnet-compiler/examples/elements/kv_elements/cache.appnet
+    position: client
+    proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+    proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+    proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+    processor:
+      - sidecar_arpc 
+  # - method: set
+  #   name: logging
+  #   path: /users/starling/appnet-compiler/examples/elements/kv_elements/logging.appnet
+  #   position: client
+  #   proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+  #   proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   processor:
+  #     - sidecar_arpc 
+  # - method: set
+  #   name: firewall
+  #   path: /users/starling/appnet-compiler/examples/elements/kv_elements/firewall.appnet
+  #   position: client
+  #   proto: /users/starling/appnet-compiler/examples/proto/kv.proto
+  #   proto_mod_name: "github.com/appnet-org/arpc/benchmark/kv-store-symphony-element/symphony"
+  #   proto_mod_location: /users/starling/appnet/go-lib/sample/echo-pb
+  #   processor:
+  #     - sidecar_arpc
+transport:
+  frontend->server:
+  - method: echo
+    name: reliable
+link: {}

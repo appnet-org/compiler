@@ -6,8 +6,7 @@ init():
     set(firewall, 456, 'No')
  
 req(rpc):
-    score = get(rpc, 'score', 'int32')
-    match get(firewall, score):
+    match get(firewall, get(rpc, 'score')):
         Some(permission) =>
             match permission:
                 'Yes' =>

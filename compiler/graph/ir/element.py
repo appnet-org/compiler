@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional, Union
-
 from rich.panel import Panel
 
 from compiler.element import compile_element_property, ElementCompiler, consolidate
@@ -20,6 +20,20 @@ def fetch_global_id() -> str:
 
 
 class AbsElement:
+    """
+    Args:
+        info(dict): basic element information, including name, config, proto, method, etc.
+        proto_path(str): the path to the proto file
+        proto_mod_name(str): the name of the proto module
+        proto_mod_location(str): the location of the proto module
+        partner(str): the name of its partner, used for optimization
+        server(str): used for generating unique element name
+            consider "cache" on both A->B and A->C
+        initial_position(str): "client" or "server" or "ambient"
+        initial_target(str): "grpc" or ["sidecar", "ambient"] * ["wasm", "native"]
+        compile_dir(str): the directory where the compiled element code is stored
+        lib_name(str): the name of the library file
+    """
     def __init__(
         self,
         info: Union[Dict[str, Any], str],
@@ -28,15 +42,6 @@ class AbsElement:
         initial_position: str = "",
         initial_target: str = "",
     ):
-        """
-        Args:
-            info(dict): basic element information, including name, config, proto, method, etc.
-            partner(str): the name of its partner, used for optimization
-            server(str): used for generating unique element name
-                consider "cache" on both A->B and A->C
-            initial_position(str): "client" or "server" or "ambient"
-            initial_target(str): "grpc" or ["sidecar", "ambient"] * ["wasm", "native"]
-        """
         if info == "NETWORK" or info == "IPC":
             self.name = info
             self.position = info[0]
@@ -131,9 +136,10 @@ class AbsElement:
                 eirs.append(ElementCompiler().parse_and_transform(spec))
         self.ir = consolidate(eirs)
         # type inference
-        type_analyzer = TypeAnalyzer()
-        type_ctx = TypeContext(self.proto, self.method)
-        self.ir.accept(type_analyzer, type_ctx)
+        if os.getenv("ENABLE_TYPE_INFERENCE") is not None:
+            type_analyzer = TypeAnalyzer()
+            type_ctx = TypeContext(self.proto, self.method)
+            self.ir.accept(type_analyzer, type_ctx)
         # compile property
         self._prop = compile_element_property(self.name, self.path)
 

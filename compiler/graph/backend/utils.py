@@ -291,10 +291,20 @@ def kapply_and_sync(file_or_dir: str):
     ksync()
 
 
-def kdestroy():
+def kdestroy(istio_installed=False):
     """Destroy all deployments and waypoint proxies"""
-    execute_local(["istioctl", "experimental", "waypoint", "delete", "--all"])
-    execute_local(["kubectl", "delete", "envoyfilters,all,pvc,pv,pa", "--all"])
+    resource_types = ["all", "pvc", "pv"]
+    if istio_installed:
+        execute_local(["istioctl", "experimental", "waypoint", "delete", "--all"])
+        resource_types.extend(["envoyfilters", "pa"])
+    # Delete each resource type individually to handle missing CRDs gracefully
+    for resource_type in resource_types:
+        try:
+            execute_local(["kubectl", "delete", resource_type, "--all"])
+        except Exception:
+            # Resource type doesn't exist (e.g., envoyfilters CRD not installed), skip it
+            GRAPH_BACKEND_LOG.debug(f"Skipping deletion of {resource_type} (resource type not available)")
+            continue
 
 
 

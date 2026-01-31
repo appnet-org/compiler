@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import json
+import argparse
 import os
 from copy import deepcopy
-from pprint import pprint
 from typing import Dict, List, Tuple
 
 import yaml
@@ -236,6 +235,7 @@ def scriptgen_ambient(
     app_name: str,
     app_install_file: str,
     app_edges: List[Tuple[str, str]],
+    args: argparse.Namespace,
 ):
     global local_gen_dir, native_gen_dir, deploy_dir
     local_gen_dir = os.path.join(graph_base_dir, "generated")

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 from copy import deepcopy
@@ -21,6 +22,7 @@ def scriptgen_envoy(
     app_name: str,
     app_manifest_file: str,
     app_edges: List[Tuple[str, str]],
+    args: argparse.Namespace,
 ):
     global local_gen_dir
     local_gen_dir = os.path.join(graph_base_dir, "generated")

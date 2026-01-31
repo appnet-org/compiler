@@ -62,6 +62,12 @@ def parse_args():
         type=str,
         default="1",
     )
+    parser.add_argument(
+        "--arpc_stub_dir",
+        type=str,
+        help="(arpc only) serialization stub need to be compiled from the annotated proto file",
+        default=f"/users/{os.getenv('USER')}/compiler/compiler/experiments/arpc-sigcomm/kv-store-symphony/symphony"
+    )
     # Arguments for developers
     parser.add_argument(
         "-v",
@@ -311,7 +317,7 @@ def main(args):
             proto_obj = proto_dict[proto_path]
             for method, fields in accessed_fields.items():
                 proto_obj.extend_annotation(method, fields["request"], fields["response"])
-            proto_name = proto_path.split("/")[-1].replace(".proto", "") + "_arpc.proto"
+            proto_name = proto_path.split("/")[-1].replace(".proto", "") + "_" + gir.client + "-" + gir.server + "_arpc.proto"
             with open(os.path.join(gen_dir, proto_name), "w") as f:
                 f.write(proto_obj.export())
     
@@ -325,7 +331,7 @@ def main(args):
         generate_element_impl(graphirs, args.pseudo_impl)
         if not args.element_dry_run:
             # Step 3.2: Generate deployment scripts
-            scriptgen(graphirs, app_name, app_manifest_file, app_edges)
+            scriptgen(graphirs, app_name, app_manifest_file, app_edges, args)
 
     # Dump graphir summary (in yaml)
     graphir_summary = ""
