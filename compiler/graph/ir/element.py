@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List, Optional, Union
-
 from rich.panel import Panel
 
 from compiler.element import compile_element_property, ElementCompiler, consolidate
@@ -136,9 +136,10 @@ class AbsElement:
                 eirs.append(ElementCompiler().parse_and_transform(spec))
         self.ir = consolidate(eirs)
         # type inference
-        type_analyzer = TypeAnalyzer()
-        type_ctx = TypeContext(self.proto, self.method)
-        self.ir.accept(type_analyzer, type_ctx)
+        if os.getenv("ENABLE_TYPE_INFERENCE") is not None:
+            type_analyzer = TypeAnalyzer()
+            type_ctx = TypeContext(self.proto, self.method)
+            self.ir.accept(type_analyzer, type_ctx)
         # compile property
         self._prop = compile_element_property(self.name, self.path)
 
