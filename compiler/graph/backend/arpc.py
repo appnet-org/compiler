@@ -153,7 +153,7 @@ def scriptgen_arpc(
                         "go",
                         "build",
                         "-C",
-                        ARPC_PROXY_DIR,
+                        ARPC_PROXY_DIR, # the proxy core directory contains dependencies for the plugins
                         "-o",
                         plugin_output,
                         "-buildmode=plugin",

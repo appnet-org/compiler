@@ -10,6 +10,10 @@ extend google.protobuf.FieldOptions {
 }
 """
 
+def camel_to_snake(name: str) -> str:
+    # Insert an underscore before each uppercase letter and convert to lowercase
+    return "".join(["_" + i.lower() if i.isupper() else i for i in name]).lstrip("_")
+
 def find_closing_brace(proto_content: str, start_pos: int) -> int:
     brace_count = 1
     pos = start_pos
@@ -26,7 +30,7 @@ class ProtoMessageField:
     def __init__(self, content: str, added: bool = False):
         words = content.strip().split(" ")
         self._type = words[0]
-        self._name = words[1]
+        self._name = camel_to_snake(words[1])
         self._annotation_pkg = None
         self._added = added
     
