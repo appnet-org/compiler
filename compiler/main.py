@@ -269,6 +269,14 @@ def main(args):
     proto_dict: Dict[str, Proto] = {}
 
     # collect proto, apply static analysis to elements (type inference, property analysis, etc.) 
+    has_arpc = False
+    for gir in graphirs.values():
+        for element in gir.complete_chain():
+            if "sidecar_arpc" in element.processor:
+                has_arpc = True
+    if has_arpc:
+        os.environ["ENABLE_TYPE_INFERENCE"] = "1"
+
     for gir in graphirs.values():
         for element in gir.complete_chain():
             element.set_property_source(args.pseudo_property)
