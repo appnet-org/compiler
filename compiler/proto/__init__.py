@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from compiler.utils import strip
 
@@ -179,9 +179,9 @@ class ProtoService:
         proto_content += "}\n"
         return proto_content
     
-    def get_rpc_method(self, method_name: str) -> ProtoRpcMethod:
+    def get_rpc_method(self, method_name: str) -> Optional[ProtoRpcMethod]:
         if method_name not in self._rpc_methods:
-            raise ValueError(f"RPC method {method_name} not found")
+            return None
         return self._rpc_methods[method_name]
     
 
@@ -209,12 +209,13 @@ class Proto:
             message = ProtoMessage(proto_content[message_match.start():end_pos+1])
             self._messages[message.name] = message
 
-        # extract services 
+        # extract services
+        self._services: Dict[str, ProtoService] = {}
         service_matches = list(re.finditer(r"service\s+(\w+)\s+\{", proto_content))
-        if len(service_matches) != 1:
-            raise ValueError(f"There should be exactly one service in {proto_path}")
-        end_pos = find_closing_brace(proto_content, service_matches[0].end())
-        self._service = ProtoService(proto_content[service_matches[0].start():end_pos+1])
+        for service_match in service_matches:
+            end_pos = find_closing_brace(proto_content, service_match.end())
+            service = ProtoService(proto_content[service_match.start():end_pos+1])
+            self._services[service.name] = service
 
         # _annotation indicates whether the proto is extended with public annotations
         self._annotation = False
@@ -223,9 +224,9 @@ class Proto:
     def package_name(self) -> str:
         return self._package_name
     
-    @property
-    def service_name(self) -> str:
-        return self._service.name
+    # @property
+    # def service_name(self) -> str:
+    #     return self._service.name
     
     def extend_annotation(self, method_name: str, request_fields: List[str], response_fields: List[str]):
         if len(request_fields) + len(response_fields) > 0:
@@ -240,23 +241,24 @@ class Proto:
         proto_content += f"option go_package = \"./{self._package_name}\";\n"
         if self._annotation:
             proto_content += ANNOTATION_HEADER
-        proto_content += "\n" + self._service.export()
+        for service in self._services.values():
+            proto_content += "\n" + service.export()
         for message in self._messages.values():
             proto_content += "\n" + message.export()
         return proto_content
 
     def get_message(self, method: str, procedure: str) -> ProtoMessage:
-        rpc_method = self._service.get_rpc_method(method)
-        if rpc_method is None:
-            raise ValueError(f"RPC method {method} not found")
-        if procedure in ["req", "request"]:
-            msg_name = rpc_method.request_msg
-        elif procedure in ["resp", "response"]:
-            msg_name = rpc_method.response_msg
-        else:
-            raise ValueError(f"invalid procedure: {procedure}")
-        
-        return self._messages[msg_name]
+        for service in self._services.values():
+            rpc_method = service.get_rpc_method(method)
+            if rpc_method is not None:
+                if procedure in ["req", "request"]:
+                    msg_name = rpc_method.request_msg
+                elif procedure in ["resp", "response"]:
+                    msg_name = rpc_method.response_msg
+                else:
+                    raise ValueError(f"invalid procedure: {procedure}")
+                return self._messages[msg_name]
+        raise ValueError(f"RPC method {method} not found")
     
     def query_type(self, method: str, procedure: str, field_name: str) -> str:
         field_name = strip(field_name)
