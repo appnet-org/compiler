@@ -20,7 +20,9 @@ from compiler.graph.logger import GRAPH_BACKEND_LOG
 
 # Path to the arpc proxy module - plugins MUST be built from here
 # to ensure they use the exact same package versions as the proxy binary
-ARPC_PROXY_DIR = "/users/starling/arpc/cmd/proxy"
+username = os.getenv("USER")
+
+ARPC_PROXY_DIR = f"/users/{username}/arpc/cmd/proxy"
 
 
 def add_element_plugin_prefix_to_symphony_proxies(app_manifest_file: str) -> None:
