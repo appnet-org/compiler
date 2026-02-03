@@ -1,0 +1,169 @@
+
+syntax = "proto3";
+
+package hotel_reservation;
+option go_package = "./hotel_reservation";
+
+// -----------------Geo service-----------------
+
+service Geo {
+  // Finds the hotels contained nearby the current lat/lon.
+  rpc NearbyGeo(NearbyRequest) returns (NearbyResult);
+}
+
+// The latitude and longitude of the current location.
+message NearbyRequest {
+  float lat = 1;
+  float lon = 2;
+  string latstring = 3;
+}
+
+message NearbyResult {
+  repeated string hotelIds = 1;
+}
+
+// -----------------Profile service-----------------
+
+service Profile {
+  rpc GetProfiles(GetProfilesRequest) returns (GetProfilesResult);
+}
+
+message GetProfilesRequest {
+  repeated string hotelIds = 1;
+  string locale = 2;
+}
+
+message GetProfilesResult {
+  repeated Hotel hotels = 1;
+}
+
+message Hotel {
+  string id = 1;
+  string name = 2;
+  string phoneNumber = 3;
+  string description = 4;
+  Address address = 5;
+  repeated Image images = 6;
+}
+
+message Address {
+  string streetNumber = 1;
+  string streetName = 2;
+  string city = 3;
+  string state = 4;
+  string country = 5;
+  string postalCode = 6;
+  float lat = 7;
+  float lon = 8;
+}
+
+message Image {
+  string url = 1;
+  bool default = 2;
+}
+
+// -----------------Recommendation service-----------------
+
+service Recommendation {
+  // GetRecommendations returns recommended hotels for a given requirement
+  rpc GetRecommendations(GetRecommendationsRequest) returns (GetRecommendationsResult);
+}
+
+// The requirement of the recommendation.
+message GetRecommendationsRequest {
+  string require = 1;
+  double lat = 2;
+  double lon = 3;
+}
+
+message GetRecommendationsResult {
+  repeated string HotelIds = 1;
+}
+
+// -----------------Rate service-----------------
+
+service Rate {
+  // GetRates returns rate codes for hotels for a given date range
+  rpc GetRates(GetRatesRequest) returns (GetRatesResult);
+}
+
+message GetRatesRequest {
+  repeated string hotelIds = 1;
+  string inDate = 2;
+  string outDate = 3;
+}
+
+message GetRatesResult {
+  repeated RatePlan ratePlans = 1;
+}
+
+message RatePlan {
+  string hotelId = 1;
+  string code = 2;
+  string inDate = 3;
+  string outDate = 4;
+  RoomType roomType = 5;
+}
+
+message RoomType {
+  double bookableRate = 1;
+  double totalRate = 2;
+  double totalRateInclusive = 3;
+  string code = 4;
+  string currency = 5;
+  string roomDescription = 6;
+}
+
+// -----------------Reservation service-----------------
+
+service Reservation {
+  // MakeReservation makes a reservation based on given information
+  rpc MakeReservation(ReservationRequest) returns (ReservationResult);
+  // CheckAvailability checks if given information is available
+  rpc CheckAvailability(ReservationRequest) returns (ReservationResult);
+}
+
+message ReservationRequest {
+  string customerName = 1;
+  repeated string hotelId = 2;
+  string inDate = 3;
+  string outDate = 4;
+  int32  roomNumber = 5;
+}
+
+message ReservationResult {
+  repeated string hotelId = 1;
+}
+
+// -----------------Search service-----------------
+
+service Search {
+  rpc Nearby(SearchRequest) returns (SearchResult);
+}
+
+message SearchRequest {
+  float lat = 1;
+  float lon = 2;
+  string inDate = 3;
+  string outDate = 4;
+}
+
+message SearchResult {
+  repeated string hotelIds = 1;
+}
+
+// -----------------User service-----------------
+
+service User {
+  // CheckUser returns whether the username and password are correct
+  rpc CheckUser(CheckUserRequest) returns (CheckUserResult);
+}
+
+message CheckUserRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message CheckUserResult {
+  bool correct = 1;
+}
